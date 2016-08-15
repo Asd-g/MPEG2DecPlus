@@ -47,19 +47,19 @@ _MMX = 1
 
 .586
 
-if @version GE 612
+; if @version GE 612
 .mmx
-mmword  TEXTEQU <QWORD>
-else
-include IAMMX.INC
-endif
+; mmword  TEXTEQU <QWORD>
+; else
+; include IAMMX.INC
+; endif
 
-if @version GE 614
+; if @version GE 614
 .xmm
-mm2word TEXTEQU <QWORD>         ; needed for Streaming SIMD Extensions macros
-else
-include iaxmm.inc               ; Streaming SIMD Extensions Emulator Macros
-endif
+; mm2word TEXTEQU <QWORD>         ; needed for Streaming SIMD Extensions macros
+; else
+; include iaxmm.inc               ; Streaming SIMD Extensions Emulator Macros
+; endif
 
     .list
     .model flat
@@ -846,26 +846,26 @@ _TEXT ENDS
 
 DCT_8_INV_ROW_1_s2 MACRO INP:REQ, OUT:REQ, TABLE:REQ, ROUNDER:REQ
 
-pshufhw     xmm1,[INP],11011000b    ;x 75643210
+pshufhw     xmm1, xmmword ptr [INP],11011000b    ;x 75643210
 pshuflw     xmm1,xmm1,11011000b ;x 75643120
 pshufd      xmm0,xmm1,00000000b ;x 20202020
-pmaddwd     xmm0,[TABLE]        ;w 13 12 9 8 5410
+pmaddwd     xmm0, xmmword ptr [TABLE]        ;w 13 12 9 8 5410
                             ;a 3210 first part
 
 pshufd      xmm2,xmm1,10101010b ;x 64646464
-pmaddwd     xmm2,[TABLE+16]     ;w 15 14 11 10 7632
+pmaddwd     xmm2, xmmword ptr [TABLE+16]     ;w 15 14 11 10 7632
                             ;a 3210 second part
 
 paddd           xmm2,xmm0           ;a 3210 ready
-paddd           xmm2,[ROUNDER]      ;must be 4 dwords long, not 2 as for sse1
+paddd           xmm2, xmmword ptr [ROUNDER]      ;must be 4 dwords long, not 2 as for sse1
 movdqa      xmm5,xmm2
 
 pshufd      xmm3,xmm1,01010101b ;x 31313131
-pmaddwd     xmm3,[TABLE+32]     ;w 29 28 25 24 21 20 17 16
+pmaddwd     xmm3, xmmword ptr [TABLE+32]     ;w 29 28 25 24 21 20 17 16
                             ;b 3210 first part
 
 pshufd      xmm4,xmm1,11111111b ;x 75757575
-pmaddwd     xmm4,[TABLE+48]     ;w 31 30 27 26 23 22 19 18
+pmaddwd     xmm4, xmmword ptr [TABLE+48]     ;w 31 30 27 26 23 22 19 18
                             ;b 3210 second part
 paddd           xmm3,xmm4           ;b 3210 ready
 
@@ -878,20 +878,20 @@ psrad           xmm5,SHIFT_INV_ROW
 packssdw        xmm2,xmm5;          ;y 45673210
 pshufhw     xmm6,xmm2,00011011b ;y 76543210
 
-movdqa      [OUT],xmm6
+movdqa      xmmword ptr [OUT],xmm6
 
 ENDM
 
 ; %macro DCT_8_INV_COL_4_sse2          2
 DCT_8_INV_COL_4_s2 MACRO INP:REQ, OUT:REQ
 
-        movdqa          xmm0,[INP+16*0]          ;x0 (all columns)
-        movdqa          xmm2,[INP+16*4]          ;x4
+        movdqa          xmm0, xmmword ptr [INP+16*0]          ;x0 (all columns)
+        movdqa          xmm2, xmmword ptr [INP+16*4]          ;x4
         movdqa          xmm1,xmm0
 
-        movdqa          xmm4,[INP+16*2]          ;x2
-        movdqa          xmm5,[INP+16*6]          ;x6
-        movdqa          xmm6,[tg_2_16_2]
+        movdqa          xmm4, xmmword ptr [INP+16*2]          ;x2
+        movdqa          xmm5, xmmword ptr [INP+16*6]          ;x6
+        movdqa          xmm6, xmmword ptr [tg_2_16_2]
         movdqa          xmm7,xmm6
 
         paddsw          xmm0,xmm2                       ;u04=x0+x4
@@ -909,19 +909,19 @@ DCT_8_INV_COL_4_s2 MACRO INP:REQ, OUT:REQ
         psubsw          xmm2,xmm6                       ;a2=v04-v26
         psubsw          xmm3,xmm7                       ;a3=u04-u26
 
-        movdqa          [OUT+16*0],xmm0          ;store a3-a0 to
-        movdqa          [OUT+16*6],xmm1          ;free registers
-        movdqa          [OUT+16*2],xmm2
-        movdqa          [OUT+16*4],xmm3
+        movdqa          xmmword ptr [OUT+16*0],xmm0          ;store a3-a0 to
+        movdqa          xmmword ptr [OUT+16*6],xmm1          ;free registers
+        movdqa          xmmword ptr [OUT+16*2],xmm2
+        movdqa          xmmword ptr [OUT+16*4],xmm3
 
-        movdqa          xmm0,[INP+16*1]          ;x1
-        movdqa          xmm1,[INP+16*7]          ;x7
-        movdqa          xmm2,[tg_1_16_2]
+        movdqa          xmm0, xmmword ptr [INP+16*1]          ;x1
+        movdqa          xmm1, xmmword ptr [INP+16*7]          ;x7
+        movdqa          xmm2, xmmword ptr [tg_1_16_2]
         movdqa          xmm3,xmm2
 
-        movdqa          xmm4,[INP+16*3]          ;x3
-        movdqa          xmm5,[INP+16*5]          ;x5
-        movdqa          xmm6,[tg_3_16_2]
+        movdqa          xmm4, xmmword ptr [INP+16*3]          ;x3
+        movdqa          xmm5, xmmword ptr [INP+16*5]          ;x5
+        movdqa          xmm6, xmmword ptr [tg_3_16_2]
         movdqa          xmm7,xmm6
 
         pmulhw          xmm2,xmm0
@@ -938,7 +938,7 @@ DCT_8_INV_COL_4_s2 MACRO INP:REQ, OUT:REQ
         psubsw          xmm6,xmm5                       ;v35=x3*T3-x5
         paddsw          xmm7,xmm4                       ;u35=x5*T3+x3
 
-        movdqa          xmm4,[ocos_4_16_2]
+        movdqa          xmm4, xmmword ptr [ocos_4_16_2]
 
         paddsw          xmm0,xmm7                       ;b0=u17+u35
         psubsw          xmm1,xmm6                       ;b3=v17-v35
@@ -953,41 +953,41 @@ DCT_8_INV_COL_4_s2 MACRO INP:REQ, OUT:REQ
         paddsw          xmm5,xmm5
         paddsw          xmm4,xmm4
 
-        movdqa          xmm6,[OUT+16*0]          ;a0
+        movdqa          xmm6, xmmword ptr [OUT+16*0]          ;a0
         movdqa          xmm7,xmm6
         paddsw          xmm6,xmm0
         psubsw          xmm7,xmm0
         psraw           xmm6,SHIFT_INV_COL      ;y0=a0+b0
         psraw           xmm7,SHIFT_INV_COL      ;y7=a0-b0
-        movdqa          [OUT+16*0],xmm6
-        movdqa          [OUT+16*7],xmm7
+        movdqa          xmmword ptr [OUT+16*0],xmm6
+        movdqa          xmmword ptr [OUT+16*7],xmm7
 
-        movdqa          xmm2,[OUT+16*4]          ;a3
+        movdqa          xmm2, xmmword ptr [OUT+16*4]          ;a3
         movdqa          xmm3,xmm2
         paddsw          xmm2,xmm1
         psubsw          xmm3,xmm1
         psraw           xmm2,SHIFT_INV_COL      ;y3=a3+b3
         psraw           xmm3,SHIFT_INV_COL      ;y4=a3-b3
-        movdqa          [OUT+16*3],xmm2
-        movdqa          [OUT+16*4],xmm3
+        movdqa          xmmword ptr [OUT+16*3],xmm2
+        movdqa          xmmword ptr [OUT+16*4],xmm3
 
-        movdqa          xmm0,[OUT+16*6]          ;a1
+        movdqa          xmm0, xmmword ptr [OUT+16*6]          ;a1
         movdqa          xmm1,xmm0
         paddsw          xmm0,xmm4
         psubsw          xmm1,xmm4
         psraw           xmm0,SHIFT_INV_COL      ;y1=a1+b1
         psraw           xmm1,SHIFT_INV_COL      ;y6=a1-b1
-        movdqa          [OUT+16*1],xmm0
-        movdqa          [OUT+16*6],xmm1
+        movdqa          xmmword ptr [OUT+16*1],xmm0
+        movdqa          xmmword ptr [OUT+16*6],xmm1
 
-        movdqa          xmm6,[OUT+16*2]          ;a2
+        movdqa          xmm6, xmmword ptr [OUT+16*2]          ;a2
         movdqa          xmm7,xmm6
         paddsw          xmm6,xmm5
         psubsw          xmm7,xmm5
         psraw           xmm6,SHIFT_INV_COL      ;y2=a2+b2
         psraw           xmm7,SHIFT_INV_COL      ;y5=a2-b2
-        movdqa          [OUT+16*2],xmm6
-        movdqa          [OUT+16*5],xmm7
+        movdqa          xmmword ptr [OUT+16*2],xmm6
+        movdqa          xmmword ptr [OUT+16*5],xmm7
 
 ENDM
 ;%endmacro
