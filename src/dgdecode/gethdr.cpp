@@ -425,6 +425,16 @@ void CMPEG2Decoder::picture_coding_extension()
     progressive_frame          = Get_Bits(1);
     composite_display_flag     = Get_Bits(1);
 
+    if (picture_structure != FRAME_PICTURE)
+    {
+        if (picture_structure == TOP_FIELD)
+            top_field_first = 1;
+        else
+            top_field_first = 0;
+        repeat_first_field = 0;
+        progressive_frame  = 0;
+    }
+
     pf_current = progressive_frame;
 
     if (composite_display_flag)
