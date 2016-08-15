@@ -13,9 +13,9 @@
 ;
 ; http://www.elecard.com/peter/idct.html
 ; http://www.linuxvideo.org/mpeg2dec/
-
 ;
 
+;
 ; SSE2 code by Dmitry Rozhdestvensky
 ;
 ;=============================================================================
@@ -24,6 +24,8 @@
 ; (for rows) and first stage DCT 8x8 (for columns)
 ;
 ;=============================================================================
+;
+
 mword   typedef qword
 mptr    equ mword ptr
 
@@ -683,205 +685,108 @@ DCT_8_INV_COL_4 MACRO INP:REQ, OUT:REQ
     movq    mmword ptr [OUT+4*16], mm6
 ENDM
 
-
 ;_DATA SEGMENT PARA PUBLIC USE32 'DATA'
-
-
 
 ; Table for rows 0,4 - constants are multiplied by cos_4_16
 
-
-
 tab_i_04_s2 sword 16384, 21407, 16384, 8867 ; movq-> w05 w04 w01 w00
-
         sword 16384, -8867, 16384, -21407 ; w13 w12 w09 w08
-
         sword 16384, 8867, -16384, -21407 ; w07 w06 w03 w02
-
         sword -16384, 21407, 16384, -8867 ; w15 w14 w11 w10
-
         sword 22725, 19266, 19266, -4520 ; w21 w20 w17 w16
-
         sword 12873, -22725, 4520, -12873 ; w29 w28 w25 w24
-
         sword 12873, 4520, -22725, -12873 ; w23 w22 w19 w18
-
         sword 4520, 19266, 19266, -22725 ; w31 w30 w27 w26
-
-
 
 ; Table for rows 1,7 - constants are multiplied by cos_1_16
 
-
-
 tab_i_17_s2 sword 22725, 29692, 22725, 12299 ; movq-> w05 w04 w01 w00
-
         sword 22725, -12299, 22725, -29692 ; w13 w12 w09 w08
-
         sword 22725, 12299, -22725, -29692 ; w07 w06 w03 w02
-
         sword -22725, 29692, 22725, -12299 ; w15 w14 w11 w10
-
         sword 31521, 26722, 26722, -6270 ; w21 w20 w17 w16
-
         sword 17855, -31521, 6270, -17855 ; w29 w28 w25 w24
-
         sword 17855, 6270, -31521, -17855 ; w23 w22 w19 w18
-
         sword 6270, 26722, 26722, -31521 ; w31 w30 w27 w26
-
-
 
 ; Table for rows 2,6 - constants are multiplied by cos_2_16
 
-
-
 tab_i_26_s2 sword 21407, 27969, 21407, 11585 ; movq-> w05 w04 w01 w00
-
         sword 21407, -11585, 21407, -27969 ; w13 w12 w09 w08
-
         sword 21407, 11585, -21407, -27969 ; w07 w06 w03 w02
-
         sword -21407, 27969, 21407, -11585 ; w15 w14 w11 w10
-
         sword 29692, 25172, 25172, -5906 ; w21 w20 w17 w16
-
         sword 16819, -29692, 5906, -16819 ; w29 w28 w25 w24
-
         sword 16819, 5906, -29692, -16819 ; w23 w22 w19 w18
-
         sword 5906, 25172, 25172, -29692 ; w31 w30 w27 w26
-
-
 
 ; Table for rows 3,5 - constants are multiplied by cos_3_16
 
-
-
 tab_i_35_s2 sword 19266, 25172, 19266, 10426 ; movq-> w05 w04 w01 w00
-
         sword 19266, -10426, 19266, -25172 ; w13 w12 w09 w08
-
         sword 19266, 10426, -19266, -25172 ; w07 w06 w03 w02
-
         sword -19266, 25172, 19266, -10426 ; w15 w14 w11 w10
-
         sword 26722, 22654, 22654, -5315 ; w21 w20 w17 w16
-
         sword 15137, -26722, 5315, -15137 ; w29 w28 w25 w24
-
         sword 15137, 5315, -26722, -15137 ; w23 w22 w19 w18
-
         sword 5315, 22654, 22654, -26722 ; w31 w30 w27 w26
 
 ;-----------------------------------------------------------------------------
 
 ; assume SHIFT_INV_ROW == 12
-
 ;rounder_2_0    dword  65536, 65536
-
 ;           dword  65536, 65536
-
 ;rounder_2_4      dword      0,     0
-
 ;           dword      0,     0
-
 ;rounder_2_1      dword   7195,  7195
-
 ;           dword   7195,  7195
-
 ;rounder_2_7    dword   1024,  1024
-
 ;           dword   1024,  1024
-
 ;rounder_2_2    dword   4520,  4520
-
 ;           dword   4520,  4520
-
 ;rounder_2_6    dword   1024,  1024
-
 ;           dword   1024,  1024
-
 ;rounder_2_3    dword   2407,  2407
-
 ;           dword   2407,  2407
-
 ;rounder_2_5    dword    240,   240
-
 ;           dword    240,   240
 
-
-
 ; assume SHIFT_INV_ROW == 11
-
 rounder_2_0     dword  65536, 65536
-
             dword  65536, 65536
-
 rounder_2_4       dword      0,     0
-
             dword      0,     0
-
 rounder_2_1       dword   3597,  3597
-
             dword   3597,  3597
-
 rounder_2_7     dword    512,   512
-
             dword    512,   512
-
 rounder_2_2     dword   2260,  2260
-
             dword   2260,  2260
-
 rounder_2_6     dword    512,   512
-
             dword    512,   512
-
 rounder_2_3     dword   1203,  1203
-
             dword   1203,  1203
-
 rounder_2_5     dword    120,   120
-
             dword    120,   120
-
-
 
 ;-----------------------------------------------------------------------------
 
-
-
   tg_1_16_2 sword  13036,  13036,  13036,  13036    ; tg * (2<<16) + 0.5
-
         sword  13036,  13036,  13036,  13036
-
   tg_2_16_2 sword  27146,  27146,  27146,  27146    ; tg * (2<<16) + 0.5
-
         sword  27146,  27146,  27146,  27146
-
   tg_3_16_2 sword -21746, -21746, -21746, -21746    ; tg * (2<<16) + 0.5
-
         sword -21746, -21746, -21746, -21746
-
 ocos_4_16_2 sword  23170,  23170,  23170,  23170    ; cos * (2<<15) + 0.5
-
         sword  23170,  23170,  23170,  23170
 
-
-
 _DATA ENDS
-
 _TEXT SEGMENT PARA PUBLIC USE32 'CODE'
 
-
 ;
-
 ; extern "C" __fastcall void idct8x8_mmx (short *src_result);
-
 ;
 public  @MMX_IDCT@4
-
 
 @MMX_IDCT@4 proc near
 
@@ -935,92 +840,45 @@ _TEXT ENDS
 
 ;END
 
-
-
 ;=============================================================================
-
 ; code for Pentium IV
-
 ;=============================================================================
-
-
-
-
-;-----------------------------------------------------------------------------
-
-
 
 DCT_8_INV_ROW_1_s2 MACRO INP:REQ, OUT:REQ, TABLE:REQ, ROUNDER:REQ
 
-
-
 pshufhw     xmm1,[INP],11011000b    ;x 75643210
-
 pshuflw     xmm1,xmm1,11011000b ;x 75643120
-
 pshufd      xmm0,xmm1,00000000b ;x 20202020
-
 pmaddwd     xmm0,[TABLE]        ;w 13 12 9 8 5410
-
                             ;a 3210 first part
 
-
-
 pshufd      xmm2,xmm1,10101010b ;x 64646464
-
 pmaddwd     xmm2,[TABLE+16]     ;w 15 14 11 10 7632
-
                             ;a 3210 second part
 
-
-
 paddd           xmm2,xmm0           ;a 3210 ready
-
 paddd           xmm2,[ROUNDER]      ;must be 4 dwords long, not 2 as for sse1
-
 movdqa      xmm5,xmm2
 
-
-
 pshufd      xmm3,xmm1,01010101b ;x 31313131
-
 pmaddwd     xmm3,[TABLE+32]     ;w 29 28 25 24 21 20 17 16
-
                             ;b 3210 first part
 
-
-
 pshufd      xmm4,xmm1,11111111b ;x 75757575
-
 pmaddwd     xmm4,[TABLE+48]     ;w 31 30 27 26 23 22 19 18
-
                             ;b 3210 second part
-
 paddd           xmm3,xmm4           ;b 3210 ready
 
-
-
 paddd           xmm2,xmm3           ;will be y 3210
-
 psubd           xmm5,xmm3           ;will be y 4567
 
-
-
 psrad           xmm2,SHIFT_INV_ROW
-
 psrad           xmm5,SHIFT_INV_ROW
 
-
-
 packssdw        xmm2,xmm5;          ;y 45673210
-
 pshufhw     xmm6,xmm2,00011011b ;y 76543210
 
-
-
 movdqa      [OUT],xmm6
-
-
 
 ENDM
 
@@ -1247,21 +1105,13 @@ movdqa      [OUT+16*5],xmm7
 
 ENDM
 
-
-
 _TEXT SEGMENT PARA PUBLIC USE32 'CODE'
 
-
-
 ;
-
 ; extern "C" __fastcall void idct8x8_sse2 (short *src_result);
-
 ;
 
 public  @SSE2MMX_IDCT@4
-
-
 
 @SSE2MMX_IDCT@4 proc near
 
@@ -1280,20 +1130,12 @@ public  @SSE2MMX_IDCT@4
 
     ret
 
-
-
 @SSE2MMX_IDCT@4 ENDP
-
-
 
 ; public  @IDCT_CONST_PREFETCH@4
 public  @IDCT_CONST_PREFETCH@0
 
-
-
 @IDCT_CONST_PREFETCH@0 proc near
-
-
 
 ;   mov eax, tab_i_04_s2
     lea eax, tab_i_04_s2
@@ -1301,9 +1143,7 @@ public  @IDCT_CONST_PREFETCH@0
     prefetchnta [eax]
 
     prefetchnta [eax+64]    ;tab_i_17_s2
-
     prefetchnta [eax+128]   ;tab_i_26_s2
-
     prefetchnta [eax+192]   ;tab_i_35_s2
 
 ;   mov eax,rounder_2_0
@@ -1317,17 +1157,8 @@ public  @IDCT_CONST_PREFETCH@0
     prefetchnta [eax]
     ret
 
-
 @IDCT_CONST_PREFETCH@0 ENDP
 
-
-
-
-
-
-
 _TEXT ENDS
-
-
 
 END
