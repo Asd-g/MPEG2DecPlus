@@ -45,13 +45,15 @@
 #define MPEG2DEC_API __declspec(dllimport)
 #endif
 
-#include <windows.h>
+#include <avisynth.h>
+#include <avs/win.h>
+#include <avs/minmax.h>
 #include <winreg.h>
 #include <stdio.h>
 #include <io.h>
 #include <fcntl.h>
 #include "misc.h"
-#include "avisynth2.h"
+
 
 #ifdef GLOBAL
 #define XTN

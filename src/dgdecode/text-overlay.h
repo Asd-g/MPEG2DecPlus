@@ -43,13 +43,12 @@
 //#include "internal.h"
 //#include "convert.h"
 
-#include <windows.h>
-#include "avisynth2.h"
-
+#include <avisynth.h>
+#include <avs/win.h>
 
 // copy and pasted from internal.h
 
-struct AVSFunction {
+class AVSFunction {
   const char* name;
   const char* param_types;
   AVSValue (__cdecl *apply)(AVSValue args, void* user_data, IScriptEnvironment* env);

@@ -1,11 +1,7 @@
 #ifndef _POSTPROCESS_H
 #define _POSTPROCESS_H
 
-#ifndef INLINE
-#ifdef WIN32
-  #define INLINE  __inline
-#endif
-#endif
+#include <cstdint>
 
 #define DEC_MBC         45+300
 #define DEC_MBR         36+300
@@ -21,20 +17,9 @@
                                     /* instead, it will operate on dst only   */
 
 /******************* general, useful macros ****************/
-#define ABS(a)     ( (a)>0 ? (a) : -(a) )
 #define SIGN(a)    ( (a)<0 ? -1 : 1 )
-#define MIN(a, b)  ( (a)<(b) ? (a) : (b) )
-#define MAX(a, b)  ( (a)>(b) ? (a) : (b) )
 
-#define int8_t char
-#define uint8_t unsigned char
-#define int16_t short
-#define uint16_t unsigned short
-#define int32_t int
-#define uint32_t unsigned int
-#define int64_t __int64
-#define uint64_t unsigned __int64
-#define QP_STORE_T int
+typedef int QP_STORE_T;
 
 /******************** component function prototypes **************/
 int deblock_horiz_useDC(uint8_t *v, int stride, int moderate_h);

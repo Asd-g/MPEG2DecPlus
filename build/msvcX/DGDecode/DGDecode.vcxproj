@@ -14,6 +14,7 @@
     <ProjectGuid>{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>DGDecode</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="$(ProjectDir)..\msvcX.props" />
@@ -27,6 +28,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -69,10 +71,11 @@
       <PrecompiledHeader>
       </PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;DGDECODE_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\..\src\dgdecode</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\my_projects\AviSynthPlus\avs_core\include;..\..\..\src\dgdecode</AdditionalIncludeDirectories>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -105,7 +108,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\PostProcess.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\dgdecode\avisynth2.h" />
     <ClInclude Include="..\..\..\src\dgdecode\global.h" />
     <ClInclude Include="..\..\..\src\dgdecode\resource.h" />
     <ClInclude Include="..\..\..\src\dgdecode\skl_nasm.h" />
@@ -132,7 +134,7 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ml /c /coff /Cx /nologo /Fo $(IntDir)%(Filename).obj %(FullPath)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ml /c /coff /Cx /nologo /Fo $(IntDir)%(Filename).obj %(FullPath)
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ml6 /c /coff /Cx /nologo /Fo $(IntDir)%(Filename).obj %(FullPath)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
     </CustomBuild>

@@ -1,8 +1,10 @@
 #include <malloc.h>
 #include <string.h>
 #include <stdio.h>
+#include <algorithm>
 
 #include "PostProcess.h"
+
 
 //#define DEBUGMODE
 //#define SELFCHECK
@@ -14,6 +16,9 @@
 #define PREFETCH_ENABLE
 #endif
 
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
 #include <windows.h>
 #include <stdarg.h>
 
@@ -400,23 +405,23 @@ void deblock_horiz(uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 }
 
 /* decide whether the DC filter should be turned on accoding to QP */
-INLINE int deblock_horiz_DC_on(uint8_t *v, int stride, int QP)
+inline int deblock_horiz_DC_on(uint8_t *v, int stride, int QP)
 {
     /* 99% of the time, this test turns out the same as the |max-min| strategy in the standard */
     for (int i=0; i<4; ++i)
     {
-        if (ABS(v[0]-v[5]) >= 2*QP) return false;
-        if (ABS(v[1]-v[8]) >= 2*QP) return false;
-        if (ABS(v[1]-v[4]) >= 2*QP) return false;
-        if (ABS(v[2]-v[7]) >= 2*QP) return false;
-        if (ABS(v[3]-v[6]) >= 2*QP) return false;
+        if (std::abs(v[0]-v[5]) >= 2*QP) return false;
+        if (std::abs(v[1]-v[8]) >= 2*QP) return false;
+        if (std::abs(v[1]-v[4]) >= 2*QP) return false;
+        if (std::abs(v[2]-v[7]) >= 2*QP) return false;
+        if (std::abs(v[3]-v[6]) >= 2*QP) return false;
         v += stride;
     }
     return true;
 }
 
 /* horizontal deblocking filter used in default (non-DC) mode */
-INLINE void deblock_horiz_default_filter(uint8_t *v, int stride, int QP)
+inline void deblock_horiz_default_filter(uint8_t *v, int stride, int QP)
 {
     int a3_0, a3_1, a3_2, d;
     int q1, q;
@@ -434,14 +439,14 @@ INLINE void deblock_horiz_default_filter(uint8_t *v, int stride, int QP)
             a3_0 = 2*(v[3]-v[6]) - a3_0;
 
             /* apply the 'delta' function first and check there is a difference to avoid wasting time */
-            if (ABS(a3_0) < 8*QP) {
+            if (std::abs(a3_0) < 8*QP) {
                 a3_1  = v[3]-v[2];
                 a3_2  = v[7]-v[8];
                 a3_1 += a3_1 << 2;
                 a3_2 += a3_2 << 2;
                 a3_1 += (v[1]-v[4]) << 1;
                 a3_2 += (v[5]-v[8]) << 1;
-                d = ABS(a3_0) - MIN(ABS(a3_1), ABS(a3_2));
+                d = std::abs(a3_0) - std::min(std::abs(a3_1), std::abs(a3_2));
 
                 if (d > 0) { /* energy across boundary is greater than in one or both of the blocks */
                     d += d<<2;
@@ -501,7 +506,7 @@ static uint8_t *pmm1;
 
 /* The 9-tap low pass filter used in "DC" regions */
 /* I'm not sure that I like this implementation any more...! */
-INLINE void deblock_horiz_lpf9(uint8_t *v, int stride, int QP)
+inline void deblock_horiz_lpf9(uint8_t *v, int stride, int QP)
 {
     int y, p1, p2;
 
@@ -514,8 +519,8 @@ INLINE void deblock_horiz_lpf9(uint8_t *v, int stride, int QP)
 
     for (y=0; y<4; y++)
     {
-        p1 = (ABS(v[0+y*stride]-v[1+y*stride]) < QP ) ?  v[0+y*stride] : v[1+y*stride];
-        p2 = (ABS(v[8+y*stride]-v[9+y*stride]) < QP ) ?  v[9+y*stride] : v[8+y*stride];
+        p1 = (std::abs(v[0+y*stride]-v[1+y*stride]) < QP ) ?  v[0+y*stride] : v[1+y*stride];
+        p2 = (std::abs(v[8+y*stride]-v[9+y*stride]) < QP ) ?  v[9+y*stride] : v[8+y*stride];
 
         mm32_p1p2 = 0x0101 * ((p2 << 16) + p1);
 
@@ -715,7 +720,7 @@ INLINE void deblock_horiz_lpf9(uint8_t *v, int stride, int QP)
 }
 
 /* decide DC mode or default mode for the horizontal filter */
-INLINE int deblock_horiz_useDC(uint8_t *v, int stride, int moderate_h)
+inline int deblock_horiz_useDC(uint8_t *v, int stride, int moderate_h)
 {
     const uint64_t mm64_mask   = 0x00fefefefefefefe;
     uint32_t mm32_result;
@@ -836,7 +841,7 @@ INLINE int deblock_horiz_useDC(uint8_t *v, int stride, int moderate_h)
     {
         for (j=1; j<=7; j++)
         {
-            if (ABS(v[j+k*stride]-v[1+j+k*stride]) <= 1) eq_cnt2++;
+            if (std::abs(v[j+k*stride]-v[1+j+k*stride]) <= 1) eq_cnt2++;
         }
     }
     if (eq_cnt2 != eq_cnt)
@@ -976,7 +981,7 @@ void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 
 /* This function chooses the "endstops" for the vertial LPF9 filter: p1 and p2 */
 /* We also convert these to 16-bit values here */
-INLINE void deblock_vert_choose_p1p2(uint8_t *v, int stride, uint64_t *p1p2, int QP)
+inline void deblock_vert_choose_p1p2(uint8_t *v, int stride, uint64_t *p1p2, int QP)
 {
     uint64_t *pmm1, *pmm2;
     uint64_t mm_b_qp;
@@ -1071,7 +1076,7 @@ INLINE void deblock_vert_choose_p1p2(uint8_t *v, int stride, uint64_t *p1p2, int
     /* p2 */
     for (i=0; i<8; i++)
     {
-        if ( ((ABS(v[9*stride+i] - v[8*stride+i]) - QP > 0) ? v[8*stride+i] : v[9*stride+i])
+        if ( ((std::abs(v[9*stride+i] - v[8*stride+i]) - QP > 0) ? v[8*stride+i] : v[9*stride+i])
              != ((uint16_t *)(&(p1p2[2])))[i] )
         {
             dprintf("ERROR: problem with P2\n");
@@ -1081,7 +1086,7 @@ INLINE void deblock_vert_choose_p1p2(uint8_t *v, int stride, uint64_t *p1p2, int
     /* p1 */
     for (i=0; i<8; i++)
     {
-        if ( ((ABS(v[0*stride+i] - v[1*stride+i]) - QP > 0) ? v[1*stride+i] : v[0*stride+i])
+        if ( ((std::abs(v[0*stride+i] - v[1*stride+i]) - QP > 0) ? v[1*stride+i] : v[0*stride+i])
              != ((uint16_t *)(&(p1p2[0])))[i] )
         {
             dprintf("ERROR: problem with P1\n");
@@ -1093,7 +1098,7 @@ INLINE void deblock_vert_choose_p1p2(uint8_t *v, int stride, uint64_t *p1p2, int
 
 /* function using MMX to copy an 8-pixel wide column and unpack to 16-bit values */
 /* n is the number of rows to copy - this muxt be even */
-INLINE void deblock_vert_copy_and_unpack(int stride, uint8_t *source, uint64_t *dest, int n)
+inline void deblock_vert_copy_and_unpack(int stride, uint8_t *source, uint64_t *dest, int n)
 {
     uint64_t *pmm1 = (uint64_t *)source;
     uint64_t *pmm2 = (uint64_t *)dest;
@@ -1169,22 +1174,22 @@ INLINE void deblock_vert_copy_and_unpack(int stride, uint8_t *source, uint64_t *
 }
 
 /* decide whether the DC filter should be turned on accoding to QP */
-INLINE int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
+inline int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
 {
     for (int i=0; i<8; ++i)
     {
-        if (ABS(v[i+0*stride]-v[i+5*stride]) >= 2*QP) return false;
-        if (ABS(v[i+1*stride]-v[i+4*stride]) >= 2*QP) return false;
-        if (ABS(v[i+1*stride]-v[i+8*stride]) >= 2*QP) return false;
-        if (ABS(v[i+2*stride]-v[i+7*stride]) >= 2*QP) return false;
-        if (ABS(v[i+3*stride]-v[i+6*stride]) >= 2*QP) return false;
+        if (std::abs(v[i+0*stride]-v[i+5*stride]) >= 2*QP) return false;
+        if (std::abs(v[i+1*stride]-v[i+4*stride]) >= 2*QP) return false;
+        if (std::abs(v[i+1*stride]-v[i+8*stride]) >= 2*QP) return false;
+        if (std::abs(v[i+2*stride]-v[i+7*stride]) >= 2*QP) return false;
+        if (std::abs(v[i+3*stride]-v[i+6*stride]) >= 2*QP) return false;
     }
     return true;
 }
 
 #if 0
 // This older method produces artifacts.
-INLINE int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
+inline int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
 {
     uint64_t QP_x_2;
     uint8_t *ptr1;
@@ -1202,7 +1207,7 @@ INLINE int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
     DC_on2 = 1;
     for (i=0; i<8; i++)
     {
-        if (ABS(v[i+1*stride]-v[i+8*stride]) > 2 *QP) DC_on2 = 0;
+        if (std::abs(v[i+1*stride]-v[i+8*stride]) > 2 *QP) DC_on2 = 0;
     }
 #endif
 
@@ -1249,7 +1254,7 @@ INLINE int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
 #endif
 
 /* Vertical deblocking filter for use in non-flat picture regions */
-INLINE void deblock_vert_default_filter(uint8_t *v, int stride, int QP)
+inline void deblock_vert_default_filter(uint8_t *v, int stride, int QP)
 {
     uint64_t *pmm1;
     const uint64_t mm_0020 = 0x0020002000200020;
@@ -1279,10 +1284,10 @@ INLINE void deblock_vert_default_filter(uint8_t *v, int stride, int QP)
         a3_2_SC = 2*v[l5+x] - 5*v[l6+x] + 5*v[l7+x] - 2*v[l8+x];
         q_SC    = (v[l4+x] - v[l5+x]) / 2;
 
-        if (ABS(a3_0_SC) < 8*QP)
+        if (std::abs(a3_0_SC) < 8*QP)
         {
 
-            d_SC = ABS(a3_0_SC) - MIN(ABS(a3_1_SC), ABS(a3_2_SC));
+            d_SC = std::abs(a3_0_SC) - MIN(std::abs(a3_1_SC), std::abs(a3_2_SC));
             if (d_SC < 0) d_SC=0;
 
             d_SC = (5*d_SC + 32) >> 6;
@@ -1544,7 +1549,7 @@ const static uint64_t mm_fours  = 0x0004000400040004;
 
 
 /* Vertical 9-tap low-pass filter for use in "DC" regions of the picture */
-INLINE void deblock_vert_lpf9(uint64_t *v_local, uint64_t *p1p2, uint8_t *v, int stride)
+inline void deblock_vert_lpf9(uint64_t *v_local, uint64_t *p1p2, uint8_t *v, int stride)
 {
 #ifdef PP_SELF_CHECK
     int j, k;
@@ -1952,7 +1957,7 @@ INLINE void deblock_vert_lpf9(uint64_t *v_local, uint64_t *p1p2, uint8_t *v, int
 }
 
 /* decide DC mode or default mode in assembler */
-INLINE  int deblock_vert_useDC(uint8_t *v, int stride, int moderate_v)
+inline  int deblock_vert_useDC(uint8_t *v, int stride, int moderate_v)
 {
     const uint64_t mask   = 0xfefefefefefefefe;
     uint32_t mm_data1;

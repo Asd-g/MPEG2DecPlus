@@ -997,6 +997,7 @@ __asm mov lines##n,ecx \
 __asm jnz row_loop##n \
 __asm emms   \
 
+
 void CMPEG2Decoder::CopyPlane(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch,
                               int width, int height)
 {

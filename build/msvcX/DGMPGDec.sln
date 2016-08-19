@@ -1,11 +1,11 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual C++ Express 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DGIndex", "DGIndex\DGIndex.vcxproj", "{7BED3DC2-9B7C-446A-997F-9AD4560B1709}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DGDecode", "DGDecode\DGDecode.vcxproj", "{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DGVfapi", "DGVfapi\DGVfapi.vcxproj", "{A2C7C35A-7346-4200-8C18-03EF6CDB7178}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,18 +13,14 @@ Global
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}.Debug|Win32.ActiveCfg = Debug|Win32
-		{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}.Debug|Win32.Build.0 = Debug|Win32
-		{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}.Release|Win32.ActiveCfg = Release|Win32
-		{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}.Release|Win32.Build.0 = Release|Win32
-		{A2C7C35A-7346-4200-8C18-03EF6CDB7178}.Debug|Win32.ActiveCfg = Debug|Win32
-		{A2C7C35A-7346-4200-8C18-03EF6CDB7178}.Debug|Win32.Build.0 = Debug|Win32
-		{A2C7C35A-7346-4200-8C18-03EF6CDB7178}.Release|Win32.ActiveCfg = Release|Win32
-		{A2C7C35A-7346-4200-8C18-03EF6CDB7178}.Release|Win32.Build.0 = Release|Win32
 		{7BED3DC2-9B7C-446A-997F-9AD4560B1709}.Debug|Win32.ActiveCfg = Debug|Win32
 		{7BED3DC2-9B7C-446A-997F-9AD4560B1709}.Debug|Win32.Build.0 = Debug|Win32
 		{7BED3DC2-9B7C-446A-997F-9AD4560B1709}.Release|Win32.ActiveCfg = Release|Win32
 		{7BED3DC2-9B7C-446A-997F-9AD4560B1709}.Release|Win32.Build.0 = Release|Win32
+		{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}.Debug|Win32.ActiveCfg = Debug|Win32
+		{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}.Debug|Win32.Build.0 = Debug|Win32
+		{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}.Release|Win32.ActiveCfg = Release|Win32
+		{13BF3FBA-7CD9-4374-83D5-E001E722E3DE}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
