@@ -28,7 +28,6 @@
 #include "global.h"
 #include "text-overlay.h"
 
-#define uc unsigned char
 
 class MPEG2Source: public IClip {
 protected:
@@ -45,8 +44,6 @@ public:
   int MPEG2Source::getMatrix(int n);
 
   PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-  void GetFrame(int n, unsigned char *buffer, int pitch);
-
   bool __stdcall GetParity(int n);
   void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env) {};
   const VideoInfo& __stdcall GetVideoInfo() { return vi; }
@@ -68,10 +65,7 @@ public:
     BlindPP(AVSValue args, IScriptEnvironment* env);
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
     ~BlindPP();
-    void BlindPP::convYUV422to422(const unsigned char *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
-       int pitch1, int pitch2y, int pitch2uv, int width, int height);
-    void BlindPP::conv422toYUV422b(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst,
-                       int pitch1Y, int pitch1UV, int pitch2, int width, int height);
+    static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
 
 void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int src_pitch,
