@@ -81,6 +81,9 @@
     <ClCompile Include="..\..\..\src\dgdecode\lumayv12.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\deblock.cpp">
+      <Filter>DGDecode</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\dgdecode\global.h">

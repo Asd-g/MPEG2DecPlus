@@ -98,28 +98,16 @@ void conv444toRGB24(const unsigned char *py, const unsigned char *pu, const unsi
 #define VPITCH(a) (a)->GetPitch(PLANAR_V)
 
 class Deblock : public GenericVideoFilter {
-   bool mmx, isse;
    int nQuant;
    int nAOffset, nBOffset;
    int nWidth, nHeight;
 
-   static inline int sat(int x, int min, int max)
-   { return (x < min) ? min : ((x > max) ? max : x); }
-
-   static inline int abs(int x)
-   { return ( x < 0 ) ? -x : x; }
-
-   static void DeblockHorEdge(unsigned char *srcp, int srcPitch, int ia, int ib);
-
-   static void DeblockVerEdge(unsigned char *srcp, int srcPitch, int ia, int ib);
 public:
-   static void DeblockPicture(unsigned char *srcp, int srcPitch, int w, int h,
-                              int q, int aOff, int bOff);
-
-    Deblock(PClip _child, int q, int aOff, int bOff, bool _mmx, bool _isse,
-           IScriptEnvironment* env);
-   ~Deblock();
+    Deblock(PClip _child, int q, int aOff, int bOff, IScriptEnvironment* env);
+    ~Deblock() {}
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+    int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_NICE_FILTER : 0; }
+    static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
 
 
