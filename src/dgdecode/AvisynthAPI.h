@@ -26,7 +26,6 @@
 #include <avisynth.h>
 #include <avs/win.h>
 #include "global.h"
-#include "text-overlay.h"
 
 
 class MPEG2Source: public IClip {

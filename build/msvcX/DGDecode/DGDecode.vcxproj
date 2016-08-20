@@ -101,7 +101,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\motion.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mpeg2dec.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\text-overlay.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\Utilities.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\vfapidec.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mc.cpp" />
@@ -116,7 +115,6 @@
     <ClInclude Include="..\..\..\src\dgdecode\global.h" />
     <ClInclude Include="..\..\..\src\dgdecode\resource.h" />
     <ClInclude Include="..\..\..\src\dgdecode\skl_nasm.h" />
-    <ClInclude Include="..\..\..\src\dgdecode\text-overlay.h" />
     <ClInclude Include="..\..\..\src\dgdecode\Utilities.h" />
     <ClInclude Include="..\..\..\src\dgdecode\mc.h" />
     <ClInclude Include="..\..\..\src\dgdecode\AvisynthAPI.h" />

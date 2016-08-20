@@ -433,7 +433,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
         m_decoder.FrameList[raw].pf ? "True" : "False",
         Matrix_s, m_decoder.GOPList[gop]->matrix,
         m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
-        ApplyMessage(&frame, vi, msg1, 150, 0xdfffbf, 0x0, 0x0, env);
+        env->ApplyMessage(&frame, vi, msg1, 150, 0xdfffbf, 0x0, 0x0);
     }
     else if (m_decoder.info == 2)
     {
