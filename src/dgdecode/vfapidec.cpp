@@ -24,6 +24,7 @@
   lots of code modified for YV12 / MPEG2Dec3 - MarcFD
 */
 
+#include <malloc.h>
 #include "global.h"
 #include "mc.h"
 #include "shlwapi.h"
@@ -100,7 +101,7 @@ int CMPEG2Decoder::Open(const char *path)
     i = File_Limit;
     while (i)
     {
-        Infilename[File_Limit-i] = (char*)aligned_malloc(_MAX_PATH, 16);
+        Infilename[File_Limit-i] = (char*)_aligned_malloc(_MAX_PATH, 16);
         fgets(Infilename[File_Limit-i], _MAX_PATH - 1, out->VF_File);
         // Strip newline.
         Infilename[File_Limit-i][strlen(Infilename[File_Limit-i])-1] = 0;
@@ -235,9 +236,9 @@ int CMPEG2Decoder::Open(const char *path)
     mb_width = (horizontal_size+15)/16;
     mb_height = progressive_sequence ? (vertical_size+15)/16 : 2*((vertical_size+31)/32);
 
-    QP = (int*)aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
-    backwardQP = (int*)aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
-    auxQP = (int*)aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
+    QP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
+    backwardQP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
+    auxQP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
 
     Coded_Picture_Width = 16 * mb_width;
     Coded_Picture_Height = 16 * mb_height;
@@ -249,7 +250,7 @@ int CMPEG2Decoder::Open(const char *path)
 
     for (i=0; i<8; i++)
     {
-        p_block[i] = (short *)aligned_malloc(sizeof(short)*64 + 64, 32);
+        p_block[i] = (short *)_aligned_malloc(sizeof(short)*64 + 64, 32);
         block[i]   = (short *)((long)p_block[i] + 64 - (long)p_block[i]%64);
     }
 
@@ -260,9 +261,9 @@ int CMPEG2Decoder::Open(const char *path)
         else
             size = Chroma_Width * Chroma_Height;
 
-        backward_reference_frame[i] = (unsigned char*)aligned_malloc(2*size+4096, 32);  //>>> cheap safety bump
-        forward_reference_frame[i] = (unsigned char*)aligned_malloc(2*size+4096, 32);
-        auxframe[i] = (unsigned char*)aligned_malloc(2*size+4096, 32);
+        backward_reference_frame[i] = (unsigned char*)_aligned_malloc(2*size+4096, 32);  //>>> cheap safety bump
+        forward_reference_frame[i] = (unsigned char*)_aligned_malloc(2*size+4096, 32);
+        auxframe[i] = (unsigned char*)_aligned_malloc(2*size+4096, 32);
     }
 
     fscanf(out->VF_File, "YUVRGB_Scale=%d\n", &pc_scale);
@@ -290,8 +291,8 @@ int CMPEG2Decoder::Open(const char *path)
         // storage place for YV12 chroma before upsampling to 4:2:2 so that's why its
         // /4 and not /2  --  (tritical - 1/05/2005)
         int tpitch = (((Chroma_Width+15)>>4)<<4); // mod 16 chroma pitch needed to work with YV12PICTs
-        u422 = (unsigned char*)aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
-        v422 = (unsigned char*)aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
+        u422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
+        v422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
         auxFrame1 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
         auxFrame2 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
     }
@@ -881,28 +882,28 @@ void CMPEG2Decoder::Close()
     {
         File_Limit--;
         _close(Infile[File_Limit]);
-        aligned_free(Infilename[File_Limit]);
+        _aligned_free(Infilename[File_Limit]);
     }
 
     for (i=0; i<3; i++)
     {
-        aligned_free(backward_reference_frame[i]);
-        aligned_free(forward_reference_frame[i]);
-        aligned_free(auxframe[i]);
+        _aligned_free(backward_reference_frame[i]);
+        _aligned_free(forward_reference_frame[i]);
+        _aligned_free(auxframe[i]);
     }
 
-    aligned_free(QP);
-    aligned_free(backwardQP);
-    aligned_free(auxQP);
+    _aligned_free(QP);
+    _aligned_free(backwardQP);
+    _aligned_free(auxQP);
 
-    if (u422 != NULL) aligned_free(u422);
-    if (v422 != NULL) aligned_free(v422);
+    if (u422 != NULL) _aligned_free(u422);
+    if (v422 != NULL) _aligned_free(v422);
 
     destroy_YV12PICT(auxFrame1);
     destroy_YV12PICT(auxFrame2);
 
     for (i=0; i<8; i++)
-        aligned_free(p_block[i]);
+        _aligned_free(p_block[i]);
 
     if (GOPList != NULL)
     {

@@ -21,77 +21,11 @@
 
 // replace with one that doesn't need fixed size table - trbarry 3-22-2002
 
-#include <stdlib.h>
+#include <malloc.h>
 #include "global.h"
 
-#define ptr_t unsigned int
+//#define ptr_t unsigned int
 
-extern "C" void *aligned_malloc(size_t size, size_t alignment)
-{
-    BYTE *mem_ptr;
-
-    if (!alignment)
-    {
-
-        /* We have not to satisfy any alignment */
-        if ((mem_ptr = (BYTE *) malloc(size + 1)) != NULL) {
-
-            /* Store (mem_ptr - "real allocated memory") in *(mem_ptr-1) */
-            *mem_ptr = 1;
-
-            /* Return the mem_ptr pointer */
-            return (void *) (mem_ptr+1);
-
-        }
-
-    } else {
-        BYTE *tmp;
-
-        /*
-         * Allocate the required size memory + alignment so we
-         * can realign the data if necessary
-         */
-
-        if ((tmp = (BYTE *) malloc(size + alignment)) != NULL) {
-
-            /* Align the tmp pointer */
-            mem_ptr =
-                (BYTE *) ((ptr_t) (tmp + alignment - 1) &
-                             (~(ptr_t) (alignment - 1)));
-
-            /*
-             * Special case where malloc have already satisfied the alignment
-             * We must add alignment to mem_ptr because we must store
-             * (mem_ptr - tmp) in *(mem_ptr-1)
-             * If we do not add alignment to mem_ptr then *(mem_ptr-1) points
-             * to a forbidden memory space
-             */
-            if (mem_ptr == tmp)
-                mem_ptr += alignment;
-
-            /*
-             * (mem_ptr - tmp) is stored in *(mem_ptr-1) so we are able to retrieve
-             * the real malloc block allocated and free it in xvid_free
-             */
-            *(mem_ptr - 1) = (BYTE) (mem_ptr - tmp);
-
-            /* Return the aligned pointer */
-            return (void *) mem_ptr;
-
-        }
-    }
-
-    return NULL;
-
-}
-
-extern "C" void aligned_free(void *mem_ptr)
-{
-    /* *(mem_ptr - 1) give us the offset to the real malloc block */
-    if (mem_ptr)
-        free((BYTE *) mem_ptr - *((BYTE *) mem_ptr - 1));
-
-}
 
 
 // memory allocation for MPEG2Dec3.
@@ -125,11 +59,12 @@ YV12PICT* create_YV12PICT(int height, int width, int chroma_format)
         uvwidth = width;
         uvheight = height;
     }
-    int uvpitch = (((uvwidth+15)>>4)<<4);
+    int uvpitch = (uvwidth + 15) & ~15;
     int ypitch = uvpitch*2;
-    pict->y = (unsigned char*)aligned_malloc(height*ypitch,32);
-    pict->u = (unsigned char*)aligned_malloc(uvheight*uvpitch,16);
-    pict->v = (unsigned char*)aligned_malloc(uvheight*uvpitch,16);
+    size_t size = height * ypitch + 2 * uvheight * uvpitch;
+    pict->y = (unsigned char*)_aligned_malloc(size, 32);
+    pict->u = pict->y + uvheight * uvpitch;
+    pict->v = pict->u + uvheight * uvpitch;
     pict->ypitch = ypitch;
     pict->uvpitch = uvpitch;
     pict->ywidth = width;
@@ -141,8 +76,7 @@ YV12PICT* create_YV12PICT(int height, int width, int chroma_format)
 
 void destroy_YV12PICT(YV12PICT * pict)
 {
-    aligned_free(pict->y);
-    aligned_free(pict->u);
-    aligned_free(pict->v);
+    _aligned_free(pict->y);
     free(pict);
+    pict = nullptr;
 }

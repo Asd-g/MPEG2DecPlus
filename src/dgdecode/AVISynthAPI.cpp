@@ -28,6 +28,7 @@
 
 #include <string.h>
 #include <cstdlib>
+#include <malloc.h>
 #include <avs/minmax.h>
 #include "AvisynthAPI.h"
 #include "postprocess.h"
@@ -160,7 +161,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     }
 
     out = NULL;
-    out = (YV12PICT*)aligned_malloc(sizeof(YV12PICT),0);
+    out = (YV12PICT*)_aligned_malloc(sizeof(YV12PICT),0);
     if (out == NULL) env->ThrowError("MPEG2Source:  malloc failure (yv12 pic out)!");
 
     m_decoder.AVSenv = env;
@@ -169,9 +170,9 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     bufY = bufU = bufV = NULL;
     if (m_decoder.chroma_format != 1 || (m_decoder.chroma_format == 1 && _upConv > 0))
     {
-        bufY = (uint8_t*)aligned_malloc(vi.width*vi.height+2048,32);
-        bufU = (uint8_t*)aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
-        bufV =  (uint8_t*)aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
+        bufY = (uint8_t*)_aligned_malloc(vi.width*vi.height+2048,32);
+        bufU = (uint8_t*)_aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
+        bufV =  (uint8_t*)_aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
         if (bufY == NULL || bufU == NULL || bufV == NULL)
             env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
     }
@@ -179,8 +180,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     u444 = v444 = NULL;
     if (_upConv == 2)
     {
-        u444 = (uint8_t*)aligned_malloc(vi.width*vi.height+2048,32);
-        v444 = (uint8_t*)aligned_malloc(vi.width*vi.height+2048,32);
+        u444 = (uint8_t*)_aligned_malloc(vi.width*vi.height+2048,32);
+        v444 = (uint8_t*)_aligned_malloc(vi.width*vi.height+2048,32);
         if (u444 == NULL || v444 == NULL)
             env->ThrowError("MPEG2Source:  malloc failure (u444, v444)!");
     }
@@ -189,12 +190,12 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 MPEG2Source::~MPEG2Source()
 {
     m_decoder.Close();
-    if (out != NULL) { aligned_free(out); out = NULL; }
-    if (bufY != NULL) { aligned_free(bufY); bufY = NULL; }
-    if (bufU != NULL) { aligned_free(bufU); bufU = NULL; }
-    if (bufV != NULL) { aligned_free(bufV); bufV = NULL; }
-    if (u444 != NULL) { aligned_free(u444); u444 = NULL; }
-    if (v444 != NULL) { aligned_free(v444); v444 = NULL; }
+    if (out != NULL) { _aligned_free(out); out = NULL; }
+    if (bufY != NULL) { _aligned_free(bufY); bufY = NULL; }
+    if (bufU != NULL) { _aligned_free(bufU); bufU = NULL; }
+    if (bufV != NULL) { _aligned_free(bufV); bufV = NULL; }
+    if (u444 != NULL) { _aligned_free(u444); u444 = NULL; }
+    if (v444 != NULL) { _aligned_free(v444); v444 = NULL; }
 }
 
 
