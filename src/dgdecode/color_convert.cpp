@@ -11,7 +11,7 @@ MPEG2Dec's colorspace convertions Copyright (C) Chia-chen Kuo - April 2001
 // tritical - August 18, 2005
 
 
-
+#include <emmintrin.h>
 #include "color_convert.h"
 
 
@@ -25,6 +25,7 @@ constexpr int64_t mmmask_0016 = 0x0010001000100010;
 constexpr int64_t mmmask_0128 = 0x0080008000800080;
 constexpr int64_t lastmask    = 0xFF00000000000000;
 constexpr int64_t mmmask_0101 = 0x0101010101010101;
+
 
 void conv420to422I_MMX(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch, int width, int height)
 {
@@ -746,89 +747,60 @@ void conv444toRGB24(const uint8_t *py, const uint8_t *pu, const uint8_t *pv,
 }
 
 
-void conv422toYUV422(const uint8_t *py, uint8_t *pu, uint8_t *pv, uint8_t *dst,
+void conv422PtoYUY2(const uint8_t *py, uint8_t *pu, uint8_t *pv, uint8_t *dst,
     int pitch1Y, int pitch1UV, int pitch2, int width, int height)
 {
-    int widthdiv2 = width >> 1;
-    __asm
-    {
-        mov ebx,[py]
-        mov edx,[pu]
-        mov esi,[pv]
-        mov edi,[dst]
-        mov ecx,widthdiv2
-        yloop:
-        xor eax,eax
-            align 16
-            xloop:
-            movq mm0,[ebx+eax*2]   ;YYYYYYYY
-            movd mm1,[edx+eax]     ;0000UUUU
-            movd mm2,[esi+eax]     ;0000VVVV
-            movq mm3,mm0           ;YYYYYYYY
-            punpcklbw mm1,mm2      ;VUVUVUVU
-            punpcklbw mm0,mm1      ;VYUYVYUY
-            punpckhbw mm3,mm1      ;VYUYVYUY
-            movq [edi+eax*4],mm0   ;store
-            movq [edi+eax*4+8],mm3 ;store
-            add eax,4
-            cmp eax,ecx
-            jl xloop
-            add ebx,pitch1Y
-            add edx,pitch1UV
-            add esi,pitch1UV
-            add edi,pitch2
-            dec height
-            jnz yloop
-            emms
+    width /= 2;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; x += 8) {
+            __m128i u = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(pu + x));
+            __m128i v = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(pv + x));
+            __m128i uv = _mm_unpacklo_epi8(u, v);
+            __m128i y = _mm_load_si128(reinterpret_cast<const __m128i*>(py + 2 * x));
+            __m128i yuyv0 = _mm_unpacklo_epi8(y, uv);
+            __m128i yuyv1 = _mm_unpackhi_epi8(y, uv);
+            _mm_stream_si128(reinterpret_cast<__m128i*>(dst + 4 * x), yuyv0);
+            _mm_stream_si128(reinterpret_cast<__m128i*>(dst + 4 * x + 16), yuyv1);
+        }
+        py += pitch1Y;
+        pu += pitch1UV;
+        pv += pitch1UV;
+        dst += pitch2;
     }
 }
 
 
-void convYUV422to422(const uint8_t *src, uint8_t *py, uint8_t *pu, uint8_t *pv,
+void convYUY2to422P(const uint8_t *src, uint8_t *py, uint8_t *pu, uint8_t *pv,
     int pitch1, int pitch2y, int pitch2uv, int width, int height)
 {
-    int widthdiv2 = width>>1;
-    __int64 Ymask = 0x00FF00FF00FF00FFi64;
-    __asm
-    {
-        mov edi,[src]
-        mov ebx,[py]
-        mov edx,[pu]
-        mov esi,[pv]
-        mov ecx,widthdiv2
-        movq mm5,Ymask
-        yloop:
-        xor eax,eax
-            align 16
-            xloop:
-            movq mm0,[edi+eax*4]   ; VYUYVYUY - 1
-            movq mm1,[edi+eax*4+8] ; VYUYVYUY - 2
-            movq mm2,mm0           ; VYUYVYUY - 1
-            movq mm3,mm1           ; VYUYVYUY - 2
-            pand mm0,mm5           ; 0Y0Y0Y0Y - 1
-            psrlw mm2,8            ; 0V0U0V0U - 1
-            pand mm1,mm5           ; 0Y0Y0Y0Y - 2
-            psrlw mm3,8            ; 0V0U0V0U - 2
-            packuswb mm0,mm1       ; YYYYYYYY
-            packuswb mm2,mm3       ; VUVUVUVU
-            movq mm4,mm2           ; VUVUVUVU
-            pand mm2,mm5           ; 0U0U0U0U
-            psrlw mm4,8            ; 0V0V0V0V
-            packuswb mm2,mm2       ; xxxxUUUU
-            packuswb mm4,mm4       ; xxxxVVVV
-            movq [ebx+eax*2],mm0   ; store y
-            movd [edx+eax],mm2     ; store u
-            movd [esi+eax],mm4     ; store v
-            add eax,4
-            cmp eax,ecx
-            jl xloop
-            add edi,pitch1
-            add ebx,pitch2y
-            add edx,pitch2uv
-            add esi,pitch2uv
-            dec height
-            jnz yloop
-            emms
+    width /= 2;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; x += 8) {
+            __m128i s0 = _mm_load_si128(reinterpret_cast<const __m128i*>(src + 4 * x));
+            __m128i s1 = _mm_load_si128(reinterpret_cast<const __m128i*>(src + 4 * x + 16));
+
+            __m128i s2 = _mm_unpacklo_epi8(s0, s1);
+            __m128i s3 = _mm_unpackhi_epi8(s0, s1);
+
+            s0 = _mm_unpacklo_epi8(s2, s3);
+            s1 = _mm_unpackhi_epi8(s2, s3);
+
+            s2 = _mm_unpacklo_epi8(s0, s1);
+            s3 = _mm_unpackhi_epi8(s0, s1);
+
+            s0 = _mm_unpacklo_epi8(s2, s3);
+            s2 = _mm_srli_si128(s2, 8);
+            s3 = _mm_srli_si128(s3, 8);
+            _mm_store_si128(reinterpret_cast<__m128i*>(py + 2 * x), s0);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(pu + x), s2);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(pv + x), s3);
+        }
+        src += pitch1;
+        py += pitch2y;
+        pu += pitch2uv;
+        pv += pitch2uv;
     }
 }
 

@@ -343,7 +343,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
     if ((m_decoder.chroma_format == 2 && m_decoder.upConv != 2) ||
         (m_decoder.chroma_format == 1 && m_decoder.upConv == 1)) // convert 4:2:2 (planar) to YUY2 (packed)
     {
-        conv422toYUV422(out->y,out->u,out->v,frame->GetWritePtr(),out->ypitch,out->uvpitch,
+        conv422PtoYUY2(out->y,out->u,out->v,frame->GetWritePtr(),out->ypitch,out->uvpitch,
             frame->GetPitch(),vi.width,vi.height);
     }
 

@@ -72,9 +72,9 @@ PVideoFrame __stdcall BlindPP::GetFrame(int n, IScriptEnvironment* env)
     {
         uint8_t* src[3];
         uint8_t* dst[3];
-        src[0] = (uint8_t*) cf->GetReadPtr(PLANAR_Y);
-        src[1] = (uint8_t*) cf->GetReadPtr(PLANAR_U);
-        src[2] = (uint8_t*) cf->GetReadPtr(PLANAR_V);
+        src[0] = const_cast<uint8_t*>(cf->GetReadPtr(PLANAR_Y));
+        src[1] = const_cast<uint8_t*>(cf->GetReadPtr(PLANAR_U));
+        src[2] = const_cast<uint8_t*>(cf->GetReadPtr(PLANAR_V));
         dst[0] = dstf->GetWritePtr(PLANAR_Y);
         dst[1] = dstf->GetWritePtr(PLANAR_U);
         dst[2] = dstf->GetWritePtr(PLANAR_V);
@@ -86,7 +86,7 @@ PVideoFrame __stdcall BlindPP::GetFrame(int n, IScriptEnvironment* env)
     else
     {
         uint8_t* dst[3];
-        convYUV422to422(cf->GetReadPtr(),out->y,out->u,out->v,cf->GetPitch(),out->ypitch,
+        convYUY2to422P(cf->GetReadPtr(),out->y,out->u,out->v,cf->GetPitch(),out->ypitch,
             out->uvpitch,vi.width,vi.height); // 4:2:2 packed to 4:2:2 planar
         dst[0] = out->y;
         dst[1] = out->u;
@@ -95,7 +95,7 @@ PVideoFrame __stdcall BlindPP::GetFrame(int n, IScriptEnvironment* env)
             dst, out->ypitch, out->uvpitch,
             vi.width, vi.height, QP, vi.width/16, PP_MODE,
             moderate_h, moderate_v, true, iPP);
-        conv422toYUV422(out->y,out->u,out->v,dstf->GetWritePtr(),out->ypitch,out->uvpitch,
+        conv422PtoYUY2(out->y,out->u,out->v,dstf->GetWritePtr(),out->ypitch,out->uvpitch,
             dstf->GetPitch(),vi.width,vi.height);  // 4:2:2 planar to 4:2:2 packed
     }
 
