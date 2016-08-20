@@ -1609,7 +1609,6 @@ PVideoFrame __stdcall Deblock::GetFrame(int n, IScriptEnvironment *env)
     return src;
 }
 
-#include "lumayv12.cpp"
 
 AVSValue __cdecl Create_MPEG2Source(AVSValue args, void*, IScriptEnvironment* env)
 {
@@ -1747,13 +1746,6 @@ if (strncmp(buf, name, len) == 0) \
     return dec;
 }
 
-AVSValue __cdecl Create_LumaYV12(AVSValue args, void* user_data, IScriptEnvironment* env)
-{
-    return new LumaYV12(args[0].AsClip(),
-                        args[1].AsInt(0),                   //lumoff
-                        args[2].AsFloat(1.00),              //lumgain
-                        env);
-}
 
 AVSValue __cdecl Create_BlindPP(AVSValue args, void* user_data, IScriptEnvironment* env)
 {
@@ -1780,7 +1772,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
     AVS_linkage = vectors;
 
     env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]i[i420]b[iCC]b", Create_MPEG2Source, 0);
-    env->AddFunction("LumaYV12","c[lumoff]i[lumgain]f",Create_LumaYV12,0);
+    env->AddFunction("LumaYV12","c[lumoff]i[lumgain]f", LumaYV12::create, nullptr);
     env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", Create_BlindPP, 0);
     env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i[mmx]b[isse]b", Create_Deblock, 0);
     return 0;

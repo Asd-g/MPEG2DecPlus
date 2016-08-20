@@ -42,90 +42,66 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  ***************************************************************************************/
 
-#include <windows.h>
-#include "avisynth.h"
+#include "AvisynthAPI.h"
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class LumaYV12: public GenericVideoFilter
-{
-    double  lumgain;
-    int     lumoff;
-
-    public:
-    LumaYV12(PClip _child, int _Lumaoffset,double _Lumagain, IScriptEnvironment* env);
-    ~LumaYV12();
-    PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-
-    private:
-    bool use_SSE2;
-    bool use_ISSE;
-    bool SepFields;
-    int lumGain;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////
 LumaYV12::LumaYV12(PClip _child, int _Lumaoffset,double _Lumagain, IScriptEnvironment* env):
           GenericVideoFilter(_child), lumoff(_Lumaoffset), lumgain(_Lumagain)
 {
-////////////////////////////CPU AND COLORSPACE CONTROL//////////////////////////////////////
-        if (env->GetCPUFlags() & !CPUF_MMX) //maybe not needed nowadays
-        env->ThrowError("LumaYV12: needs MMX cpu or higher");
+    if (env->GetCPUFlags() & !CPUF_MMX) //maybe not needed nowadays
+    env->ThrowError("LumaYV12: needs MMX cpu or higher");
 
-        if (!vi.IsPlanar())
-        env->ThrowError("LumaYV12: only planar YV12 input");
+    if (!vi.IsPlanar())
+    env->ThrowError("LumaYV12: only planar YV12 input");
 
-//////////////////////////CPU DETECTION/////////////////////////////////////////////////////
-        use_SSE2 = (env->GetCPUFlags() & CPUF_SSE2) !=0;
-        use_ISSE = (env->GetCPUFlags() & CPUF_INTEGER_SSE) !=0;
+    use_SSE2 = (env->GetCPUFlags() & CPUF_SSE2) !=0;
+    use_ISSE = (env->GetCPUFlags() & CPUF_INTEGER_SSE) !=0;
 
-///////////////////////FRAME OR WIDTH SIZE CONTROLS/////////////////////////////////////////
-        SepFields=(vi.IsFieldBased());
-        int testsize=vi.width;
+    SepFields=(vi.IsFieldBased());
+    int testsize=vi.width;
 
-        lumGain = (int)(lumgain*128);
+    lumGain = (int)(lumgain*128);
 
-        if (testsize & 3)
-            env->ThrowError("LumaYV12: width must be a multiple of 4");
+    if (testsize & 3)
+        env->ThrowError("LumaYV12: width must be a multiple of 4");
 
 
-        if(!SepFields)//still need to be tested
+    if(!SepFields)//still need to be tested
+    {
+        if (testsize&15)testsize=((testsize>>4)+1)<<4;//dont know if it is worth while
+            testsize=testsize*vi.height;
+    }
+    //sure we do line loops
+
+    //These controls could be deleted, nobody uses so small sizes, still here just in case.//
+    if(testsize<79)
+    {
+        if(use_SSE2 && testsize<79)
         {
-            if (testsize&15)testsize=((testsize>>4)+1)<<4;//dont know if it is worth while
-                testsize=testsize*vi.height;
+            if (lumoff!=0 && lumGain==128 && testsize<79) use_SSE2=false;
+            if (lumGain!=128 && testsize<48)use_SSE2=false;
         }
-        //sure we do line loops
 
-//These controls could be deleted, nobody uses so small sizes, still here just in case.//
-if(testsize<79)
-{
-    if(use_SSE2 && testsize<79)
-    {
-        if (lumoff!=0 && lumGain==128 && testsize<79) use_SSE2=false;
-        if (lumGain!=128 && testsize<48)use_SSE2=false;
+        if(!use_SSE2 && testsize<32)
+        {
+            if (lumoff!=0 && lumGain==128 && testsize<32)
+                env->ThrowError("LumaYV12:for such param values width (or frame size) must be minimum 32");
+
+            if (lumGain!=128 && testsize<16)
+                env->ThrowError("LumaYV12:for such param values width (or frame size) must be minimum 16");
+        }
     }
 
-    if(!use_SSE2 && testsize<32)
-    {
-        if (lumoff!=0 && lumGain==128 && testsize<32)
-            env->ThrowError("LumaYV12:for such param values width (or frame size) must be minimum 32");
+    if (lumgain < 0.0 || lumgain >2.0)
+        env->ThrowError("LumaYV12: lumgain must be between 0 to 2.0");
 
-        if (lumGain!=128 && testsize<16)
-            env->ThrowError("LumaYV12:for such param values width (or frame size) must be minimum 16");
-    }
+    if (lumoff < -255 || lumoff > 255)
+         env->ThrowError("LumaYV12: lumoff must be between -255 to 255");
+
+    if (lumoff==0 && lumGain==128)
+        env->ThrowError("LumaYV12: default values will do nothing");
 }
-///////////////////////PARAMETERS CONTROL////////////////////////////////////////////////
-        if (lumgain < 0.0 || lumgain >2.0)
-            env->ThrowError("LumaYV12: lumgain must be between 0 to 2.0");
 
-        if (lumoff < -255 || lumoff > 255)
-            env->ThrowError("LumaYV12: lumoff must be between -255 to 255");
 
-        if (lumoff==0 && lumGain==128)
-            env->ThrowError("LumaYV12: default values will do nothing");
-}
-/////////////////////////////////////////////////////////////////////////////////////////
-LumaYV12::~LumaYV12() {}
-/////////////////////////////////////////////////////////////////////////////////////////
 void asm_Brightoneline_ISSE_SUBADD
                         (BYTE* srcp,
                         int sizef,
@@ -1927,3 +1903,13 @@ PVideoFrame __stdcall LumaYV12::GetFrame(int n, IScriptEnvironment* env)
     }
     return src;
 }
+
+
+AVSValue __cdecl LumaYV12::create(AVSValue args, void* user_data, IScriptEnvironment* env)
+{
+    return new LumaYV12(args[0].AsClip(),
+        args[1].AsInt(0),                   //lumoff
+        args[2].AsFloat(1.00),              //lumgain
+        env);
+}
+

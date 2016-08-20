@@ -94,6 +94,7 @@
     <ClCompile Include="..\..\..\src\dgdecode\global.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\idctfpu.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\idctref.cpp" />
+    <ClCompile Include="..\..\..\src\dgdecode\lumayv12.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\motion.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mpeg2dec.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp" />

@@ -40,7 +40,6 @@ protected:
   unsigned char *u444, *v444;        // for RGB24 output
 
 public:
-  MPEG2Source(const char* d2v, int _upConv);
   MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env);
   ~MPEG2Source();
   int MPEG2Source::getMatrix(int n);
@@ -99,7 +98,6 @@ void conv444toRGB24(const unsigned char *py, const unsigned char *pu, const unsi
 #define VPITCH(a) (a)->GetPitch(PLANAR_V)
 
 class Deblock : public GenericVideoFilter {
-private:
    bool mmx, isse;
    int nQuant;
    int nAOffset, nBOffset;
@@ -122,4 +120,22 @@ public:
            IScriptEnvironment* env);
    ~Deblock();
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+};
+
+
+class LumaYV12: public GenericVideoFilter {
+    double  lumgain;
+    int     lumoff;
+    bool use_SSE2;
+    bool use_ISSE;
+    bool SepFields;
+    int lumGain;
+
+public:
+    LumaYV12(PClip _child, int _Lumaoffset,double _Lumagain, IScriptEnvironment* env);
+    ~LumaYV12() {}
+    PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+    int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_NICE_FILTER : 0; }
+    static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
+
 };
