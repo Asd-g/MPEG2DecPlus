@@ -30,7 +30,6 @@
 
 
 class MPEG2Source: public IClip {
-protected:
   VideoInfo vi;
   int ovr_idct;
   int _PP_MODE;
@@ -52,16 +51,18 @@ public:
   static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
 
+
 class BlindPP : public GenericVideoFilter {
     int* QP;
     bool iPP;
     int PP_MODE;
     int moderate_h, moderate_v;
-    YV12PICT *out;
+
 public:
     BlindPP(AVSValue args, IScriptEnvironment* env);
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-    ~BlindPP();
+    ~BlindPP() {}
+    int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_NICE_FILTER : 0; }
     static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
 

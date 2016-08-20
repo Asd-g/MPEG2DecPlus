@@ -2,6 +2,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <algorithm>
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#include <windows.h>
+#include <stdarg.h>
 
 #include "PostProcess.h"
 
@@ -15,12 +20,6 @@
 #define PREFETCH_AHEAD_H 8
 #define PREFETCH_ENABLE
 #endif
-
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#define NOGDI
-#include <windows.h>
-#include <stdarg.h>
 
 #ifdef SELFCHECK
 #define PP_SELF_CHECK
