@@ -1,4 +1,3 @@
-#include <initializer_list>
 #include "AvisynthAPI.h"
 
 
@@ -8,23 +7,13 @@ static inline int sat(int x, int min, int max)
 }
 
 
-Deblock::Deblock(PClip _child, int q, int aOff, int bOff, IScriptEnvironment* env) :
-    GenericVideoFilter(_child)
+static inline int absdiff(int x, int y)
 {
-    nQuant = sat(q, 0, 51);
-    nAOffset = sat(aOff, -nQuant, 51 - nQuant);
-    nBOffset = sat(bOff, -nQuant, 51 - nQuant);
-    nWidth = vi.width;
-    nHeight = vi.height;
-
-    if (!vi.IsYV12())
-        env->ThrowError("Deblock : need YV12 input");
-    if (( nWidth & 7 ) || ( nHeight & 7 ))
-        env->ThrowError("Deblock : width and height must be mod 8");
+    return x > y ? x - y : y - x;
 }
 
 
-const int alphas[52] = {
+static const int alphas[52] = {
     0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 4, 4,
@@ -37,7 +26,7 @@ const int alphas[52] = {
     203, 226, 255, 255
 };
 
-const int betas[52] = {
+static const int betas[52] = {
     0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 2, 2,
@@ -50,7 +39,7 @@ const int betas[52] = {
     17, 18, 18
 };
 
-const int cs[52] = {
+static const int cs[52] = {
     0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0,
@@ -63,92 +52,102 @@ const int cs[52] = {
 };
 
 
-static void deblock_h_edge(unsigned char *srcp, int srcPitch, int ia, int ib)
+static void deblock_h_edge(uint8_t *srcp, int srcPitch, const int alpha, const int beta, const int c0)
 {
-    int alpha = alphas[ia];
-    int beta = betas[ib];
-    int c, c0 = cs[ia];
-    unsigned char *sq0 = srcp;
-    unsigned char *sq1 = srcp + srcPitch;
-    unsigned char *sq2 = srcp + 2 * srcPitch;
-    unsigned char *sp0 = srcp - srcPitch;
-    unsigned char *sp1 = srcp - 2 * srcPitch;
-    unsigned char *sp2 = srcp - 3 * srcPitch;
-    int delta, ap, aq, deltap1, deltaq1;
+    uint8_t *sq0 = srcp;
+    uint8_t *sq1 = srcp + srcPitch;
+    uint8_t *sq2 = srcp + 2 * srcPitch;
+    uint8_t *sp0 = srcp - srcPitch;
+    uint8_t *sp1 = srcp - 2 * srcPitch;
+    uint8_t *sp2 = srcp - 3 * srcPitch;
 
-    for ( int i = 0; i < 4; i ++ )
-    {
-        if (( abs(sp0[i] - sq0[i]) < alpha ) && ( abs(sp1[i] - sp0[i]) < beta ) && ( abs(sq0[i] - sq1[i]) < beta ))
-        {
-            ap = abs(sp2[i] - sp0[i]);
-            aq = abs(sq2[i] - sq0[i]);
-            c = c0;
-            if ( aq < beta ) c++;
-            if ( ap < beta ) c++;
-            delta = sat((((sq0[i] - sp0[i]) << 2) + (sp1[i] - sq1[i]) + 4) >> 3, -c, c);
-            deltap1 = sat((sp2[i] + ((sp0[i] + sq0[i] + 1) >> 1) - (sp1[i] << 1)) >> 1, -c0, c0);
-            deltaq1 = sat((sq2[i] + ((sp0[i] + sq0[i] + 1) >> 1) - (sq1[i] << 1)) >> 1, -c0, c0);
-            sp0[i] = (unsigned char)sat(sp0[i] + delta, 0, 255);
-            sq0[i] = (unsigned char)sat(sq0[i] - delta, 0, 255);
-            if ( ap < beta )
-                sp1[i] = (unsigned char)(sp1[i] + deltap1);
-            if ( aq < beta )
-                sq1[i] = (unsigned char)(sq1[i] + deltaq1);
+    for (int i = 0; i < 4; ++i) {
+        if ((absdiff(sp0[i], sq0[i]) < alpha)
+                && (absdiff(sp1[i], sp0[i]) < beta)
+                && (absdiff(sq0[i], sq1[i]) < beta)) {
+            int ap = absdiff(sp2[i], sp0[i]);
+            int aq = absdiff(sq2[i], sq0[i]);
+
+            int c = c0;
+            if (aq < beta) ++c;
+            if (ap < beta) ++c;
+
+            int delta = sat((((sq0[i] - sp0[i]) * 4) + (sp1[i] - sq1[i]) + 4) >> 3, -c, c);
+            int avg = (sp0[i] + sq0[i] + 1) / 2;
+            int deltap1 = sat((sp2[i] + avg - sp1[i] * 2) / 2, -c0, c0);
+            int deltaq1 = sat((sq2[i] + avg - sq1[i] * 2) / 2, -c0, c0);
+
+            if (ap < beta) sp1[i] = sp1[i] + deltap1;
+            sp0[i] = sat(sp0[i] + delta, 0, 255);
+            sq0[i] = sat(sq0[i] - delta, 0, 255);
+            if (aq < beta) sq1[i] = sq1[i] + deltaq1;
         }
     }
 }
 
 
-static void deblock_v_edge(unsigned char *srcp, int srcPitch, int ia, int ib)
+static void deblock_v_edge(uint8_t *s, int srcPitch, const int alpha, const int beta, const int c0)
 {
-    int alpha = alphas[ia];
-    int beta = betas[ib];
-    int c, c0 = cs[ia];
-    unsigned char *s = srcp;
+    for (int i = 0; i < 4; ++i) {
+        if ((absdiff(s[0], s[-1]) < alpha)
+                && (absdiff(s[0], s[1]) < beta)
+                && (absdiff(s[-1], s[-2]) < beta)) {
+            int ap = absdiff(s[0], s[2]);
+            int aq = absdiff(s[-3], s[-1]);
 
-    int delta, ap, aq, deltap1, deltaq1;
+            int c = c0;
+            if (aq < beta) ++c;
+            if (ap < beta) ++c;
 
-    for ( int i = 0; i < 4; i ++ )
-    {
-        if (( abs(s[0] - s[-1]) < alpha ) && ( abs(s[1] - s[0]) < beta ) && ( abs(s[-1] - s[-2]) < beta ))
-        {
-            ap = abs(s[2] - s[0]);
-            aq = abs(s[-3] - s[-1]);
-            c = c0;
-            if ( aq < beta ) c++;
-            if ( ap < beta ) c++;
-            delta = sat((((s[0] - s[-1]) << 2) + (s[-2] - s[1]) + 4) >> 3, -c, c);
-            deltaq1 = sat((s[2] + ((s[0] + s[-1] + 1) >> 1) - (s[1] << 1)) >> 1, -c0, c0);
-            deltap1 = sat((s[-3] + ((s[0] + s[-1] + 1) >> 1) - (s[-2] << 1)) >> 1, -c0, c0);
-            s[0] = (unsigned char)sat(s[0] - delta, 0, 255);
-            s[-1] = (unsigned char)sat(s[-1] + delta, 0, 255);
-            if ( ap < beta )
-                s[1] = (unsigned char)(s[1] + deltaq1);
-            if ( aq < beta )
-                s[-2] = (unsigned char)(s[-2] + deltap1);
+            int delta = sat((((s[0] - s[-1]) * 4) + (s[-2] - s[1]) + 4) / 8, -c, c);
+            int avg = (s[0] + s[-1] + 1) / 2;
+            int deltaq1 = sat((s[2] + avg - s[1] * 2) / 2, -c0, c0);
+            int deltap1 = sat((s[-3] + avg - s[-2] * 2) / 2, -c0, c0);
+
+            if (aq < beta) s[-2] = (s[-2] + deltap1);
+            s[-1] = sat(s[-1] + delta, 0, 255);
+            s[0] = sat(s[0] - delta, 0, 255);
+            if (ap < beta) s[1] = (s[1] + deltaq1);
         }
         s += srcPitch;
     }
 }
 
 
-static void deblock_picture(unsigned char *srcp, int srcPitch, int w, int h,
-                            int q, int aOff, int bOff)
+static void deblock_picture(uint8_t *srcp, int srcPitch, int w, int h,
+                            const int alpha, const int beta, const int c0)
 {
-    int indexa, indexb;
-    for ( int j = 0; j < h; j += 4 )
-    {
-        for ( int i = 0; i < w; i += 4 )
-        {
-            indexa = sat(q + aOff, 0, 51);
-            indexb = sat(q + bOff, 0, 51);
+    for (int j = 0; j < h; j += 4 ) {
+        for (int i = 0; i < w; i += 4) {
             if ( j > 0 )
-                deblock_h_edge(srcp + i, srcPitch, indexa, indexb);
+                deblock_h_edge(srcp + i, srcPitch, alpha, beta, c0);
             if ( i > 0 )
-                deblock_v_edge(srcp + i, srcPitch, indexa, indexb);
+                deblock_v_edge(srcp + i, srcPitch, alpha, beta, c0);
         }
         srcp += 4 * srcPitch;
     }
+}
+
+
+Deblock::Deblock(PClip _child, int q, int aoff, int boff, IScriptEnvironment* env) :
+    GenericVideoFilter(_child)
+{
+    q = sat(q, 0, 51);
+    int a = sat(q + aoff, 0, 51);
+    int b = sat(q + boff, 0, 51);
+    alpha = alphas[a];
+    beta = betas[b];
+    c0 = cs[a];
+
+    if (!vi.IsPlanar() || !vi.IsYUV())
+        env->ThrowError("Deblock: need planar yuv input.");
+    if (vi.IsYUVA()) {
+        env->ThrowError("Deblock: alpha is not supported.");
+    }
+    if ((vi.width & 7) || (vi.height & 7))
+        env->ThrowError("Deblock : width and height must be mod 8");
+
+    numPlanes = vi.IsY8() ? 1 : 3;
 }
 
 
@@ -157,10 +156,12 @@ PVideoFrame __stdcall Deblock::GetFrame(int n, IScriptEnvironment *env)
     PVideoFrame src = child->GetFrame(n, env);
     env->MakeWritable(&src);
 
-    for (const auto plane: { PLANAR_Y, PLANAR_U, PLANAR_V }) {
+    static const int planes[] = { PLANAR_Y, PLANAR_U, PLANAR_V };
+    for (int p = 0; p < numPlanes; ++p) {
+        const int plane = planes[p];
         deblock_picture(src->GetWritePtr(plane), src->GetPitch(plane),
                         src->GetRowSize(plane), src->GetHeight(plane),
-                        nQuant, nAOffset, nBOffset);
+                        alpha, beta, c0);
     }
 
     return src;
@@ -169,10 +170,8 @@ PVideoFrame __stdcall Deblock::GetFrame(int n, IScriptEnvironment *env)
 
 AVSValue __cdecl Deblock::create(AVSValue args, void* user_data, IScriptEnvironment* env)
 {
-    return new Deblock(
-        args[0].AsClip(),
-        args[1].AsInt(25),
-        args[2].AsInt(0),
-        args[3].AsInt(0),
-        env);
+    int quant = args[1].AsInt(25);
+    int aoffset = args[2].AsInt(0);
+    int boffset = args[3].AsInt(0);
+    return new Deblock(args[0].AsClip(), quant, aoffset, boffset, env);
 }

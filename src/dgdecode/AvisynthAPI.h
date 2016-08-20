@@ -67,12 +67,11 @@ public:
 
 
 class Deblock : public GenericVideoFilter {
-   int nQuant;
-   int nAOffset, nBOffset;
-   int nWidth, nHeight;
+   int alpha, beta, c0;
+   int numPlanes;
 
 public:
-    Deblock(PClip _child, int q, int aOff, int bOff, IScriptEnvironment* env);
+    Deblock(PClip _child, int q, int aoff, int boff, IScriptEnvironment* env);
     ~Deblock() {}
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
     int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_NICE_FILTER : 0; }
