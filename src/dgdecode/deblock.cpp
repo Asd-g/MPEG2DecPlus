@@ -1,3 +1,4 @@
+#include <initializer_list>
 #include "AvisynthAPI.h"
 
 
@@ -156,12 +157,11 @@ PVideoFrame __stdcall Deblock::GetFrame(int n, IScriptEnvironment *env)
     PVideoFrame src = child->GetFrame(n, env);
     env->MakeWritable(&src);
 
-    deblock_picture(YWPLAN(src), YPITCH(src), nWidth, nHeight,
-        nQuant, nAOffset, nBOffset);
-    deblock_picture(UWPLAN(src), UPITCH(src), nWidth / 2, nHeight / 2,
-        nQuant, nAOffset, nBOffset);
-    deblock_picture(VWPLAN(src), VPITCH(src), nWidth / 2, nHeight / 2,
-        nQuant, nAOffset, nBOffset);
+    for (const auto plane: { PLANAR_Y, PLANAR_U, PLANAR_V }) {
+        deblock_picture(src->GetWritePtr(plane), src->GetPitch(plane),
+                        src->GetRowSize(plane), src->GetHeight(plane),
+                        nQuant, nAOffset, nBOffset);
+    }
 
     return src;
 }
