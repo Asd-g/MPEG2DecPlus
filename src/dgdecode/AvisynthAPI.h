@@ -23,6 +23,7 @@
  *
  */
 
+#include <cstdint>
 #include <avisynth.h>
 #include <avs/win.h>
 #include "global.h"
@@ -34,8 +35,8 @@ protected:
   int ovr_idct;
   int _PP_MODE;
   YV12PICT *out;
-  unsigned char *bufY, *bufU, *bufV; // for 4:2:2 input support
-  unsigned char *u444, *v444;        // for RGB24 output
+  uint8_t *bufY, *bufU, *bufV; // for 4:2:2 input support
+  uint8_t *u444, *v444;        // for RGB24 output
   CMPEG2Decoder m_decoder;
 
   void override(int ovr_idct);
@@ -64,16 +65,6 @@ public:
     static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
 
-/* Macros for accessing easily frame pointers and pitch */
-#define YRPLAN(a) (a)->GetReadPtr(PLANAR_Y)
-#define YWPLAN(a) (a)->GetWritePtr(PLANAR_Y)
-#define URPLAN(a) (a)->GetReadPtr(PLANAR_U)
-#define UWPLAN(a) (a)->GetWritePtr(PLANAR_U)
-#define VRPLAN(a) (a)->GetReadPtr(PLANAR_V)
-#define VWPLAN(a) (a)->GetWritePtr(PLANAR_V)
-#define YPITCH(a) (a)->GetPitch(PLANAR_Y)
-#define UPITCH(a) (a)->GetPitch(PLANAR_U)
-#define VPITCH(a) (a)->GetPitch(PLANAR_V)
 
 class Deblock : public GenericVideoFilter {
    int nQuant;

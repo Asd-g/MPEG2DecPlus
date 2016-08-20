@@ -169,9 +169,9 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     bufY = bufU = bufV = NULL;
     if (m_decoder.chroma_format != 1 || (m_decoder.chroma_format == 1 && _upConv > 0))
     {
-        bufY = (unsigned char*)aligned_malloc(vi.width*vi.height+2048,32);
-        bufU = (unsigned char*)aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
-        bufV =  (unsigned char*)aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
+        bufY = (uint8_t*)aligned_malloc(vi.width*vi.height+2048,32);
+        bufU = (uint8_t*)aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
+        bufV =  (uint8_t*)aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
         if (bufY == NULL || bufU == NULL || bufV == NULL)
             env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
     }
@@ -179,8 +179,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     u444 = v444 = NULL;
     if (_upConv == 2)
     {
-        u444 = (unsigned char*)aligned_malloc(vi.width*vi.height+2048,32);
-        v444 = (unsigned char*)aligned_malloc(vi.width*vi.height+2048,32);
+        u444 = (uint8_t*)aligned_malloc(vi.width*vi.height+2048,32);
+        v444 = (uint8_t*)aligned_malloc(vi.width*vi.height+2048,32);
         if (u444 == NULL || v444 == NULL)
             env->ThrowError("MPEG2Source:  malloc failure (u444, v444)!");
     }
