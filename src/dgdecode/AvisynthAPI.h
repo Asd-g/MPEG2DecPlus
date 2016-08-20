@@ -37,22 +37,19 @@ protected:
   YV12PICT *out;
   unsigned char *bufY, *bufU, *bufV; // for 4:2:2 input support
   unsigned char *u444, *v444;        // for RGB24 output
+  CMPEG2Decoder m_decoder;
+
+  void override(int ovr_idct);
 
 public:
   MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env);
   ~MPEG2Source();
-  int MPEG2Source::getMatrix(int n);
-
   PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
   bool __stdcall GetParity(int n);
   void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env) {};
   const VideoInfo& __stdcall GetVideoInfo() { return vi; }
   int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_SERIALIZED : 0; };
-  void override(int ovr_idct);
-  void conv422toYUV422(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst,
-                       int pitch1Y, int pitch1UV, int pitch2, int width, int height);
-
-  CMPEG2Decoder m_decoder;
+  static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
 
 class BlindPP : public GenericVideoFilter {
@@ -67,18 +64,6 @@ public:
     ~BlindPP();
     static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
-
-void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int src_pitch,
-                  int dst_pitch, int width, int height);
-void conv420to422P_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch,
-                        int width, int height);
-void conv422to444(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch,
-            int width, int height);
-void conv422to444_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch,
-            int width, int height);
-void conv444toRGB24(const unsigned char *py, const unsigned char *pu, const unsigned char *pv,
-                unsigned char *dst, int src_pitchY, int src_pitchUV, int dst_pitch, int width,
-                int height, int matrix, int pc_scale);
 
 /* Macros for accessing easily frame pointers and pitch */
 #define YRPLAN(a) (a)->GetReadPtr(PLANAR_Y)

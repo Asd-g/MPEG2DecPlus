@@ -87,6 +87,9 @@
     <ClCompile Include="..\..\..\src\dgdecode\BlindPP.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\color_convert.cpp">
+      <Filter>DGDecode</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\dgdecode\global.h">
@@ -114,6 +117,9 @@
       <Filter>DGDecode</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\PostProcess.h">
+      <Filter>DGDecode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\dgdecode\color_convert.h">
       <Filter>DGDecode</Filter>
     </ClInclude>
   </ItemGroup>
