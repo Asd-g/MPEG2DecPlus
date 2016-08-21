@@ -134,7 +134,7 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ml /c /coff /Cx /nologo /Fo $(IntDir)%(Filename).obj %(FullPath)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ml6 /c /coff /Cx /nologo /Fo $(IntDir)%(Filename).obj %(FullPath)
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ml /c /coff /Cx /nologo /Fo $(IntDir)%(Filename).obj %(FullPath)
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
     </CustomBuild>
@@ -154,7 +154,7 @@ nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%40copy /Y ..\..\..\src\dgdecode\skl_nasm.h .\ &gt;NUL
 nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)
-%40del /Q .\*.h
+%40del /Q .\skl_nasm.h
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
     </CustomBuild>
