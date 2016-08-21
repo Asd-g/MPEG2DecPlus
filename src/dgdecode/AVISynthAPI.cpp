@@ -350,8 +350,8 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 
     if (m_decoder.upConv == 2) // convert 4:2:2 (planar) to 4:4:4 (planar) and then to RGB24
     {
-        conv422to444_iSSE(out->u,u444,out->uvpitch,vi.width,vi.width,vi.height);
-        conv422to444_iSSE(out->v,v444,out->uvpitch,vi.width,vi.width,vi.height);
+        conv422to444_SSE2(out->u,u444,out->uvpitch,vi.width,vi.width,vi.height);
+        conv422to444_SSE2(out->v,v444,out->uvpitch,vi.width,vi.width,vi.height);
         PVideoFrame frame2 = env->NewVideoFrame(vi);
         conv444toRGB24(out->y,u444,v444,frame2->GetWritePtr(),out->ypitch,vi.width,
             frame2->GetPitch(),vi.width,vi.height,m_decoder.GOPList[gop]->matrix,m_decoder.pc_scale);

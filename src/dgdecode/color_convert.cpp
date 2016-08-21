@@ -208,6 +208,8 @@ void conv420to422I_MMX(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_
             emms
     }
 }
+
+
 void conv420to422P_MMX(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch, int width, int height)
 {
     int src_pitch2 = src_pitch<<1;
@@ -398,160 +400,29 @@ void conv420to422P_iSSE(const uint8_t *src, uint8_t *dst, int src_pitch, int dst
     }
 }
 
-void conv422to444_MMX(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
+
+void conv422to444_SSE2(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
     int width, int height)
 {
-    int HALF_WIDTH_D8 = (width>>1)-8;
+    const int right = width - 1;
+    width /= 2;
 
-    __asm
-    {
-        mov         eax, [src]  // eax = src
-        mov         ebx, [dst]  // ebx = dst
-        mov         edi, height // edi = height
-        mov         ecx, HALF_WIDTH_D8  // ecx = (width>>1)-8
-        movq        mm1, mmmask_0001    // mm1 = 1's
-        pxor        mm0, mm0    // mm0 = 0's
-
-        convyuv444init:
-        movq        mm7, [eax]  // mm7 = hgfedcba
-            xor         esi, esi    // esi = 0
-
-            convyuv444:
-        movq        mm2, mm7    // mm2 = hgfedcba
-            movq        mm7, [eax+esi+8] // mm7 = ponmlkji
-            movq        mm3, mm2    // mm3 = hgfedcba
-            movq        mm4, mm7    // mm4 = ponmlkji
-
-            psrlq       mm3, 8      // mm3 = 0hgfedcb
-            psllq       mm4, 56     // mm4 = i0000000
-            por         mm3, mm4    // mm3 = ihgfedcb
-
-            movq        mm4, mm2    // mm4 = hgfedcba
-            movq        mm5, mm3    // mm5 = ihgfedcb
-
-            punpcklbw   mm4, mm0    // 0d0c0b0a
-            punpcklbw   mm5, mm0    // 0e0d0c0b
-
-            movq        mm6, mm4    // mm6 = 0d0c0b0a
-            paddusw     mm4, mm1
-            paddusw     mm4, mm5
-            psrlw       mm4, 1      // average mm4/mm5 (d/e,c/d,b/c,a/b)
-            psllq       mm4, 8      // mm4 = z0z0z0z0
-            por         mm4, mm6    // mm4 = zdzczbza
-
-            punpckhbw   mm2, mm0    // 0h0g0f0e
-            punpckhbw   mm3, mm0    // 0i0h0g0f
-
-            movq        mm6, mm2    // mm6 = 0h0g0f0e
-            paddusw     mm2, mm1
-            paddusw     mm2, mm3
-            psrlw       mm2, 1      // average mm2/mm3 (h/i,g/h,f/g,e/f)
-            psllq       mm2, 8      // mm2 = z0z0z0z0
-            por         mm2, mm6    // mm2 = zhzgzfze
-
-            movq        [ebx+esi*2], mm4    // store zdzczbza
-            movq        [ebx+esi*2+8], mm2  // store zhzgzfze
-
-            add         esi, 8
-            cmp         esi, ecx
-            jl          convyuv444  // loop back if not to last 8 pixels
-
-            movq        mm2, mm7    // mm2 = ponmlkji
-
-            punpcklbw   mm2, mm0    // mm2 = 0l0k0j0i
-            punpckhbw   mm7, mm0    // mm7 = 0p0o0n0m
-
-            movq        mm3, mm2    // mm3 = 0l0k0j0i
-            movq        mm4, mm7    // mm4 = 0p0o0n0m
-
-            psrlq       mm2, 16     // mm2 = 000l0k0j
-            psllq       mm4, 48     // mm4 = 0m000000
-            por         mm2, mm4    // mm2 = 0m0l0k0j
-
-            paddusw     mm2, mm1
-            paddusw     mm2, mm3
-            psrlw       mm2, 1      // average mm2/mm3 (m/l,l/k,k/j,j/i)
-            psllq       mm2, 8      // mm2 = z0z0z0z0
-            por         mm2, mm3    // mm2 = zlzkzjzi
-
-            movq        mm6, mm7    // mm6 = 0p0o0n0m
-            movq        mm4, mm7    // mm4 = 0p0o0n0m
-
-            psrlq       mm6, 48     // mm6 = 0000000p
-            psrlq       mm4, 16     // mm4 = 000p0o0n
-            psllq       mm6, 48     // mm6 = 0p000000
-            por         mm4,mm6     // mm4 = 0p0p0o0n
-
-            paddusw     mm4, mm1
-            paddusw     mm4, mm7
-            psrlw       mm4, 1      // average mm4/mm7 (p/p,p/o,o/n,n/m)
-            psllq       mm4, 8      // mm4 = z0z0z0z0
-            por         mm4, mm7    // mm4 = zpzoznzm
-
-            movq        [ebx+esi*2], mm2    // store mm2
-            movq        [ebx+esi*2+8], mm4  // store mm4
-
-            add         eax, src_pitch
-            add         ebx, dst_pitch
-            dec         edi
-            jnz         convyuv444init
-
-            emms
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; x += 16) {
+            __m128i s0 = _mm_load_si128(reinterpret_cast<const __m128i*>(src + x));
+            __m128i s1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src + x + 1));
+            s1 = _mm_avg_epu8(s1, s0);
+            __m128i d0 = _mm_unpacklo_epi8(s0, s1);
+            __m128i d1 = _mm_unpackhi_epi8(s0, s1);
+            _mm_store_si128(reinterpret_cast<__m128i*>(dst + 2 * x), d0);
+            _mm_store_si128(reinterpret_cast<__m128i*>(dst + 2 * x + 16), d1);
+        }
+        dst[right] = dst[right - 1];
+        src += src_pitch;
+        dst += dst_pitch;
     }
 }
 
-void conv422to444_iSSE(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
-    int width, int height)
-{
-    int HALF_WIDTH_D8 = (width>>1)-8;
-
-    __asm
-    {
-        mov         eax, [src]  // eax = src
-        mov         ebx, [dst]  // ebx = dst
-        mov         edi, height // edi = height
-        mov         ecx, HALF_WIDTH_D8  // ecx = (width>>1)-8
-        mov         edx, src_pitch
-        xor         esi, esi    // esi = 0
-        movq        mm7, lastmask
-
-        xloop:
-        movq        mm0, [eax+esi]  // mm7 = hgfedcba
-            movq        mm1, [eax+esi+1]// mm1 = ihgfedcb
-            pavgb       mm1, mm0
-            movq        mm2, mm0
-            punpcklbw   mm0,mm1
-            punpckhbw   mm2,mm1
-
-            movq        [ebx+esi*2], mm0    // store mm0
-            movq        [ebx+esi*2+8], mm2  // store mm2
-
-            add         esi, 8
-            cmp         esi, ecx
-            jl          xloop   // loop back if not to last 8 pixels
-
-            movq        mm0, [eax+esi]  // mm7 = hgfedcba
-            movq        mm1, mm0        // mm1 = hgfedcba
-            movq        mm2, mm0        // mm2 = hgfedcba
-            psrlq       mm1, 8          // mm1 = 0hgfedcb
-            pand        mm2, mm7        // mm2 = h0000000
-            por         mm1, mm2        // mm1 = hhgfedcb
-            pavgb       mm1, mm0
-            movq        mm2, mm0
-            punpcklbw   mm0,mm1
-            punpckhbw   mm2,mm1
-
-            movq        [ebx+esi*2], mm0    // store mm0
-            movq        [ebx+esi*2+8], mm2  // store mm2
-
-            add         eax, edx
-            add         ebx, dst_pitch
-            xor         esi, esi
-            dec         edi
-            jnz         xloop
-            emms
-    }
-}
 
 void conv444toRGB24(const uint8_t *py, const uint8_t *pu, const uint8_t *pv,
     uint8_t *dst, int src_pitchY, int src_pitchUV, int dst_pitch, int width,
