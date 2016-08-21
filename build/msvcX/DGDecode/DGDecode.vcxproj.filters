@@ -118,11 +118,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\..\src\dgdecode\gui.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
     <CustomBuild Include="..\..\..\src\dgdecode\mcsse.asm">
       <Filter>Motion Compensation</Filter>
     </CustomBuild>

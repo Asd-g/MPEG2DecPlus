@@ -122,9 +122,6 @@
     <ClInclude Include="..\..\..\src\dgdecode\PostProcess.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\..\src\dgdecode\gui.rc" />
-  </ItemGroup>
-  <ItemGroup>
     <CustomBuild Include="..\..\..\src\dgdecode\mcsse.asm">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">nasm -f win32 -DPREFIX -o $(IntDir)%(Filename).obj %(FullPath)
 </Command>
