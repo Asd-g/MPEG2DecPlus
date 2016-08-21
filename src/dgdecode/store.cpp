@@ -157,13 +157,13 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
         {
             if (iCC == 1 || (iCC == -1 && pf == 0))
             {
-                conv420to422I_MMX(ppptr[1],dst->u,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
-                conv420to422I_MMX(ppptr[2],dst->v,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422I(ppptr[1],dst->u,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422I(ppptr[2],dst->v,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
             }
             else
             {
-                conv420to422P_iSSE(ppptr[1],dst->u,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
-                conv420to422P_iSSE(ppptr[2],dst->v,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422P(ppptr[1],dst->u,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422P(ppptr[2],dst->v,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
             }
         }
     }
@@ -180,13 +180,13 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
             CopyPlane(psrc.y,psrc.ypitch,dst->y,dst->ypitch,psrc.ywidth,psrc.yheight);
             if (iCC == 1 || (iCC == -1 && pf == 0))
             {
-                conv420to422I_MMX(psrc.u,dst->u,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
-                conv420to422I_MMX(psrc.v,dst->v,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422I(psrc.u,dst->u,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422I(psrc.v,dst->v,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
             }
             else
             {
-                conv420to422P_iSSE(psrc.u,dst->u,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
-                conv420to422P_iSSE(psrc.v,dst->v,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422P(psrc.u,dst->u,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422P(psrc.v,dst->v,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
             }
         }
         else CopyAll(&psrc,dst);

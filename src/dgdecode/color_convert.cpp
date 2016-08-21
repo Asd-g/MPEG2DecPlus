@@ -10,398 +10,195 @@ MPEG2Dec's colorspace convertions Copyright (C) Chia-chen Kuo - April 2001
 // lots of bug fixes and new isse 422->444 routine
 // tritical - August 18, 2005
 
+// rewite all code to sse2 intrinsic
+// OKA Motofumi - August 21, 2016
 
+
+#include <cstring>
 #include <emmintrin.h>
 #include "color_convert.h"
 
 
-constexpr int64_t mmmask_0001 = 0x0001000100010001;
-constexpr int64_t mmmask_0002 = 0x0002000200020002;
-constexpr int64_t mmmask_0003 = 0x0003000300030003;
-constexpr int64_t mmmask_0004 = 0x0004000400040004;
-constexpr int64_t mmmask_0005 = 0x0005000500050005;
-constexpr int64_t mmmask_0007 = 0x0007000700070007;
-constexpr int64_t mmmask_0016 = 0x0010001000100010;
-constexpr int64_t mmmask_0128 = 0x0080008000800080;
-constexpr int64_t lastmask    = 0xFF00000000000000;
-constexpr int64_t mmmask_0101 = 0x0101010101010101;
-
-
-void conv420to422I_MMX(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch, int width, int height)
+#if 0
+// C implementation
+void conv420to422I_c(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch, int width, int height)
 {
-    int src_pitch2 = src_pitch << 1;
-    int dst_pitch2 = dst_pitch << 1;
-    int dst_pitch4 = dst_pitch << 2;
-    int INTERLACED_HEIGHT = (height >> 2) - 2;
-    int PROGRESSIVE_HEIGHT = (height >> 1) - 2;
-    int HALF_WIDTH = width >> 1; // chroma width
+    const uint8_t* s0 = src;
+    const uint8_t* s1 = s0 + src_pitch;
+    uint8_t* d0 = dst;
+    uint8_t* d1 = d0 + dst_pitch;
 
-    __asm
-    {
-        mov         eax, [src] // eax = src
-        mov         ecx, [dst] // ecx = dst
-        xor         esi, esi
-        pxor        mm0, mm0
-        movq        mm3, [mmmask_0003]
-        movq        mm4, [mmmask_0004]
-        movq        mm5, [mmmask_0005]
-        mov         edi, HALF_WIDTH
+    width /= 2;
+    src_pitch *= 2;
+    dst_pitch *= 2;
 
-        convyuv422topi:
-        movd        mm1, [eax+esi]
-            mov         ebx, eax
-            add         ebx, src_pitch2
-            movd        mm2, [ebx+esi]
-            movd        [ecx+esi], mm1
-            sub         ebx, src_pitch
+    std::memcpy(d0, s0, width);
+    std::memcpy(d1, s1, width);
 
-            punpcklbw   mm1, mm0
-            movq        mm6, [ebx+esi]
-            pmullw      mm1, mm5
-            add         ebx, src_pitch2
-            punpcklbw   mm2, mm0
-            movq        mm7, [ebx+esi]
-            pmullw      mm2, mm3
-            paddusw     mm2, mm1
-            paddusw     mm2, mm4
-            psrlw       mm2, 0x03
-            packuswb    mm2, mm0
+    d0 += dst_pitch;
+    d1 += dst_pitch;
 
-            mov         edx, ecx
-            add         edx, dst_pitch2
-            movd        [edx+esi], mm2
-            sub         edx, dst_pitch
+    for (int y = 2; y < height - 2; y += 4) {
+        const uint8_t* s2 = s0 + src_pitch;
+        const uint8_t* s3 = s1 + src_pitch;
+        uint8_t* d2 = d0 + dst_pitch;
+        uint8_t* d3 = d1 + dst_pitch;
 
-            movd        [edx+esi], mm6
-            punpcklbw   mm6, mm0
-            pmullw      mm6, [mmmask_0007]
-            punpcklbw   mm7, mm0
-            paddusw     mm7, mm6
-            paddusw     mm7, mm4
-            psrlw       mm7, 0x03
-            packuswb    mm7, mm0
-
-            add         edx, dst_pitch2
-            add         esi, 0x04
-            cmp         esi, edi
-            movd        [edx+esi-4], mm7
-
-            jl          convyuv422topi
-
-            add         eax, src_pitch2
-            add         ecx, dst_pitch4
-            xor         esi, esi
-
-            convyuv422i:
-        movd        mm1, [eax+esi]
-            punpcklbw   mm1, mm0
-            movq        mm6, mm1
-            mov         ebx, eax
-            sub         ebx, src_pitch2
-            movd        mm3, [ebx+esi]
-            pmullw      mm1, [mmmask_0007]
-            punpcklbw   mm3, mm0
-            paddusw     mm3, mm1
-            paddusw     mm3, mm4
-            psrlw       mm3, 0x03
-            packuswb    mm3, mm0
-
-            add         ebx, src_pitch
-            movq        mm1, [ebx+esi]
-            add         ebx, src_pitch2
-            movd        [ecx+esi], mm3
-
-            movq        mm3, [mmmask_0003]
-            movd        mm2, [ebx+esi]
-
-            punpcklbw   mm1, mm0
-            pmullw      mm1, mm3
-            punpcklbw   mm2, mm0
-            movq        mm7, mm2
-            pmullw      mm2, mm5
-            paddusw     mm2, mm1
-            paddusw     mm2, mm4
-            psrlw       mm2, 0x03
-            packuswb    mm2, mm0
-
-            pmullw      mm6, mm5
-            mov         edx, ecx
-            add         edx, dst_pitch
-            movd        [edx+esi], mm2
-
-            add         ebx, src_pitch
-            movd        mm2, [ebx+esi]
-            punpcklbw   mm2, mm0
-            pmullw      mm2, mm3
-            paddusw     mm2, mm6
-            paddusw     mm2, mm4
-            psrlw       mm2, 0x03
-            packuswb    mm2, mm0
-
-            pmullw      mm7, [mmmask_0007]
-            add         edx, dst_pitch
-            add         ebx, src_pitch
-            movd        [edx+esi], mm2
-
-            movd        mm2, [ebx+esi]
-            punpcklbw   mm2, mm0
-            paddusw     mm2, mm7
-            paddusw     mm2, mm4
-            psrlw       mm2, 0x03
-            packuswb    mm2, mm0
-
-            add         edx, dst_pitch
-            add         esi, 0x04
-            cmp         esi, edi
-            movd        [edx+esi-4], mm2
-
-            jl          convyuv422i
-            add         eax, src_pitch2
-            add         ecx, dst_pitch4
-            xor         esi, esi
-            dec         INTERLACED_HEIGHT
-            jnz         convyuv422i
-
-            convyuv422bottomi:
-        movd        mm1, [eax+esi]
-            movq        mm6, mm1
-            punpcklbw   mm1, mm0
-            mov         ebx, eax
-            sub         ebx, src_pitch2
-            movd        mm3, [ebx+esi]
-            punpcklbw   mm3, mm0
-            pmullw      mm1, [mmmask_0007]
-            paddusw     mm3, mm1
-            paddusw     mm3, mm4
-            psrlw       mm3, 0x03
-            packuswb    mm3, mm0
-
-            add         ebx, src_pitch
-            movq        mm1, [ebx+esi]
-            punpcklbw   mm1, mm0
-            movd        [ecx+esi], mm3
-
-            pmullw      mm1, [mmmask_0003]
-            add         ebx, src_pitch2
-            movd        mm2, [ebx+esi]
-            movq        mm7, mm2
-            punpcklbw   mm2, mm0
-            pmullw      mm2, mm5
-            paddusw     mm2, mm1
-            paddusw     mm2, mm4
-            psrlw       mm2, 0x03
-            packuswb    mm2, mm0
-
-            mov         edx, ecx
-            add         edx, dst_pitch
-            movd        [edx+esi], mm2
-            add         edx, dst_pitch
-            movd        [edx+esi], mm6
-
-            add         edx, dst_pitch
-            add         esi, 0x04
-            cmp         esi, edi
-            movd        [edx+esi-4], mm7
-
-            jl          convyuv422bottomi
-
-            emms
+        for (int x = 0; x < width; ++x) {
+            d0[x] = (s0[x] * 5 + s2[x] * 3 + 4) / 8;
+            d1[x] = (s1[x] * 7 + s3[x] * 1 + 4) / 8;
+            d2[x] = (s0[x] * 1 + s2[x] * 7 + 4) / 8;
+            d3[x] = (s1[x] * 3 + s3[x] * 5 + 4) / 8;
+        }
+        s0 = s2;
+        s1 = s3;
+        d0 = d2 + dst_pitch;
+        d1 = d3 + dst_pitch;
     }
+
+    std::memcpy(d0, s0, width);
+    std::memcpy(d1, s1, width);
+}
+#endif
+
+
+static __forceinline __m128i
+avg_weight_1_7(const __m128i& x, const __m128i& y, const __m128i& four)
+{
+    __m128i t0 = _mm_subs_epu16(_mm_slli_epi16(y, 3), y);
+    return _mm_srli_epi16(_mm_adds_epu16(_mm_adds_epu16(x, t0), four), 3);
+}
+
+static __forceinline __m128i
+avg_weight_3_5(const __m128i& x, const __m128i& y, const __m128i& four)
+{
+    __m128i t0 = _mm_adds_epu16(_mm_slli_epi16(x, 1), x);
+    __m128i t1 = _mm_adds_epu16(_mm_slli_epi16(y, 2), y);
+    return _mm_srli_epi16(_mm_adds_epu16(_mm_adds_epu16(t0, t1), four), 3);
 }
 
 
-void conv420to422P_MMX(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch, int width, int height)
+void conv420to422I(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch, int width, int height)
 {
-    int src_pitch2 = src_pitch<<1;
-    int dst_pitch2 = dst_pitch<<1;
-    int dst_pitch4 = dst_pitch<<2;
-    int INTERLACED_HEIGHT = (height>>2) - 2;
-    int PROGRESSIVE_HEIGHT = (height>>1) - 2;
-    int HALF_WIDTH = width>>1; // chroma width
+    const uint8_t* src0 = src;
+    const uint8_t* src1 = src + src_pitch;
+    uint8_t* dst0 = dst;
+    uint8_t* dst1 = dst + dst_pitch;
 
-    __asm
-    {
-        mov         eax, [src] // eax = src
-        mov         ebx, [dst] // ebx = dst
-        mov         ecx, ebx   // ecx = dst
-        add         ecx, dst_pitch // ecx = dst + dst_pitch
-        xor         esi, esi
-        movq        mm3, [mmmask_0003]
-        pxor        mm0, mm0
-        movq        mm4, [mmmask_0002]
+    width /= 2;
+    src_pitch *= 2;
+    dst_pitch *= 2;
 
-        mov         edx, eax // edx = src
-        add         edx, src_pitch // edx = src + src_pitch
-        mov         edi, HALF_WIDTH
+    std::memcpy(dst0, src0, width);
+    std::memcpy(dst1, src1, width);
 
-        convyuv422topp:
-        movd        mm1, [eax+esi]
-            movd        mm2, [edx+esi]
-            movd        [ebx+esi], mm1
-            punpcklbw   mm1, mm0
-            pmullw      mm1, mm3
-            paddusw     mm1, mm4
-            punpcklbw   mm2, mm0
-            paddusw     mm2, mm1
-            psrlw       mm2, 0x02
-            packuswb    mm2, mm0
+    dst0 += dst_pitch;
+    dst1 += dst_pitch;
 
-            add         esi, 0x04
-            cmp         esi, edi
-            movd        [ecx+esi-4], mm2
-            jl          convyuv422topp
+    const __m128i zero = _mm_setzero_si128();
+    const __m128i four = _mm_set1_epi16(0x0004);
 
-            add         eax, src_pitch
-            add         ebx, dst_pitch2
-            add         ecx, dst_pitch2
-            xor         esi, esi
+    for (int y = 2; y < height - 2; y += 4) {
+        const uint8_t* src2 = src0 + src_pitch;
+        const uint8_t* src3 = src1 + src_pitch;
+        uint8_t* dst2 = dst0 + dst_pitch;
+        uint8_t* dst3 = dst1 + dst_pitch;
 
-            convyuv422p:
-        movd        mm1, [eax+esi]
+        for (int x = 0; x < width; x += 8) {
+            __m128i s0 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src0 + x));
+            __m128i s1 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src2 + x));
+            s0 = _mm_unpacklo_epi8(s0, zero);
+            s1 = _mm_unpacklo_epi8(s1, zero);
+            __m128i d = _mm_packus_epi16(avg_weight_3_5(s1, s0, four), zero);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(dst0 + x), d);
+            d = _mm_packus_epi16(avg_weight_1_7(s0, s1, four), zero);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(dst2 + x), d);
 
-            punpcklbw   mm1, mm0
-            mov         edx, eax // edx = src
-
-            pmullw      mm1, mm3
-            sub         edx, src_pitch
-
-            movd        mm5, [edx+esi]
-            add         edx, src_pitch2
-            movd        mm2, [edx+esi]
-
-            punpcklbw   mm5, mm0
-            punpcklbw   mm2, mm0
-            paddusw     mm5, mm1
-            paddusw     mm2, mm1
-            paddusw     mm5, mm4
-            paddusw     mm2, mm4
-            psrlw       mm5, 0x02
-            psrlw       mm2, 0x02
-            packuswb    mm5, mm0
-            packuswb    mm2, mm0
-
-            add         esi, 0x04
-            cmp         esi, edi
-            movd        [ebx+esi-4], mm5
-            movd        [ecx+esi-4], mm2
-
-            jl          convyuv422p
-
-            add         eax, src_pitch
-            add         ebx, dst_pitch2
-            add         ecx, dst_pitch2
-            xor         esi, esi
-            dec         PROGRESSIVE_HEIGHT
-            jnz         convyuv422p
-
-            mov         edx, eax
-            sub         edx, src_pitch
-
-            convyuv422bottomp:
-        movd        mm1, [eax+esi]
-            movd        mm5, [edx+esi]
-            punpcklbw   mm5, mm0
-            movd        [ecx+esi], mm1
-
-            punpcklbw   mm1, mm0
-            pmullw      mm1, mm3
-            paddusw     mm5, mm1
-            paddusw     mm5, mm4
-            psrlw       mm5, 0x02
-            packuswb    mm5, mm0
-
-            add         esi, 0x04
-            cmp         esi, edi
-            movd        [ebx+esi-4], mm5
-            jl          convyuv422bottomp
-
-            emms
+            s0 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src1 + x));
+            s1 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(src3 + x));
+            s0 = _mm_unpacklo_epi8(s0, zero);
+            s1 = _mm_unpacklo_epi8(s1, zero);
+            d = _mm_packus_epi16(avg_weight_1_7(s1, s0, four), zero);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(dst1 + x), d);
+            d = _mm_packus_epi16(avg_weight_3_5(s0, s1, four), zero);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(dst3 + x), d);
+        }
+        src0 = src2;
+        src1 = src3;
+        dst0 = dst2 + dst_pitch;
+        dst1 = dst3 + dst_pitch;
     }
+
+    std::memcpy(dst0, src0, width);
+    std::memcpy(dst1, src1, width);
 }
 
 
-void conv420to422P_iSSE(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
+void conv420to422P(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
     int width, int height)
 {
-    int src_pitch2 = src_pitch<<1;
-    int dst_pitch2 = dst_pitch<<1;
-    int PROGRESSIVE_HEIGHT = (height>>1) - 2;
-    int HALF_WIDTH = width>>1; // chroma width
+    const uint8_t* s0 = src;
+    const uint8_t* s1 = s0 + src_pitch;
+    uint8_t* d0 = dst;
+    uint8_t* d1 = dst + dst_pitch;
 
-    __asm
-    {
-        mov         eax, [src] // eax = src
-        mov         ebx, [dst] // ebx = dst
-        mov         ecx, ebx   // ecx = dst
-        add         ecx, dst_pitch // ecx = dst + dst_pitch
-        mov         edx, eax // edx = src
-        add         edx, src_pitch // edx = src + src_pitch
-        xor         esi, esi
-        mov         edi, HALF_WIDTH
-        movq        mm6, mmmask_0101
-        movq        mm7, mm6
+    width /= 2;
+    height /= 2;
+    dst_pitch *= 2;
 
-        convyuv422topp:
-        movq        mm0, [eax+esi]
-            movq        mm1, [edx+esi]
-            movq        [ebx+esi], mm0
-            psubusb     mm1, mm7
-            pavgb       mm1, mm0
-            pavgb       mm1, mm0
-            movq        [ecx+esi], mm1
-            add         esi, 0x08
-            cmp         esi, edi
-            jl          convyuv422topp
-            add         eax, src_pitch
-            add         ebx, dst_pitch2
-            add         ecx, dst_pitch2
-            xor         esi, esi
+    const __m128i one = _mm_set1_epi8(0x01);
 
-            convyuv422p:
-        movq        mm0, [eax+esi]
-            mov         edx, eax // edx = src
-            movq        mm1, mm0
-            sub         edx, src_pitch
-            movq        mm2, [edx+esi]
-            add         edx, src_pitch2
-            movq        mm3, [edx+esi]
-            psubusb     mm2, mm6
-            psubusb     mm3, mm7
-            pavgb       mm2, mm0
-            pavgb       mm3, mm1
-            pavgb       mm2, mm0
-            pavgb       mm3, mm1
-            movq        [ebx+esi], mm2
-            movq        [ecx+esi], mm3
-            add         esi, 0x08
-            cmp         esi, edi
-            jl          convyuv422p
-            add         eax, src_pitch
-            add         ebx, dst_pitch2
-            add         ecx, dst_pitch2
-            xor         esi, esi
-            dec         PROGRESSIVE_HEIGHT
-            jnz         convyuv422p
-            mov         edx, eax
-            sub         edx, src_pitch
+    for (int x = 0; x < width; x += 16) {
+        const __m128i sx0 = _mm_load_si128(reinterpret_cast<const __m128i*>(s0 + x));
+        __m128i sx1 = _mm_load_si128(reinterpret_cast<const __m128i*>(s1 + x));
 
-            convyuv422bottomp:
-        movq        mm0, [eax+esi]
-            movq        mm1, [edx+esi]
-            movq        [ecx+esi], mm0
-            psubusb     mm1, mm7
-            pavgb       mm1, mm0
-            pavgb       mm1, mm0
-            movq        [ebx+esi], mm1
-            add         esi, 0x08
-            cmp         esi, edi
-            jl          convyuv422bottomp
-            emms
+        sx1 = _mm_subs_epu8(sx1, one);
+        sx1 = _mm_avg_epu8(_mm_avg_epu8(sx1, sx0), sx0);
+
+        _mm_store_si128(reinterpret_cast<__m128i*>(d0 + x), sx0);
+        _mm_store_si128(reinterpret_cast<__m128i*>(d1 + x), sx1);
+    }
+
+    d0 += dst_pitch;
+    d1 += dst_pitch;
+
+    for (int y = 0; y < height - 2; ++y) {
+        const uint8_t* s2 = s1 + src_pitch;
+
+        for (int x = 0; x < width; x += 16) {
+            __m128i sx0 = _mm_load_si128(reinterpret_cast<const __m128i*>(s0 + x));
+            const __m128i sx1 = _mm_load_si128(reinterpret_cast<const __m128i*>(s1 + x));
+            __m128i sx2 = _mm_load_si128(reinterpret_cast<const __m128i*>(s2 + x));
+
+            sx0 = _mm_subs_epu8(sx0, one);
+            sx2 = _mm_subs_epu8(sx2, one);
+            sx0 = _mm_avg_epu8(_mm_avg_epu8(sx0, sx1), sx1);
+            sx2 = _mm_avg_epu8(_mm_avg_epu8(sx2, sx1), sx1);
+
+            _mm_store_si128(reinterpret_cast<__m128i*>(d0 + x), sx0);
+            _mm_store_si128(reinterpret_cast<__m128i*>(d1 + x), sx2);
+        }
+        s0 = s1;
+        s1 = s2;
+        d0 += dst_pitch;
+        d1 += dst_pitch;
+    }
+
+    for (int x = 0; x < width; x += 16) {
+        __m128i sx0 = _mm_load_si128(reinterpret_cast<const __m128i*>(s0 + x));
+        const __m128i sx1 = _mm_load_si128(reinterpret_cast<const __m128i*>(s1 + x));
+
+        sx0 = _mm_subs_epu8(sx0, one);
+        sx0 = _mm_avg_epu8(_mm_avg_epu8(sx0, sx1), sx1);
+
+        _mm_store_si128(reinterpret_cast<__m128i*>(d0 + x), sx0);
+        _mm_store_si128(reinterpret_cast<__m128i*>(d1 + x), sx1);
     }
 }
 
 
-void conv422to444_SSE2(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
+
+void conv422to444(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
     int width, int height)
 {
     const int right = width - 1;
@@ -422,6 +219,10 @@ void conv422to444_SSE2(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_
         dst += dst_pitch;
     }
 }
+
+
+const int64_t mmmask_0001 = 0x0001000100010001;
+const int64_t mmmask_0128 = 0x0080008000800080;
 
 
 void conv444toRGB24(const uint8_t *py, const uint8_t *pu, const uint8_t *pv,

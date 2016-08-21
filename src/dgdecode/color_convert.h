@@ -4,16 +4,13 @@
 #include <cstdint>
 
 
-void conv420to422P_MMX(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
+void conv420to422P(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
     int width, int height);
 
-void conv420to422I_MMX(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
+void conv420to422I(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
     int width, int height);
 
-void conv420to422P_iSSE(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
-    int width, int height);
-
-void conv422to444_SSE2(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
+void conv422to444(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
     int width, int height);
 
 void conv444toRGB24(const uint8_t *py, const uint8_t *pu, const uint8_t *pv,
