@@ -71,7 +71,7 @@ static __forceinline void storeu(uint8_t* p, const __m128i& x)
 }
 
 
-static void MC_put_8_sse2(uint8_t * dest, const uint8_t * ref, int stride, int, int height)
+static void MC_put_8_c(uint8_t * dest, const uint8_t * ref, int stride, int, int height)
 {
     do {
         *reinterpret_cast<uint64_t*>(dest) = *reinterpret_cast<const uint64_t*>(ref);
@@ -297,7 +297,7 @@ MCFuncPtr ppppf_motion[2][2][4];
 
 void Choose_Prediction(bool)
 {
-    ppppf_motion[0][0][0] = MC_put_8_sse2;
+    ppppf_motion[0][0][0] = MC_put_8_c;
     ppppf_motion[0][0][1] = MC_put_y8_sse2;
     ppppf_motion[0][0][2] = MC_put_x8_sse2;
     ppppf_motion[0][0][3] = MC_put_xy8_sse2;
