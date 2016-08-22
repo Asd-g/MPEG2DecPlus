@@ -30,6 +30,7 @@
 //#define SSE2CHECK
 //#define USE_SSE2_CODE
 //
+#include <cstdint>
 #include <math.h>
 
 #ifndef MPEG2DEC_EXPORTS
@@ -145,26 +146,22 @@ int dprintf(char* fmt, ...);
 #define OUT_OF_BITS 11
 
 struct CPU {
-    BOOL                    mmx;
-    BOOL                    _3dnow;
-    BOOL                    ssemmx;
-    BOOL                    ssefpu;
-    BOOL                    sse2mmx;
+    bool mmx;
+    bool _3dnow;
+    bool ssemmx;
+    bool ssefpu;
+    bool sse2mmx;
 };
 
 XTN CPU cpu;
 
 void CheckCPU(void);
 
-/* alloc.cpp */
-extern "C" void *aligned_malloc(size_t size, size_t alignment);
-extern "C" void aligned_free(void *aligned);
-
-typedef void (WINAPI *PBufferOp) (unsigned char*, int, int);
+typedef void (WINAPI *PBufferOp) (uint8_t*, int, int);
 
 struct YV12PICT
 {
-    unsigned char *y, *u, *v;
+    uint8_t *y, *u, *v;
     int ypitch, uvpitch;
     int ywidth, uvwidth;
     int yheight, uvheight;
@@ -189,21 +186,21 @@ protected:
   void Next_Transport_Packet(void);
   void Next_PVA_Packet(void);
   void Next_Packet(void);
-  void Flush_Buffer_All(unsigned int N);
-  unsigned int Get_Bits_All(unsigned int N);
+  void Flush_Buffer_All(uint32_t N);
+  uint32_t Get_Bits_All(uint32_t N);
   void Next_File(void);
 
-  _INLINE_ unsigned int Show_Bits(unsigned int N);
-  _INLINE_ unsigned int Get_Bits(unsigned int N);
-  _INLINE_ void Flush_Buffer(unsigned int N);
+  _INLINE_ uint32_t Show_Bits(uint32_t N);
+  _INLINE_ uint32_t Get_Bits(uint32_t N);
+  _INLINE_ void Flush_Buffer(uint32_t N);
   _INLINE_ void Fill_Next(void);
-  _INLINE_ unsigned int Get_Byte(void);
-  _INLINE_ unsigned int Get_Short(void);
+  _INLINE_ uint32_t Get_Byte(void);
+  _INLINE_ uint32_t Get_Short(void);
   _INLINE_ void next_start_code(void);
 
-  unsigned char Rdbfr[BUFFER_SIZE], *Rdptr, *Rdmax;
-  unsigned int CurrentBfr, NextBfr, BitsLeft, Val, Read;
-  unsigned char *buffer_invalid;
+  uint8_t Rdbfr[BUFFER_SIZE], *Rdptr, *Rdmax;
+  uint32_t CurrentBfr, NextBfr, BitsLeft, Val, Read;
+  uint8_t *buffer_invalid;
 
   // gethdr.cpp
   int Get_Hdr(void);
@@ -228,7 +225,7 @@ private:
 
   _INLINE_ void Update_Picture_Buffers(void);
   _INLINE_ void picture_data(void);
-  _INLINE_ void slice(int MBAmax, unsigned int code);
+  _INLINE_ void slice(int MBAmax, uint32_t code);
   _INLINE_ void macroblock_modes(int *pmacroblock_type, int *pmotion_type,
                                  int *pmotion_vector_count, int *pmv_format, int *pdmv, int *pmvscale, int *pdct_type);
   _INLINE_ void Clear_Block(int count);
@@ -259,16 +256,17 @@ private:
       int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2]);
 
   // inline?
-  _INLINE_ void form_prediction(unsigned char *src[], int sfield, unsigned char *dst[], int dfield,
+  _INLINE_ void form_prediction(uint8_t *src[], int sfield, uint8_t *dst[], int dfield,
       int lx, int lx2, int w, int h, int x, int y, int dx, int dy, int average_flag);
 
+#if 0
   // inline?
-  _INLINE_ void form_component_prediction(unsigned char *src, unsigned char *dst,
+  _INLINE_ void form_component_prediction(uint8_t *src, uint8_t *dst,
       int lx, int lx2, int w, int h, int x, int y, int dx, int dy, int average_flag);
 
-  void form_component_predictionSSE2(unsigned char *s, unsigned char *d,
+  void form_component_predictionSSE2(uint8_t *s, uint8_t *d,
                                           int lx, int lx2, int w, int h, int flag);
-
+#endif
 
   // motion.cpp
   void motion_vectors(int PMV[2][2][2], int dmvector[2], int motion_vertical_field_select[2][2],
@@ -285,10 +283,8 @@ private:
 
 protected:
   // store.cpp
-  void assembleFrame(unsigned char *src[], int pf, YV12PICT *dst);
-private:
+  void assembleFrame(uint8_t *src[], int pf, YV12PICT *dst);
 
-protected:
   // decoder operation control flags
   int Fault_Flag;
   int File_Flag;
@@ -308,7 +304,7 @@ protected:
 
   int Infile[MAX_FILE_NUMBER];
   char *Infilename[MAX_FILE_NUMBER];
-  unsigned int BadStartingFrames;
+  uint32_t BadStartingFrames;
   int closed_gop;
 
   int intra_quantizer_matrix[64];
@@ -329,9 +325,9 @@ protected:
   int pf_backward, pf_forward, pf_current;
 
   // global values
-  unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
-  unsigned char *auxframe[3], *current_frame[3];
-  unsigned char *u422, *v422;
+  uint8_t *backward_reference_frame[3], *forward_reference_frame[3];
+  uint8_t *auxframe[3], *current_frame[3];
+  uint8_t *u422, *v422;
   YV12PICT *auxFrame1;
   YV12PICT *auxFrame2;
   YV12PICT *saved_active;
@@ -386,7 +382,7 @@ protected:
     DWORD           number;
     int             file;
     __int64         position;
-    unsigned int    I_count;
+    uint32_t    I_count;
     int             closed;
     int             progressive;
     int             matrix;
@@ -397,8 +393,8 @@ protected:
   struct FRAMELIST {
     DWORD top;
     DWORD bottom;
-    unsigned char pf;
-    unsigned char pct;
+    uint8_t pf;
+    uint8_t pct;
   };
   FRAMELIST *FrameList;
 
@@ -413,14 +409,14 @@ protected:
   _INLINE_ void CopyTop(YV12PICT *src, YV12PICT *dst);
   _INLINE_ void CopyBot(YV12PICT *src, YV12PICT *dst);
   _INLINE_ void CopyTopBot(YV12PICT *odd, YV12PICT *even, YV12PICT *dst);
-  _INLINE_ void CopyPlane(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch,
+  _INLINE_ void CopyPlane(uint8_t *src, int src_pitch, uint8_t *dst, int dst_pitch,
                               int width, int height);
 
 public:
   FILE      *VF_File;
   int       VF_FrameRate;
-  unsigned int VF_FrameRate_Num;
-  unsigned int VF_FrameRate_Den;
+  uint32_t VF_FrameRate_Num;
+  uint32_t VF_FrameRate_Den;
   DWORD     VF_FrameLimit;
   DWORD     VF_GOPLimit;
   DWORD     prev_frame;
@@ -446,7 +442,7 @@ public:
 
     // Luminance Code
     bool Luminance_Flag;
-    unsigned char LuminanceTable[256];
+    uint8_t LuminanceTable[256];
 
     void InitializeLuminanceFilter(int LumGamma, int LumOffset)
     {
@@ -462,11 +458,11 @@ public:
             else if (value > 255.0)
                 LuminanceTable[i] = 255;
             else
-                LuminanceTable[i] = (unsigned char)value;
+                LuminanceTable[i] = (uint8_t)value;
         }
     }
 
-    void LuminanceFilter(unsigned char *src, int width_in, int height_in, int pitch_in)
+    void LuminanceFilter(uint8_t *src, int width_in, int height_in, int pitch_in)
     {
         for (int y=0; y<height_in; ++y)
         {
@@ -498,7 +494,7 @@ void __fastcall FPU_IDCT(short *block);
 void __fastcall REF_IDCT(short *block);
 
 /* default intra quantization matrix */
-XTN unsigned char default_intra_quantizer_matrix[64]
+XTN uint8_t default_intra_quantizer_matrix[64]
 #ifdef GLOBAL
 =
 {
@@ -515,7 +511,7 @@ XTN unsigned char default_intra_quantizer_matrix[64]
 ;
 
 /* zig-zag and alternate scan patterns */
-XTN unsigned char scan[2][64]
+XTN uint8_t scan[2][64]
 #ifdef GLOBAL
 =
 {
@@ -545,7 +541,7 @@ XTN unsigned char scan[2][64]
 ;
 
 /* non-linear quantization coefficient table */
-XTN unsigned char Non_Linear_quantizer_scale[32]
+XTN uint8_t Non_Linear_quantizer_scale[32]
 #ifdef GLOBAL
 =
 {

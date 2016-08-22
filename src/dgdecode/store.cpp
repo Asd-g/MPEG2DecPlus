@@ -121,7 +121,7 @@ __inline void MBnum(uc* dst, int stride, int number)
     }
 }
 
-void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
+void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
 {
     int *qp;
 

@@ -29,7 +29,7 @@
 #include "global.h"
 #include "mc.h"
 
-const unsigned char cc_table[12] = {
+const uint8_t cc_table[12] = {
     0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 2
 };
 
@@ -76,7 +76,7 @@ void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
 void CMPEG2Decoder::Update_Picture_Buffers()
 {
     int cc;              /* color component index */
-    unsigned char *tmp;  /* temporary swap pointer */
+    uint8_t *tmp;  /* temporary swap pointer */
 
     for (cc=0; cc<3; cc++)
     {
@@ -298,16 +298,16 @@ void CMPEG2Decoder::macroblock_modes(int *pmacroblock_type, int *pmotion_type,
    - ISO/IEC 13818-2 section 6.1.3: Macroblock
 */
 __declspec(align(16))
-static const unsigned __int64 mmmask_128C[2] = {0x8080808080808080, 0x8080808080808080};
+static const uint64_t mmmask_128C[2] = {0x8080808080808080, 0x8080808080808080};
 
 
 void CMPEG2Decoder::Add_Block(int count, int bx, int by, int dct_type, int addflag)
 {
-static const unsigned __int64 mmmask_128  = 0x0080008000800080;
+static const uint64_t mmmask_128  = 0x0080008000800080;
 
 
     int comp, cc, iincr, bxh, byh;
-    unsigned char *rfp;
+    uint8_t *rfp;
     short *Block_Ptr;
 
     for (comp=0; comp<count; comp++)
@@ -1734,7 +1734,7 @@ void CMPEG2Decoder::form_predictions(int bx, int by, int macroblock_type, int mo
                       int dmvector[2])
 {
     int currentfield;
-    unsigned char **predframe;
+    uint8_t **predframe;
     int DMV[2][2];
     int stw;
 
@@ -1905,7 +1905,7 @@ void CMPEG2Decoder::form_predictions(int bx, int by, int macroblock_type, int mo
 }
 
 // Minor rewrite to use the function pointer array - Vlad59 04-20-2002
-void  CMPEG2Decoder::form_prediction(unsigned char *src[], int sfield, unsigned char *dst[],
+void  CMPEG2Decoder::form_prediction(uint8_t *src[], int sfield, uint8_t *dst[],
                             int dfield, int lx, int lx2, int w, int h, int x, int y,
                             int dx, int dy, int average_flag)
 {
@@ -1914,8 +1914,8 @@ void  CMPEG2Decoder::form_prediction(unsigned char *src[], int sfield, unsigned 
         return;
     }
 
-    unsigned char *s = (src[0]+(sfield?lx2>>1:0)) + lx * (y + (dy>>1)) + x + (dx>>1);
-    unsigned char *d = (dst[0]+(dfield?lx2>>1:0)) + lx * y + x;
+    uint8_t *s = (src[0]+(sfield?lx2>>1:0)) + lx * (y + (dy>>1)) + x + (dx>>1);
+    uint8_t *d = (dst[0]+(dfield?lx2>>1:0)) + lx * y + x;
     int flag = ((dx & 1)<<1) + (dy & 1);
 
     ppppf_motion[average_flag][w>>4][flag] (d, s, lx2, lx, h);

@@ -25,7 +25,7 @@ void CMPEG2Decoder::Initialize_Buffer()
 {
     Rdptr = Rdbfr + BUFFER_SIZE;
     Rdmax = Rdptr;
-    buffer_invalid = (unsigned char *) 0xffffffff;
+    buffer_invalid = (uint8_t *) 0xffffffff;
 
     if (SystemStream_Flag)
     {
@@ -60,7 +60,7 @@ void CMPEG2Decoder::Initialize_Buffer()
     BitsLeft = 32;
 }
 
-unsigned int CMPEG2Decoder::Get_Bits_All(unsigned int N)
+uint32_t CMPEG2Decoder::Get_Bits_All(uint32_t N)
 {
 #ifdef PROFILING
 //    start_bit_timer();
@@ -83,7 +83,7 @@ unsigned int CMPEG2Decoder::Get_Bits_All(unsigned int N)
     return Val;
 }
 
-void CMPEG2Decoder::Flush_Buffer_All(unsigned int N)
+void CMPEG2Decoder::Flush_Buffer_All(uint32_t N)
 {
 #ifdef PROFILING
 //    start_bit_timer();
@@ -101,33 +101,33 @@ void CMPEG2Decoder::Flush_Buffer_All(unsigned int N)
 
 typedef struct {
     // 1 byte
-    unsigned char sync_byte; //         8   bslbf
+    uint8_t sync_byte; //         8   bslbf
 
     // 2 bytes
-    unsigned char transport_error_indicator;//      1   bslbf
-    unsigned char payload_unit_start_indicator;//       1   bslbf
-    unsigned char transport_priority; //        1   bslbf
-    unsigned short pid; //  13  uimsbf
+    uint8_t transport_error_indicator;//      1   bslbf
+    uint8_t payload_unit_start_indicator;//       1   bslbf
+    uint8_t transport_priority; //        1   bslbf
+    uint16_t pid; //  13  uimsbf
 
     // 1 byte
-    unsigned char transport_scrambling_control;//       2   bslbf
-    unsigned char adaptation_field_control;//       2   bslbf
-    unsigned char continuity_counter;//     4   uimsbf
+    uint8_t transport_scrambling_control;//       2   bslbf
+    uint8_t adaptation_field_control;//       2   bslbf
+    uint8_t continuity_counter;//     4   uimsbf
 
     // VVV (only valid if adaptation_field_control != 1)
     // 1 byte
-        unsigned char adaptation_field_length; // 8 uimsbf
+        uint8_t adaptation_field_length; // 8 uimsbf
 
         // VVV (only valid if adaptation_field_length != 0)
         // 1 byte
-            unsigned char discontinuity_indicator; //   1   bslbf
-            unsigned char random_access_indicator; //   1   bslbf
-            unsigned char elementary_stream_priority_indicator; //  1   bslbf
-            unsigned char PCR_flag; //  1   bslbf
-            unsigned char OPCR_flag; // 1   bslbf
-            unsigned char splicing_point_flag; //   1   bslbf
-            unsigned char transport_private_data_flag; //   1   bslbf
-            unsigned char adaptation_field_extension_flag; //   1   bslbf
+            uint8_t discontinuity_indicator; //   1   bslbf
+            uint8_t random_access_indicator; //   1   bslbf
+            uint8_t elementary_stream_priority_indicator; //  1   bslbf
+            uint8_t PCR_flag; //  1   bslbf
+            uint8_t OPCR_flag; // 1   bslbf
+            uint8_t splicing_point_flag; //   1   bslbf
+            uint8_t transport_private_data_flag; //   1   bslbf
+            uint8_t adaptation_field_extension_flag; //   1   bslbf
 
     /*
     if(adaptation_field_control=='10'  || adaptation_field_control=='11'){
@@ -149,7 +149,7 @@ void CMPEG2Decoder::Next_Transport_Packet()
 {
     int Packet_Length;  // bytes remaining in MPEG-2 transport packet
     int Packet_Header_Length;
-    unsigned int code;
+    uint32_t code;
     transport_packet tp = {0};
 
     for (;;)
@@ -303,20 +303,20 @@ void CMPEG2Decoder::Next_Transport_Packet()
 // PVA packet data structure.
 typedef struct
 {
-    unsigned short sync_byte;
-    unsigned char stream_id;
-    unsigned char counter;
-    unsigned char reserved;
-    unsigned char flags;
-    unsigned short length;
+    uint16_t sync_byte;
+    uint8_t stream_id;
+    uint8_t counter;
+    uint8_t reserved;
+    uint8_t flags;
+    uint16_t length;
 } pva_packet;
 
 // PVA transport stream parser.
 void CMPEG2Decoder::Next_PVA_Packet()
 {
-    unsigned int Packet_Length;
+    uint32_t Packet_Length;
     pva_packet pva;
-    unsigned int PTS;
+    uint32_t PTS;
 
     for (;;)
     {
@@ -380,7 +380,7 @@ void CMPEG2Decoder::Next_PVA_Packet()
 
 void CMPEG2Decoder::Next_Packet()
 {
-    unsigned int code, Packet_Length, Packet_Header_Length;
+    uint32_t code, Packet_Length, Packet_Header_Length;
     static int stream_type;
 
     if ( SystemStream_Flag == 2 )  // MPEG-2 transport packet?
@@ -529,13 +529,13 @@ void CMPEG2Decoder::Next_File()
     bytes = _read(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
     if (Read + bytes == BUFFER_SIZE)
         // The whole buffer has valid data.
-        buffer_invalid = (unsigned char *) 0xffffffff;
+        buffer_invalid = (uint8_t *) 0xffffffff;
     else
         // Point to the first invalid buffer location.
         buffer_invalid = Rdbfr + Read + bytes;
 }
 
-unsigned int CMPEG2Decoder::Show_Bits(unsigned int N)
+uint32_t CMPEG2Decoder::Show_Bits(uint32_t N)
 {
     if (N <= BitsLeft) {
         return (CurrentBfr << (32 - BitsLeft)) >> (32 - N);;
@@ -547,7 +547,7 @@ unsigned int CMPEG2Decoder::Show_Bits(unsigned int N)
     }
 }
 
-unsigned int CMPEG2Decoder::Get_Bits(unsigned int N)
+uint32_t CMPEG2Decoder::Get_Bits(uint32_t N)
 {
     if (N < BitsLeft)
     {
@@ -565,7 +565,7 @@ unsigned int CMPEG2Decoder::Get_Bits(unsigned int N)
         return Get_Bits_All(N);
 }
 
-void CMPEG2Decoder::Flush_Buffer(unsigned int N)
+void CMPEG2Decoder::Flush_Buffer(uint32_t N)
 {
 #ifdef PROFILING
 //    start_bit_timer();
@@ -643,7 +643,7 @@ void CMPEG2Decoder::Fill_Next()
 #endif
 }
 
-unsigned int CMPEG2Decoder::Get_Byte()
+uint32_t CMPEG2Decoder::Get_Byte()
 {
 #ifdef PROFILING
 //    start_bit_timer();
@@ -676,15 +676,15 @@ unsigned int CMPEG2Decoder::Get_Byte()
     return *Rdptr++;
 }
 
-unsigned int CMPEG2Decoder::Get_Short()
+uint32_t CMPEG2Decoder::Get_Short()
 {
-    unsigned int i = Get_Byte();
+    uint32_t i = Get_Byte();
     return (i<<8) + Get_Byte();
 }
 
 void CMPEG2Decoder::next_start_code()
 {
-    unsigned int show;
+    uint32_t show;
 
     // This is contrary to the spec but is more resilient to some
     // stream corruption scenarios.
