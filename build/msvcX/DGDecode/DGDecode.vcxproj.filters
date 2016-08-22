@@ -36,9 +36,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\global.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\idctfpu.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\idctref.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -86,12 +83,6 @@
     <ClInclude Include="..\..\..\src\dgdecode\global.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\dgdecode\resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\dgdecode\skl_nasm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\Utilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -113,12 +104,6 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\..\src\dgdecode\idctmmx.asm">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\..\src\dgdecode\simple_idct_mmx.asm">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\..\src\dgdecode\skl_dct_sse.asm">
       <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>

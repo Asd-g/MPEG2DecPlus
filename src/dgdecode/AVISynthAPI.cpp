@@ -210,66 +210,15 @@ void MPEG2Source::override(int ovr_idct)
     if (ovr_idct > 0)
         m_decoder.IDCT_Flag = ovr_idct;
 
-    switch (m_decoder.IDCT_Flag)
-    {
-        case IDCT_MMX:
-            m_decoder.idctFunc = MMX_IDCT;
-            break;
+    switch (m_decoder.IDCT_Flag) {
+    case IDCT_REF:
+        m_decoder.refinit = true;
+        m_decoder.idctFunc = REF_IDCT;
+        break;
 
-        case IDCT_SSEMMX:
-            m_decoder.idctFunc = SSEMMX_IDCT;
-            if (!cpu.ssemmx)
-            {
-                m_decoder.IDCT_Flag = IDCT_MMX;
-                m_decoder.idctFunc = MMX_IDCT;
-            }
-            break;
-
-        case IDCT_FPU:
-            if (!m_decoder.fpuinit)
-            {
-                Initialize_FPU_IDCT();
-                m_decoder.fpuinit = true;
-            }
-            m_decoder.idctFunc = FPU_IDCT;
-            break;
-
-        case IDCT_REF:
-            m_decoder.refinit = true;
-            m_decoder.idctFunc = REF_IDCT;
-            break;
-
-        case IDCT_SSE2MMX:
-            m_decoder.idctFunc = SSE2MMX_IDCT;
-            if (!cpu.sse2mmx)
-            {
-                m_decoder.IDCT_Flag = IDCT_SSEMMX;
-                m_decoder.idctFunc = SSEMMX_IDCT;
-                if (!cpu.ssemmx)
-                {
-                    m_decoder.IDCT_Flag = IDCT_MMX;
-                    m_decoder.idctFunc = MMX_IDCT;
-                }
-            }
-            break;
-
-        case IDCT_SKALSSE:
-            m_decoder.idctFunc = Skl_IDct16_Sparse_SSE; //Skl_IDct16_SSE;
-            if (!cpu.ssemmx)
-            {
-                m_decoder.IDCT_Flag = IDCT_MMX;
-                m_decoder.idctFunc = MMX_IDCT;
-            }
-            break;
-
-        case IDCT_SIMPLEIDCT:
-            m_decoder.idctFunc = simple_idct_mmx;
-            if (!cpu.ssemmx)
-            {
-                m_decoder.IDCT_Flag = IDCT_MMX;
-                m_decoder.idctFunc = MMX_IDCT;
-            }
-            break;
+    default:
+        m_decoder.idctFunc = SSE2MMX_IDCT;
+        break;
     }
 }
 

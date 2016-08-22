@@ -157,65 +157,19 @@ int CMPEG2Decoder::Open(const char *path)
     switch (IDCT_Flag)
     {
         case IDCT_MMX:
-            idctFunc = MMX_IDCT;
-            break;
-
         case IDCT_SSEMMX:
-            idctFunc = SSEMMX_IDCT;
-            if (!cpu.ssemmx)
-            {
-                IDCT_Flag = IDCT_MMX;
-                idctFunc = MMX_IDCT;
-            }
-            break;
-
         case IDCT_FPU:
-            if (!fpuinit)
-            {
-                Initialize_FPU_IDCT();
-                fpuinit = true;
-            }
-            idctFunc = FPU_IDCT;
+        case IDCT_SKALSSE:
+        case IDCT_SIMPLEIDCT:
+        case IDCT_SSE2MMX:
+            idctFunc = SSE2MMX_IDCT;
             break;
-
         case IDCT_REF:
             if (!refinit)
             {
                 refinit = true;
             }
             idctFunc = REF_IDCT;
-            break;
-
-        case IDCT_SSE2MMX:
-            idctFunc = SSE2MMX_IDCT;
-            if (!cpu.sse2mmx)
-            {
-                IDCT_Flag = IDCT_SSEMMX;
-                idctFunc = SSEMMX_IDCT;
-                if (!cpu.ssemmx)
-                {
-                    IDCT_Flag = IDCT_MMX;
-                    idctFunc = MMX_IDCT;
-                }
-            }
-            break;
-
-        case IDCT_SKALSSE:
-            idctFunc = Skl_IDct16_Sparse_SSE; //Skl_IDct16_SSE;
-            if (!cpu.ssemmx)
-            {
-                IDCT_Flag = IDCT_MMX;
-                idctFunc = MMX_IDCT;
-            }
-            break;
-
-        case IDCT_SIMPLEIDCT:
-            idctFunc = simple_idct_mmx;
-            if (!cpu.ssemmx)
-            {
-                IDCT_Flag = IDCT_MMX;
-                idctFunc = MMX_IDCT;
-            }
             break;
     }
 
