@@ -98,14 +98,12 @@
     <ClCompile Include="..\..\..\src\dgdecode\idctfpu.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\idctref.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\lumayv12.cpp" />
+    <ClCompile Include="..\..\..\src\dgdecode\mc.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\motion.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mpeg2dec.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\Utilities.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\vfapidec.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\mc.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\mc3dnow.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\mcmmx.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\misc.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\PostProcess.cpp" />
@@ -122,14 +120,6 @@
     <ClInclude Include="..\..\..\src\dgdecode\PostProcess.h" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\..\src\dgdecode\mcsse.asm">
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">nasm -f win32 -DPREFIX -o $(IntDir)%(Filename).obj %(FullPath)
-</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -f win32 -DPREFIX -o $(IntDir)%(Filename).obj %(FullPath)
-</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-    </CustomBuild>
     <CustomBuild Include="..\..\..\src\dgdecode\idctmmx.asm">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ml /c /coff /Cx /nologo /Fo $(IntDir)%(Filename).obj %(FullPath)
 </Command>
