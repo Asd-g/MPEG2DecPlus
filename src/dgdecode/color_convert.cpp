@@ -24,9 +24,9 @@ MPEG2Dec's colorspace convertions Copyright (C) Chia-chen Kuo - April 2001
 void conv420to422I_c(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch, int width, int height)
 {
     const uint8_t* s0 = src;
-    const uint8_t* s1 = s0 + src_pitch;
+    const uint8_t* s1 = src + src_pitch;
     uint8_t* d0 = dst;
-    uint8_t* d1 = d0 + dst_pitch;
+    uint8_t* d1 = dst + dst_pitch;
 
     width /= 2;
     src_pitch *= 2;
@@ -65,16 +65,20 @@ void conv420to422I_c(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pi
 static __forceinline __m128i
 avg_weight_1_7(const __m128i& x, const __m128i& y, const __m128i& four)
 {
+    //(x + y * 7 + 4) / 8
     __m128i t0 = _mm_subs_epu16(_mm_slli_epi16(y, 3), y);
-    return _mm_srli_epi16(_mm_adds_epu16(_mm_adds_epu16(x, t0), four), 3);
+    t0 = _mm_adds_epu16(_mm_adds_epu16(t0, x), four);
+    return _mm_srli_epi16(t0, 3);
 }
 
 static __forceinline __m128i
 avg_weight_3_5(const __m128i& x, const __m128i& y, const __m128i& four)
 {
+    //(x * 3 + y * 5 + 4) / 8
     __m128i t0 = _mm_adds_epu16(_mm_slli_epi16(x, 1), x);
     __m128i t1 = _mm_adds_epu16(_mm_slli_epi16(y, 2), y);
-    return _mm_srli_epi16(_mm_adds_epu16(_mm_adds_epu16(t0, t1), four), 3);
+    t0 = _mm_adds_epu16(_mm_adds_epu16(t0, t1), four);
+    return _mm_srli_epi16(t0, 3);
 }
 
 
@@ -132,6 +136,48 @@ void conv420to422I(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitc
     std::memcpy(dst0, src0, width);
     std::memcpy(dst1, src1, width);
 }
+
+
+#if 0
+// C implementation
+void conv420to422P_c(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
+    int width, int height)
+{
+    const uint8_t* s0 = src;
+    const uint8_t* s1 = s0 + src_pitch;
+    uint8_t* d0 = dst;
+    uint8_t* d1 = dst + dst_pitch;
+
+    width /= 2;
+    height /= 2;
+    dst_pitch *= 2;
+
+    for (int x = 0; x < width; ++x) {
+        d0[x] = s0[x];
+        d1[x] = (s0[x] * 3 + s1[x] + 2) / 4;
+    }
+
+    d0 += dst_pitch;
+    d1 += dst_pitch;
+
+    for (int y = 0; y < height - 2; ++y) {
+        const uint8_t* s2 = s1 + src_pitch;
+        for (int x = 0; x < width; ++x) {
+            d0[x] = (s0[x] + s1[x] * 3 + 2) / 4;
+            d1[x] = (s2[x] + s1[x] * 3 + 2) / 4;
+        }
+        s0 = s1;
+        s1 = s2;
+        d0 += dst_pitch;
+        d1 += dst_pitch;
+    }
+
+    for (int x = 0; x < width; ++x) {
+        d0[x] = (s0[x] + s1[x] * 3 + 2) / 4;
+        d1[x] = s1[x];
+    }
+}
+#endif
 
 
 void conv420to422P(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
@@ -196,6 +242,24 @@ void conv420to422P(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitc
     }
 }
 
+#if 0
+// C implementation
+void conv422to444_c(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
+    int width, int height)
+{
+    width /= 2;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width - 1; ++x) {
+            dst[2 * x]     = src[x];
+            dst[2 * x + 1] = (src[x] + src[x + 1] + 1) / 2;
+        }
+        dst[2 * width - 2] = dst[2 * width - 1] = src[width - 1];
+        src += src_pitch;
+        dst += dst_pitch;
+    }
+}
+#endif
 
 
 void conv422to444(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch,
