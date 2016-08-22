@@ -83,7 +83,7 @@ static void MC_put_8_c(uint8_t * dest, const uint8_t * ref, int stride, int, int
 static void MC_put_16_sse2(uint8_t * dest, const uint8_t * ref, int stride, int, int height)
 {
     do {
-        store(dest, load(ref));
+        storeu(dest, loadu(ref));
         ref += stride; dest += stride;
     } while (--height > 0);
 }
@@ -101,7 +101,7 @@ static void MC_avg_8_sse2(uint8_t * dest, const uint8_t * ref, int stride, int, 
 static void MC_avg_16_sse2(uint8_t * dest, const uint8_t * ref, int stride, int, int height)
 {
     do {
-        store(dest, avgu8(load(ref), load(dest)));
+        storeu(dest, avgu8(loadu(ref), loadu(dest)));
         ref += stride; dest += stride;
     } while (--height > 0);
 }
@@ -128,7 +128,7 @@ static void MC_put_y8_sse2(uint8_t * dest, const uint8_t * ref, int stride, int 
 static void MC_put_x16_sse2(uint8_t * dest, const uint8_t * ref, int stride, int, int height)
 {
     do {
-        store(dest, avgu8(load(ref), loadu(ref + 1)));
+        storeu(dest, avgu8(loadu(ref), loadu(ref + 1)));
         ref += stride; dest += stride;
     } while (--height > 0);
 }
@@ -137,7 +137,7 @@ static void MC_put_x16_sse2(uint8_t * dest, const uint8_t * ref, int stride, int
 static void MC_put_y16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
 {
     do {
-        store(dest, avgu8(load(ref), load(ref + offs)));
+        storeu(dest, avgu8(loadu(ref), loadu(ref + offs)));
         ref += stride; dest += stride;
     } while (--height > 0);
 }
@@ -164,7 +164,7 @@ static void MC_avg_y8_sse2(uint8_t* dest, const uint8_t* ref, int stride, int of
 static void MC_avg_x16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int, int height)
 {
     do {
-        store(dest, avgu8(avgu8(load(ref), loadu(ref + 1)), load(dest)));
+        storeu(dest, avgu8(avgu8(loadu(ref), loadu(ref + 1)), loadu(dest)));
         ref += stride; dest += stride;
     } while (--height > 0);
 }
@@ -173,7 +173,7 @@ static void MC_avg_x16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int, 
 static void MC_avg_y16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
 {
     do {
-        store(dest, avgu8(avgu8(load(ref), load(ref + offs)), load(dest)));
+        storeu(dest, avgu8(avgu8(loadu(ref), loadu(ref + offs)), loadu(dest)));
         ref += stride; dest += stride;
     } while (--height > 0);
 }
@@ -220,9 +220,9 @@ static void MC_put_xy16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int 
     const uint8_t* ro = ref + offs;
 
     do {
-        __m128i r0 = load(ref);
+        __m128i r0 = loadu(ref);
         __m128i r1 = loadu(ref + 1);
-        __m128i r2 = load(ro);
+        __m128i r2 = loadu(ro);
         __m128i r3 = loadu(ro + 1);
 
         __m128i avg0 = avgu8(r0, r3);
@@ -230,7 +230,7 @@ static void MC_put_xy16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int 
 
         __m128i t0 = get_correcter(r0, r1, r2, r3, avg0, avg1, one);
 
-        store(dest, _mm_subs_epu8(avgu8(avg0, avg1), t0));
+        storeu(dest, _mm_subs_epu8(avgu8(avg0, avg1), t0));
 
         ref += stride;
         ro += stride;
@@ -270,9 +270,9 @@ static void MC_avg_xy16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int 
     const uint8_t* ro = ref + offs;
 
     do {
-        __m128i r0 = load(ref);
+        __m128i r0 = loadu(ref);
         __m128i r1 = loadu(ref + 1);
-        __m128i r2 = load(ro);
+        __m128i r2 = loadu(ro);
         __m128i r3 = loadu(ro + 1);
 
         __m128i avg0 = avgu8(r0, r3);
@@ -280,7 +280,7 @@ static void MC_avg_xy16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int 
 
         __m128i t0 = get_correcter(r0, r1, r2, r3, avg0, avg1, one);
 
-        store(dest, avgu8(_mm_subs_epu8(avgu8(avg0, avg1), t0), load(dest)));
+        storeu(dest, avgu8(_mm_subs_epu8(avgu8(avg0, avg1), t0), loadu(dest)));
 
         ref += stride;
         ro += stride;
