@@ -1,49 +1,44 @@
-#include <windows.h>
+#include "Utilities.h"
 
-#define MAGIC_NUMBER (0xdeadbeef)
 
-bool PutHintingData(unsigned char *video, unsigned int hint)
+constexpr uint32_t MAGIC_NUMBER = 0xdeadbeef;
+
+
+bool PutHintingData(uint8_t *video, uint32_t hint)
 {
-    unsigned char *p;
-    unsigned int i, magic_number = MAGIC_NUMBER;
-    bool error = false;
-
-    p = video;
-    for (i = 0; i < 32; i++)
+    for (int i = 0; i < 32; ++i)
     {
-        *p &= ~1;
-        *p++ |= ((magic_number & (1 << i)) >> i);
+        *video &= ~1;
+        *video++ |= ((MAGIC_NUMBER & (1 << i)) >> i);
     }
-    for (i = 0; i < 32; i++)
+    for (int i = 0; i < 32; i++)
     {
-        *p &= ~1;
-        *p++ |= ((hint & (1 << i)) >> i);
+        *video &= ~1;
+        *video++ |= ((hint & (1 << i)) >> i);
     }
-    return error;
+    return false;
 }
 
-bool GetHintingData(unsigned char *video, unsigned int *hint)
-{
-    unsigned char *p;
-    unsigned int i, magic_number = 0;
-    bool error = false;
 
-    p = video;
-    for (i = 0; i < 32; i++)
+bool GetHintingData(uint8_t* video, uint32_t* hint)
+{
+    uint32_t magic_number = 0;
+
+    for (int i = 0; i < 32; i++)
     {
-        magic_number |= ((*p++ & 1) << i);
+        magic_number |= ((*video++ & 1) << i);
     }
     if (magic_number != MAGIC_NUMBER)
     {
-        error = true;
+        return true; // error!
     }
     else
     {
         *hint = 0;
-        for (i = 0; i < 32; i++)
+        for (int i = 0; i < 32; i++)
         {
-            *hint |= ((*p++ & 1) << i);
+            *hint |= ((*video++ & 1) << i);
         }
     }
-    return error;
+    return false;
 }
