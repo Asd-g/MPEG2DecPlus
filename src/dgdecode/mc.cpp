@@ -50,7 +50,7 @@ void Choose_Prediction(bool fastMC)
         ppppf_motion[1][1][2] = MC_avg_x16_mmx;
         ppppf_motion[1][1][3] = MC_avg_xy16_mmx;
 
-
+#if 0
     if (cpu._3dnow)
     {
         ppppf_motion[0][0][0] = MC_put_8_3dnow;
@@ -116,4 +116,5 @@ void Choose_Prediction(bool fastMC)
             ppppf_motion[1][1][3] = MC_avg_xy16_mmxext_AC;
         }
     }
+#endif
 }

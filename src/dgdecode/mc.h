@@ -21,7 +21,12 @@
  *
  */
 
-typedef void (MCFunc) (unsigned char * dest, unsigned char * ref, int stride, int offs, int height);
+#ifndef MPEG2DEC_MC_H
+#define MPEG2DEC_MC_H
+
+#include <cstdint>
+
+typedef void (MCFunc) (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height);
 typedef MCFunc* MCFuncPtr;
 
 MCFunc MC_put_8_mmx;
@@ -43,7 +48,7 @@ MCFunc MC_avg_16_mmx;
 MCFunc MC_avg_x16_mmx;
 MCFunc MC_avg_y16_mmx;
 MCFunc MC_avg_xy16_mmx;
-
+#if 0
 MCFunc MC_put_8_3dnow;
 MCFunc MC_put_x8_3dnow;
 MCFunc MC_put_y8_3dnow;
@@ -95,7 +100,9 @@ MCFunc MC_avg_xy16_mmxext_AC;
 MCFunc MC_avg_xy16_mmxext_FAST;
 
 }
-
+#endif
 // Form prediction (motion compensation) function pointer array (GetPic.c) - Vlad59 04-20-2002
 extern MCFuncPtr ppppf_motion[2][2][4];
 void Choose_Prediction(bool fastMC);
+
+#endif // MPEG2DEC_MC_H

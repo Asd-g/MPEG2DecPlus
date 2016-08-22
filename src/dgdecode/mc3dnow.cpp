@@ -298,9 +298,10 @@ void MC_avg_x16_3dnow (unsigned char * dest, unsigned char * ref,
         jg mc0
 
         //femms
-    }}
+    }
+}
 
-    void MC_avg_y16_3dnow (unsigned char * dest, unsigned char * ref,
+void MC_avg_y16_3dnow (unsigned char * dest, unsigned char * ref,
                                    int stride, int offs, int height)
     {__asm {
         mov         eax, [ref]

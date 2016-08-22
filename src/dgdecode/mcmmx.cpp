@@ -7,11 +7,44 @@
  * I only made some copy-paste of Jackey's code and some clean up
  *****************************************************************************/
 
+#include "mc.h"
+#include <emmintrin.h>
 
-#pragma warning( disable : 4799 )
+//#pragma warning( disable : 4799 )
 
-void MC_put_8_mmx (unsigned char * dest, unsigned char * ref,
-                             int stride, int offs, int height)
+static __forceinline __m128i load(const uint8_t* p)
+{
+    return _mm_load_si128(reinterpret_cast<const __m128i*>(p));
+}
+
+static __forceinline __m128i loadl(const uint8_t* p)
+{
+    return _mm_loadl_epi64(reinterpret_cast<const __m128i*>(p));
+}
+
+static __forceinline __m128i loadu(const uint8_t* p)
+{
+    return _mm_loadu_si128(reinterpret_cast<const __m128i*>(p));
+}
+
+static __forceinline __m128i avgu8(const __m128i& x, const __m128i& y)
+{
+    return _mm_avg_epu8(x, y);
+}
+
+static __forceinline void storel(uint8_t* p, const __m128i& x)
+{
+    _mm_storel_epi64(reinterpret_cast<__m128i*>(p), x);
+}
+
+static __forceinline void storeu(uint8_t* p, const __m128i& x)
+{
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(p), x);
+}
+
+
+void MC_put_8_mmx(uint8_t * dest, const uint8_t * ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         mov         eax, [ref]
@@ -29,9 +62,18 @@ void MC_put_8_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        *reinterpret_cast<uint64_t*>(dest) = *reinterpret_cast<const uint64_t*>(ref);
+        dest += stride;
+        ref += stride;
+    } while (--height > 0);
+}
+#endif
 
- void MC_put_16_mmx (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
+void MC_put_16_mmx(uint8_t * dest, const uint8_t * ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         mov         eax, [ref]
@@ -51,14 +93,23 @@ void MC_put_8_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storeu(dest, loadu(ref));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
 static const __int64 mmmask_0001 = 0x0001000100010001;
 static const __int64 mmmask_0002 = 0x0002000200020002;
 static const __int64 mmmask_0003 = 0x0003000300030003;
 static const __int64 mmmask_0006 = 0x0006000600060006;
 
- void MC_avg_8_mmx (unsigned char * dest, unsigned char * ref,
-                              int stride, int offs, int height)
+void MC_avg_8_mmx(uint8_t * dest, const uint8_t * ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -103,9 +154,18 @@ static const __int64 mmmask_0006 = 0x0006000600060006;
         //emms
     }
 }
+#else
+{
+    do {
+        storel(dest, avgu8(loadl(ref), loadl(dest)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
- void MC_avg_16_mmx (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
+void MC_avg_16_mmx(uint8_t * dest, const uint8_t * ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -179,9 +239,18 @@ static const __int64 mmmask_0006 = 0x0006000600060006;
         //emms
     }
 }
+#else
+{
+    do {
+        storeu(dest, avgu8(loadu(ref), loadu(dest)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
-void MC_put_x8_mmx (unsigned char * dest, unsigned char * ref,
-                              int stride, int offs, int height)
+void MC_put_x8_mmx(uint8_t * dest, const uint8_t * ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -226,9 +295,18 @@ void MC_put_x8_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storel(dest, avgu8(loadl(ref), loadl(ref + 1)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
-void MC_put_y8_mmx (unsigned char * dest, unsigned char * ref,
-                              int stride, int offs, int height)
+void MC_put_y8_mmx(uint8_t * dest, const uint8_t * ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -276,9 +354,18 @@ void MC_put_y8_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storel(dest, avgu8(loadl(ref), loadl(ref + offs)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
-void MC_put_x16_mmx (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
+void MC_put_x16_mmx(uint8_t * dest, const uint8_t * ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -351,9 +438,18 @@ void MC_put_x16_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storeu(dest, avgu8(loadu(ref), loadu(ref + 1)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
-void MC_put_y16_mmx (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
+void MC_put_y16_mmx (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -429,9 +525,19 @@ void MC_put_y16_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storeu(dest, avgu8(loadu(ref), loadu(ref + offs)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
-void MC_avg_x8_mmx (unsigned char * dest, unsigned char * ref,
-                              int stride, int offs, int height)
+
+void MC_avg_x8_mmx(uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -488,9 +594,18 @@ void MC_avg_x8_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storel(dest, avgu8(avgu8(loadl(ref), loadl(ref + 1)), loadl(dest)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
-void MC_avg_y8_mmx (unsigned char * dest, unsigned char * ref,
-                              int stride, int offs, int height)
+void MC_avg_y8_mmx (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -550,9 +665,18 @@ void MC_avg_y8_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storel(dest, avgu8(avgu8(loadl(ref), loadl(ref + offs)), loadl(dest)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
-void MC_avg_x16_mmx (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
+void MC_avg_x16_mmx (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -649,9 +773,18 @@ void MC_avg_x16_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storeu(dest, avgu8(avgu8(loadu(ref), loadu(ref + 1)), loadu(dest)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
-void MC_avg_y16_mmx (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
+void MC_avg_y16_mmx (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -751,11 +884,23 @@ void MC_avg_y16_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    do {
+        storeu(dest, avgu8(avgu8(loadu(ref), loadu(ref + offs)), loadu(dest)));
+        ref += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
+alignas(16) static const uint8_t one_x16[] = {
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+};
 
 // Accurate function
-void MC_put_xy8_mmx (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
+void MC_put_xy8_mmx (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -822,10 +967,34 @@ void MC_put_xy8_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    const __m128i one = load(one_x16);
+    const uint8_t* ro = ref + offs;
+
+    do {
+        __m128i r0 = loadl(ref);
+        __m128i r1 = loadl(ref + 1);
+        __m128i r2 = loadl(ro);
+        __m128i r3 = loadl(ro + 1);
+
+        __m128i avg0 = avgu8(r0, r3);
+        __m128i avg1 = avgu8(r1, r2);
+        __m128i t0 = _mm_or_si128(_mm_xor_si128(r0, r3), _mm_xor_si128(r1, r2));
+        t0 = _mm_and_si128(_mm_and_si128(t0, _mm_xor_si128(avg0, avg1)), one);
+
+        storel(dest, _mm_subs_epu8(avgu8(avg0, avg1), t0));
+
+        ref += stride;
+        ro += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
 // Accurate function
-void MC_put_xy16_mmx (unsigned char * dest, unsigned char * ref,
-                                int stride, int offs, int height)
+void MC_put_xy16_mmx (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -938,10 +1107,34 @@ void MC_put_xy16_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    const __m128i one = load(one_x16);
+    const uint8_t* ro = ref + offs;
+
+    do {
+        __m128i r0 = loadu(ref);
+        __m128i r1 = loadu(ref + 1);
+        __m128i r2 = loadu(ro);
+        __m128i r3 = loadu(ro + 1);
+
+        __m128i avg0 = avgu8(r0, r3);
+        __m128i avg1 = avgu8(r1, r2);
+        __m128i t0 = _mm_or_si128(_mm_xor_si128(r0, r3), _mm_xor_si128(r1, r2));
+        t0 = _mm_and_si128(_mm_and_si128(t0, _mm_xor_si128(avg0, avg1)), one);
+
+        storeu(dest, _mm_subs_epu8(avgu8(avg0, avg1), t0));
+
+        ref += stride;
+        ro += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
 
 // Accurate function
-void MC_avg_xy8_mmx (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
+void MC_avg_xy8_mmx (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -1020,10 +1213,36 @@ void MC_avg_xy8_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+    const __m128i one = load(one_x16);
+    const uint8_t* ro = ref + offs;
+
+    do {
+        __m128i r0 = loadl(ref);
+        __m128i r1 = loadl(ref + 1);
+        __m128i r2 = loadl(ro);
+        __m128i r3 = loadl(ro + 1);
+
+        __m128i avg0 = avgu8(r0, r3);
+        __m128i avg1 = avgu8(r1, r2);
+
+        __m128i t0 = _mm_or_si128(_mm_xor_si128(r0, r3), _mm_xor_si128(r1, r2));
+        t0 = _mm_and_si128(_mm_and_si128(t0, _mm_xor_si128(avg0, avg1)), one);
+        t0 = _mm_subs_epu8(avgu8(avg0, avg1), t0);
+        storel(dest, avgu8(t0, loadl(dest)));
+
+        ref += stride;
+        ro += stride;
+        dest += stride;
+    } while (--height > 0);
+}
+#endif
+
 
 // Accurate function
-void MC_avg_xy16_mmx (unsigned char * dest, unsigned char * ref,
-                                int stride, int offs, int height)
+void MC_avg_xy16_mmx (uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
+#if 0
 {
     __asm {
         pxor        mm0, mm0
@@ -1160,3 +1379,29 @@ void MC_avg_xy16_mmx (unsigned char * dest, unsigned char * ref,
         //emms
     }
 }
+#else
+{
+const __m128i one = load(one_x16);
+const uint8_t* ro = ref + offs;
+
+do {
+    __m128i r0 = loadu(ref);
+    __m128i r1 = loadu(ref + 1);
+    __m128i r2 = loadu(ro);
+    __m128i r3 = loadu(ro + 1);
+
+    __m128i avg0 = avgu8(r0, r3);
+    __m128i avg1 = avgu8(r1, r2);
+
+    __m128i t0 = _mm_or_si128(_mm_xor_si128(r0, r3), _mm_xor_si128(r1, r2));
+    t0 = _mm_and_si128(_mm_and_si128(t0, _mm_xor_si128(avg0, avg1)), one);
+    t0 = _mm_subs_epu8(avgu8(avg0, avg1), t0);
+    storeu(dest, avgu8(t0, loadu(dest)));
+
+    ref += stride;
+    ro += stride;
+    dest += stride;
+} while (--height > 0);
+
+}
+#endif
