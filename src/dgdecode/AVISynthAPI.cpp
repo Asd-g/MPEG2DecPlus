@@ -563,7 +563,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
     AVS_linkage = vectors;
 
     env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]i[i420]b[iCC]b", MPEG2Source::create, nullptr);
-    env->AddFunction("LumaYV12","c[lumoff]i[lumgain]f", LumaYV12::create, nullptr);
+    env->AddFunction("LumaYUV","c[lumoff]i[lumgain]f", LumaYUV::create, nullptr);
     env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", BlindPP::create, nullptr);
     env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i[mmx]b[isse]b", Deblock::create, nullptr);
     return 0;

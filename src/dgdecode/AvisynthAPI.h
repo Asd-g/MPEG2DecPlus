@@ -83,21 +83,21 @@ public:
 };
 
 
-class LumaYV12: public GenericVideoFilter {
-    double  lumgain;
-    int     lumoff;
-    bool use_SSE2;
-    bool use_ISSE;
-    bool SepFields;
-    int lumGain;
+class LumaYUV : public GenericVideoFilter {
+    int16_t* offsetMask;
+    int16_t* gainMask;
+    int numPlanes;
+    void(*mainProc)(
+        const uint8_t* srcp, uint8_t* dstp, const int spitch, const int dpitch,
+        const int width, const int height, const int16_t* offsets,
+        const int16_t* gains);
 
 public:
-    LumaYV12(PClip _child, int _Lumaoffset,double _Lumagain, IScriptEnvironment* env);
-    ~LumaYV12() {}
+    LumaYUV(PClip c, int16_t off, int16_t gain, IScriptEnvironment* env);
+    ~LumaYUV() {}
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
     int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_NICE_FILTER : 0; }
     static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
-
 };
 
 

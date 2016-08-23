@@ -63,9 +63,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\PostProcess.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\lumayv12.cpp">
-      <Filter>DGDecode</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\deblock.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
@@ -77,6 +74,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\mc.cpp">
       <Filter>Motion Compensation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\LumaYUV.cpp">
+      <Filter>DGDecode</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
