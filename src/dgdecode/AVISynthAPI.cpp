@@ -164,7 +164,6 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     out = (YV12PICT*)_aligned_malloc(sizeof(YV12PICT), 16);
     if (out == NULL) env->ThrowError("MPEG2Source:  malloc failure (yv12 pic out)!");
 
-    m_decoder.AVSenv = env;
     m_decoder.pp_mode = _PP_MODE;
 
     bufY = bufU = bufV = NULL;

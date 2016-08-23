@@ -175,7 +175,6 @@ class MPEG2DEC_API CMPEG2Decoder
     friend class MPEG2Source;
 
 protected:
-  IScriptEnvironment* AVSenv;
   bool refinit,fpuinit,luminit;
   int moderate_h, moderate_v, pp_mode;
 

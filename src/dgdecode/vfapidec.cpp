@@ -65,7 +65,6 @@ CMPEG2Decoder::CMPEG2Decoder()
   i420 = false;
   pc_scale = 1;
   maxquant = minquant = avgquant = 0;
-  AVSenv = NULL;
   u422 = v422 = NULL;
   DirectAccess = NULL;
   FrameList = NULL;
