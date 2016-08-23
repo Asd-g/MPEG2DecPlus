@@ -52,5 +52,8 @@ void stop_timer(uint64_t* timer);
 void stop_timer2(uint64_t* timer);
 void timer_debug(ts* tim);
 
+void fast_copy(const uint8_t *src, const int src_stride, uint8_t *dst,
+               const int dst_stride, const int horizontal_size,
+               const int vertical_size) noexcept;
 
 int __cdecl dprintf(char* fmt, ...);

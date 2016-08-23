@@ -34,9 +34,6 @@ void deblock_vert_choose_p1p2(uint8_t *v, int stride, uint64_t *p1p2, int QP);
 void deblock_vert_lpf9(uint64_t *v_local, uint64_t *p1p2, uint8_t *v, int stride);
 void deblock_vert_default_filter(uint8_t *v, int stride, int QP);
 void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, int QP_stride, int chromaFlag, int moderate_v);
-void fast_copy(uint8_t *src, int src_stride,
-               uint8_t *dst, int dst_stride,
-               int horizontal_size, int vertical_size);
 void dering( uint8_t *image, int width, int height, int stride, int *QP_store, int QP_stride, int chroma);
 
 void postprocess(uint8_t * src[], int src_stride, int UVsrc_stride,

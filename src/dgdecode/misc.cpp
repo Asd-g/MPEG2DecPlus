@@ -33,7 +33,7 @@
 static uint64_t local;
 static char buffer[256];
 
-unsigned __int64 read_counter(void)
+uint64_t read_counter(void)
 {
     unsigned __int64 ts;
     unsigned __int32 ts1, ts2;
@@ -138,4 +138,21 @@ int __cdecl dprintf(char* fmt, ...)
     va_end(argp);
     OutputDebugString(printString);
     return strlen(printString);
+}
+
+
+void fast_copy(const uint8_t* src, const int src_stride, uint8_t* dst, const int dst_stride,
+               const int horizontal_size, int vertical_size) noexcept
+{
+    if (vertical_size == 0) {
+        return;
+    } else if (horizontal_size == src_stride && src_stride == dst_stride) {
+        memcpy(dst, src, horizontal_size * vertical_size);
+    } else {
+        do {
+            memcpy(dst, src, horizontal_size);
+            dst += dst_stride;
+            src += src_stride;
+        } while (--vertical_size != 0);
+    }
 }

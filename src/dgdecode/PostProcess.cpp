@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #include "PostProcess.h"
+#include "misc.h"
 
 
 //#define DEBUGMODE
@@ -243,22 +244,6 @@ void do_emms()
     __asm emms;
 }
 
-
-void fast_copy(unsigned char *src, int src_stride,
-                 unsigned char *dst, int dst_stride,
-                 int horizontal_size,   int vertical_size)
-{
-    if (vertical_size = 0) return;
-    if (horizontal_size == src_stride && src_stride == dst_stride) {
-        std::memcpy(dst, src, horizontal_size * vertical_size);
-    } else {
-        for (int y = 0; y < vertical_size; ++y) {
-            std::memcpy(dst, src, horizontal_size);
-            dst += dst_stride;
-            src += src_stride;
-        }
-    }
-}
 
 /* this is a horizontal deblocking filter - i.e. it will smooth _vertical_ block edges */
 void deblock_horiz(uint8_t *image, int width, int stride, QP_STORE_T *QP_store, int QP_stride, int chromaFlag, int moderate_h)
