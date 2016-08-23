@@ -32,11 +32,11 @@
 #include <avs/minmax.h>
 #include "AvisynthAPI.h"
 #include "postprocess.h"
-#include "utilities.h"
 #include "color_convert.h"
 
 
 #define VERSION "DGDecode 1.5.8"
+
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
@@ -220,6 +220,51 @@ void MPEG2Source::override(int ovr_idct)
         m_decoder.idctFunc = SSE2MMX_IDCT;
         break;
     }
+}
+
+
+constexpr uint32_t MAGIC_NUMBER = 0xdeadbeef;
+constexpr uint32_t PROGRESSIVE = 0x00000001;
+constexpr int COLORIMETRY_SHIFT = 2;
+
+
+bool PutHintingData(uint8_t *video, uint32_t hint)
+{
+    for (int i = 0; i < 32; ++i)
+    {
+        *video &= ~1;
+        *video++ |= ((MAGIC_NUMBER & (1 << i)) >> i);
+    }
+    for (int i = 0; i < 32; i++)
+    {
+        *video &= ~1;
+        *video++ |= ((hint & (1 << i)) >> i);
+    }
+    return false;
+}
+
+
+bool GetHintingData(uint8_t* video, uint32_t* hint)
+{
+    uint32_t magic_number = 0;
+
+    for (int i = 0; i < 32; i++)
+    {
+        magic_number |= ((*video++ & 1) << i);
+    }
+    if (magic_number != MAGIC_NUMBER)
+    {
+        return true; // error!
+    }
+    else
+    {
+        *hint = 0;
+        for (int i = 0; i < 32; i++)
+        {
+            *hint |= ((*video++ & 1) << i);
+        }
+    }
+    return false;
 }
 
 

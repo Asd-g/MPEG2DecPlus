@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Motion Compensation">
-      <UniqueIdentifier>{0eda90eb-e478-4eb2-972e-384588bb2f75}</UniqueIdentifier>
-    </Filter>
     <Filter Include="DGDecode">
       <UniqueIdentifier>{b92ffe8f-65a1-47d7-b2eb-8eafdef68fd7}</UniqueIdentifier>
     </Filter>
@@ -48,9 +45,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\Utilities.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\vfapidec.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -72,22 +66,16 @@
     <ClCompile Include="..\..\..\src\dgdecode\color_convert.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\mc.cpp">
-      <Filter>Motion Compensation</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\LumaYUV.cpp">
       <Filter>DGDecode</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\mc.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\dgdecode\global.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\dgdecode\Utilities.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\dgdecode\mc.h">
-      <Filter>Motion Compensation</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\AvisynthAPI.h">
       <Filter>DGDecode</Filter>
@@ -100,6 +88,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\color_convert.h">
       <Filter>DGDecode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\dgdecode\mc.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

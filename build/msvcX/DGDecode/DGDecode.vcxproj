@@ -101,7 +101,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\motion.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mpeg2dec.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\Utilities.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\vfapidec.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\misc.cpp" />
@@ -110,9 +109,8 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\src\dgdecode\color_convert.h" />
     <ClInclude Include="..\..\..\src\dgdecode\global.h" />
-    <ClInclude Include="..\..\..\src\dgdecode\Utilities.h" />
-    <ClInclude Include="..\..\..\src\dgdecode\mc.h" />
     <ClInclude Include="..\..\..\src\dgdecode\AvisynthAPI.h" />
+    <ClInclude Include="..\..\..\src\dgdecode\mc.h" />
     <ClInclude Include="..\..\..\src\dgdecode\misc.h" />
     <ClInclude Include="..\..\..\src\dgdecode\PostProcess.h" />
   </ItemGroup>
