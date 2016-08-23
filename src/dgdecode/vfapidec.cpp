@@ -874,150 +874,57 @@ void CMPEG2Decoder::Close()
     if (DirectAccess != NULL) free(DirectAccess);
 }
 
-// mmx YV12 framecpy by MarcFD 25 nov 2002 (okay the macros are ugly, but it's fast ^^)
 
-#define cpylinemmx(src,dst,cnt,n)   \
-__asm mov  esi,src  \
-__asm mov  edi,dst  \
-__asm mov  ecx,cnt  \
-__asm push ecx      \
-__asm and  ecx,63   \
-__asm rep  movsb    \
-__asm pop  ecx      \
-__asm {shr  ecx,6}  \
-mmx_cpy##n:         \
-__asm movq mm0,[esi+0]  \
-__asm movq mm1,[esi+8]  \
-__asm movq [edi+0],mm0  \
-__asm movq [edi+8],mm1  \
-__asm movq mm2,[esi+16] \
-__asm movq mm3,[esi+24] \
-__asm movq [edi+16],mm2 \
-__asm movq [edi+24],mm3 \
-__asm movq mm0,[esi+32] \
-__asm movq mm1,[esi+40] \
-__asm movq [edi+32],mm0 \
-__asm movq [edi+40],mm1 \
-__asm movq mm2,[esi+48] \
-__asm movq mm3,[esi+56] \
-__asm movq [edi+48],mm2 \
-__asm movq [edi+56],mm3 \
-__asm add esi,64    \
-__asm add edi,64    \
-__asm dec ecx       \
-__asm jnz mmx_cpy##n    \
+static inline void
+copy_oddeven(const uint8_t* odd, const size_t opitch, const uint8_t* even,
+             const size_t epitch, uint8_t* dst, const size_t dpitch,
+             const size_t width, size_t height) noexcept
+{
+    do {
+        memcpy(dst, odd, width);
+        dst += dpitch;
+        memcpy(dst, even, width);
+        dst += dpitch;
+        odd += opitch;
+        even += epitch;
+    } while (--height != 0);
+}
 
 
-#define cpy_offset(_src,_srcoffset,_dst,_dstoffset,_dststride,_lines,n) \
-unsigned char *src##n = _src;       \
-int srcoffset##n = _srcoffset;      \
-unsigned char *dst##n = _dst;       \
-int dstoffset##n = _dstoffset;      \
-int dststride##n = _dststride; \
-int lines##n = _lines;      \
-__asm mov eax,src##n        \
-__asm mov ebx,dst##n        \
-__asm {mov edx,lines##n}    \
-__asm row_loop##n:      \
-__asm cpylinemmx(eax,ebx,dststride##n,n)        \
-__asm add eax,srcoffset##n  \
-__asm add ebx,dstoffset##n  \
-__asm dec edx               \
-__asm jnz row_loop##n      \
-__asm emms                \
-
-
-#define cpy_oddeven(_odd,_oddoffset,_even,_evenoffset,_dst,_dstoffset,_dststride,_lines,n) \
-unsigned char *odd##n = _odd; \
-int oddoffset##n = _oddoffset; \
-unsigned char *even##n = _even; \
-int evenoffset##n = _evenoffset; \
-unsigned char *dst##n = _dst; \
-int dstoffset##n = _dstoffset; \
-int dststride##n = _dststride; \
-int lines##n = _lines; \
-__asm mov eax,odd##n \
-__asm mov ebx,even##n \
-__asm mov edx,dst##n \
-__asm row_loop##n: \
-__asm cpylinemmx(eax,edx,dststride##n,n) \
-__asm add edx,dstoffset##n \
-__asm cpylinemmx(ebx,edx,dststride##n,##n##n) \
-__asm add edx,dstoffset##n \
-__asm add eax,oddoffset##n \
-__asm add ebx,evenoffset##n \
-__asm mov ecx,lines##n \
-__asm dec ecx \
-__asm mov lines##n,ecx \
-__asm jnz row_loop##n \
-__asm emms   \
-
-
-void CMPEG2Decoder::CopyPlane(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch,
+void CMPEG2Decoder::CopyPlane(uint8_t *src, int src_pitch, uint8_t* dst, int dst_pitch,
                               int width, int height)
 {
-    if (AVSenv) AVSenv->BitBlt(dst, dst_pitch, src, src_pitch, width, height);
-    else
-    {
-        cpy_offset(src,src_pitch,dst,dst_pitch,width,height,0);
-    }
+    fast_copy(src, src_pitch, dst, dst_pitch, width, height);
 }
 
 void CMPEG2Decoder::CopyAll(YV12PICT *src, YV12PICT *dst)
 {
     int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
-    if ( AVSenv )
-    {
-        AVSenv->BitBlt(dst->y, dst->ypitch, src->y, src->ypitch, src->ywidth, Coded_Picture_Height);
-        AVSenv->BitBlt(dst->u, dst->uvpitch, src->u, src->uvpitch, src->uvwidth, tChroma_Height);
-        AVSenv->BitBlt(dst->v, dst->uvpitch, src->v, src->uvpitch, src->uvwidth, tChroma_Height);
-    }
-    else
-    {
-        cpy_offset(src->y,src->ypitch,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height,0);
-        cpy_offset(src->u,src->uvpitch,dst->u,dst->uvpitch,dst->uvwidth,tChroma_Height,1);
-        cpy_offset(src->v,src->uvpitch,dst->v,dst->uvpitch,dst->uvwidth,tChroma_Height,2);
-    }
+    fast_copy(src->y,src->ypitch,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height);
+    fast_copy(src->u,src->uvpitch,dst->u,dst->uvpitch,dst->uvwidth,tChroma_Height);
+    fast_copy(src->v,src->uvpitch,dst->v,dst->uvpitch,dst->uvwidth,tChroma_Height);
 }
 
 void CMPEG2Decoder::CopyTop(YV12PICT *src, YV12PICT *dst)
 {
     int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
-    if ( AVSenv )
-    {
-        AVSenv->BitBlt(dst->y, dst->ypitch*2, src->y,src->ypitch*2, src->ywidth, Coded_Picture_Height>>1);
-        AVSenv->BitBlt(dst->u, dst->uvpitch*2, src->u,src->uvpitch*2, src->uvwidth, tChroma_Height>>1);
-        AVSenv->BitBlt(dst->v, dst->uvpitch*2, src->v,src->uvpitch*2, src->uvwidth, tChroma_Height>>1);
-    }
-    else
-    {
-        cpy_offset(src->y,src->ypitch*2,dst->y,dst->ypitch*2,dst->ywidth,Coded_Picture_Height>>1,0);
-        cpy_offset(src->u,src->uvpitch*2,dst->u,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1,1);
-        cpy_offset(src->v,src->uvpitch*2,dst->v,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1,2);
-    }
+    fast_copy(src->y,src->ypitch*2,dst->y,dst->ypitch*2,dst->ywidth,Coded_Picture_Height>>1);
+    fast_copy(src->u,src->uvpitch*2,dst->u,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1);
+    fast_copy(src->v,src->uvpitch*2,dst->v,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1);
 }
 
 void CMPEG2Decoder::CopyBot(YV12PICT *src, YV12PICT *dst)
 {
     int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
-    if ( AVSenv )
-    {
-        AVSenv->BitBlt(dst->y+dst->ypitch, dst->ypitch*2, src->y+src->ypitch, src->ypitch*2, src->ywidth, Coded_Picture_Height>>1);
-        AVSenv->BitBlt(dst->u+dst->uvpitch, dst->uvpitch*2, src->u+src->uvpitch, src->uvpitch*2, src->uvwidth, tChroma_Height>>1);
-        AVSenv->BitBlt(dst->v+dst->uvpitch, dst->uvpitch*2, src->v+src->uvpitch, src->uvpitch*2, src->uvwidth, tChroma_Height>>1);
-    }
-    else
-    {
-        cpy_offset(src->y+src->ypitch,src->ypitch*2,dst->y+dst->ypitch,dst->ypitch*2,dst->ywidth,Coded_Picture_Height>>1,0);
-        cpy_offset(src->u+src->uvpitch,src->uvpitch*2,dst->u+dst->uvpitch,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1,1);
-        cpy_offset(src->v+src->uvpitch,src->uvpitch*2,dst->v+dst->uvpitch,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1,2);
-    }
+    fast_copy(src->y+src->ypitch,src->ypitch*2,dst->y+dst->ypitch,dst->ypitch*2,dst->ywidth,Coded_Picture_Height>>1);
+    fast_copy(src->u+src->uvpitch,src->uvpitch*2,dst->u+dst->uvpitch,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1);
+    fast_copy(src->v+src->uvpitch,src->uvpitch*2,dst->v+dst->uvpitch,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1);
 }
 
 void CMPEG2Decoder::CopyTopBot(YV12PICT *odd, YV12PICT *even, YV12PICT *dst)
 {
     int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
-    cpy_oddeven(odd->y,odd->ypitch*2,even->y+even->ypitch,even->ypitch*2,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height>>1,0);
-    cpy_oddeven(odd->u,odd->uvpitch*2,even->u+even->uvpitch,even->uvpitch*2,dst->u,dst->uvpitch,dst->uvwidth,tChroma_Height>>1,1);
-    cpy_oddeven(odd->v,odd->uvpitch*2,even->v+even->uvpitch,even->uvpitch*2,dst->v,dst->uvpitch,dst->uvwidth,tChroma_Height>>1,2);
+    copy_oddeven(odd->y,odd->ypitch*2,even->y+even->ypitch,even->ypitch*2,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height>>1);
+    copy_oddeven(odd->u,odd->uvpitch*2,even->u+even->uvpitch,even->uvpitch*2,dst->u,dst->uvpitch,dst->uvwidth,tChroma_Height>>1);
+    copy_oddeven(odd->v,odd->uvpitch*2,even->v+even->uvpitch,even->uvpitch*2,dst->v,dst->uvpitch,dst->uvwidth,tChroma_Height>>1);
 }
