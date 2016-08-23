@@ -23,6 +23,9 @@
  *
  */
 
+#ifndef MPEG2DECPLUS_AVS_API_H
+#define MPEG2DECPLUS_AVS_API_H
+
 #include <cstdint>
 #include <avisynth.h>
 #include <avs/win.h>
@@ -96,3 +99,6 @@ public:
     static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 
 };
+
+
+#endif
