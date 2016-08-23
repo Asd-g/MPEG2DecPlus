@@ -1,5 +1,5 @@
 /*
- *  Misc Stuff (profiling) for MPEG2Dec3
+ *  Misc Stuff for MPEG2Dec3
  *
  *  Copyright (C) 2002-2003 Marc Fauconneau <marc.fd@liberysurf.fr>
  *
@@ -21,12 +21,16 @@
  *
  */
 
-#include "misc.h"
-#include <stdio.h>
-#include <windows.h>
-#include <time.h>
 
-static ui64 local;
+#include <cstdio>
+#include <ctime>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
+#include "misc.h"
+
+static uint64_t local;
 static char buffer[256];
 
 unsigned __int64 read_counter(void)
@@ -43,7 +47,7 @@ unsigned __int64 read_counter(void)
 }
 
 // get CPU frequency in Hz (1 Mz precision)
-ui64 get_freq(void)
+uint64_t get_freq(void)
 {
     unsigned __int64  x = 0;
     time_t i;
@@ -84,17 +88,17 @@ void start_timer()
     local = read_counter();
 }
 
-void start_timer2(ui64* timer)
+void start_timer2(uint64_t* timer)
 {
     *timer -= read_counter();
 }
 
-void stop_timer(ui64* timer)
+void stop_timer(uint64_t* timer)
 {
     *timer += (read_counter() - local);
 }
 
-void stop_timer2(ui64* timer)
+void stop_timer2(uint64_t* timer)
 {
     *timer += read_counter();
 }
@@ -120,4 +124,18 @@ void timer_debug(ts* timers)
         (tim.freq)/((double)tim.sum/tim.div)
         );
     OutputDebugString(buffer);
+}
+
+
+int __cdecl dprintf(char* fmt, ...)
+{
+    char printString[1024];
+
+    va_list argp;
+
+    va_start(argp, fmt);
+    vsprintf(printString, fmt, argp);
+    va_end(argp);
+    OutputDebugString(printString);
+    return strlen(printString);
 }

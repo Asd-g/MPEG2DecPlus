@@ -51,9 +51,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\misc.cpp">
-      <Filter>DGDecode</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\PostProcess.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
@@ -72,15 +69,15 @@
     <ClCompile Include="..\..\..\src\dgdecode\mc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\misc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\dgdecode\global.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\AvisynthAPI.h">
-      <Filter>DGDecode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\dgdecode\misc.h">
       <Filter>DGDecode</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\PostProcess.h">
@@ -90,6 +87,9 @@
       <Filter>DGDecode</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\mc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\dgdecode\misc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -98,12 +98,12 @@
     <ClCompile Include="..\..\..\src\dgdecode\idctref.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\LumaYUV.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mc.cpp" />
+    <ClCompile Include="..\..\..\src\dgdecode\misc.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\motion.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mpeg2dec.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\vfapidec.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\misc.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\PostProcess.cpp" />
   </ItemGroup>
   <ItemGroup>

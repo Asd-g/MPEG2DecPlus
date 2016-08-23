@@ -70,7 +70,6 @@
 
 XTN struct ts tim;
 
-int dprintf(char* fmt, ...);
 
 /* code definition */
 #define PICTURE_START_CODE          0x100
@@ -479,18 +478,18 @@ public:
 
 
 // idct
-extern "C" void __fastcall MMX_IDCT(short *block);
-extern "C" void __fastcall SSEMMX_IDCT(short *block);
+//extern "C" void __fastcall MMX_IDCT(short *block);
+//extern "C" void __fastcall SSEMMX_IDCT(short *block);
 extern "C" void __fastcall SSE2MMX_IDCT(short *block);
 extern "C" void __fastcall IDCT_CONST_PREFETCH(void);
 
 // - Nic more idct
-extern "C" void __fastcall simple_idct_mmx(short *block);
-extern "C" void __fastcall Skl_IDct16_SSE(short *block);
-extern "C" void __fastcall Skl_IDct16_Sparse_SSE(short *block);
+//extern "C" void __fastcall simple_idct_mmx(short *block);
+//extern "C" void __fastcall Skl_IDct16_SSE(short *block);
+//extern "C" void __fastcall Skl_IDct16_Sparse_SSE(short *block);
 
 void Initialize_FPU_IDCT(void);
-void __fastcall FPU_IDCT(short *block);
+//void __fastcall FPU_IDCT(short *block);
 void __fastcall REF_IDCT(short *block);
 
 /* default intra quantization matrix */

@@ -45,7 +45,6 @@ void postprocess(uint8_t * src[], int src_stride, int UVsrc_stride,
                  int horizontal_size,   int vertical_size,
                  QP_STORE_T *QP_store,  int QP_stride,
                  int mode, int moderate_h, int moderate_v, bool is422, bool iPP);
-int __cdecl dprintf(char* fmt, ...);
 void do_emms();
 
 // New Deringing Algo:

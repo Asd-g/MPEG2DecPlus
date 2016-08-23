@@ -3521,21 +3521,3 @@ void dering_OLD( uint8_t *image, int width, int height, int stride, QP_STORE_T *
 
 // Grabbed from AviH's source
 // usage is same as printf. output using OutputDebugString.
-#if 1
-char printString[1024];
-int dprintf(char* fmt, ...)
-{
-    va_list argp;
-
-    va_start(argp, fmt);
-    vsprintf(printString, fmt, argp);
-    va_end(argp);
-    OutputDebugString(printString);
-    return strlen(printString);
-}
-#else
-int dprintf(char* fmt, ...)
-{
-    return 0;
-}
-#endif

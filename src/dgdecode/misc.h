@@ -21,36 +21,36 @@
  *
  */
 
-#include <stdio.h>
-#include <windows.h>
-#include <time.h>
-
-#define ui64 unsigned __int64
+#include <cstdint>
+#include <cstdarg>
 
 struct ts
 {
-    ui64 idct;
-    ui64 conv;
-    ui64 mcpy;
-    ui64 post;
-    ui64 dec;
-    ui64 bit;
-    ui64 decMB;
-    ui64 mcmp;
-    ui64 addb;
-    ui64 overall;
-    ui64 sum;
+    uint64_t idct;
+    uint64_t conv;
+    uint64_t mcpy;
+    uint64_t post;
+    uint64_t dec;
+    uint64_t bit;
+    uint64_t decMB;
+    uint64_t mcmp;
+    uint64_t addb;
+    uint64_t overall;
+    uint64_t sum;
     int div;
-    ui64 freq;
+    uint64_t freq;
 };
 
-ui64 read_counter(void);
-ui64 get_freq(void);
+uint64_t read_counter(void);
+uint64_t get_freq(void);
 
 void init_first(ts* timers);
 void init_timers(ts* timers);
 void start_timer();
-void start_timer2(ui64* timer);
-void stop_timer(ui64* timer);
-void stop_timer2(ui64* timer);
+void start_timer2(uint64_t* timer);
+void stop_timer(uint64_t* timer);
+void stop_timer2(uint64_t* timer);
 void timer_debug(ts* tim);
+
+
+int __cdecl dprintf(char* fmt, ...);
