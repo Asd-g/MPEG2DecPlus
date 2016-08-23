@@ -1,12 +1,12 @@
 #include <malloc.h>
-#include <string.h>
-#include <stdio.h>
+#include <cstring>
+#include <cstdio>
+#include <cstdarg>
 #include <algorithm>
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
 #include <windows.h>
-#include <stdarg.h>
 
 #include "PostProcess.h"
 
@@ -244,72 +244,20 @@ void do_emms()
 }
 
 
-/* Fast copy... needs width and stride to be multiples of 16 */
 void fast_copy(unsigned char *src, int src_stride,
                  unsigned char *dst, int dst_stride,
                  int horizontal_size,   int vertical_size)
 {
-    uint8_t *pmm1;
-    uint8_t *pmm2;
-    int x, y;
-
-#ifdef PP_SELF_CHECK
-    int j, k;
-#endif
-
-    pmm1 = src;
-    pmm2 = dst;
-
-    for (y=0; y<vertical_size; y++)
-    {
-
-        x = - horizontal_size / 8;
-
-        __asm
-        {
-            push edi
-            push ebx
-            push ecx
-
-            mov edi, x
-            mov ebx, pmm1
-            mov ecx, pmm2
-
-        L123:                                         /*                                 */
-            movq   mm0, [ebx]                         /* mm0 = *pmm1                     */
-            movq   [ecx], mm0                         /* *pmm2 = mm0                     */
-            add   ecx, 8                              /* pmm2 +=8                        */
-        #ifdef PREFETCH_ENABLE
-            prefetcht0 32[ebx]                        /* prefetch ahead                  */
-        #endif
-            add   ebx, 8                              /* pmm1 +=8                        */
-            add   edi, 1                              /* increment loop counter          */
-            jne    L123
-
-            pop ecx
-            pop ebx
-            pop edi
-
-        };
-
-        pmm1 += src_stride;// - horizontal_size;
-        pmm2 += dst_stride;// - horizontal_size;
-    }
-
-#ifdef PP_SELF_CHECK
-    for (k=0; k<vertical_size; k++)
-    {
-        for (j=0; j<horizontal_size; j++)
-        {
-            if (dst[k*dst_stride + j] != src[k*src_stride + j])
-            {
-                dprintf("problem with MMX fast copy - Y\n");
-            }
+    if (vertical_size = 0) return;
+    if (horizontal_size == src_stride && src_stride == dst_stride) {
+        std::memcpy(dst, src, horizontal_size * vertical_size);
+    } else {
+        for (int y = 0; y < vertical_size; ++y) {
+            std::memcpy(dst, src, horizontal_size);
+            dst += dst_stride;
+            src += src_stride;
         }
     }
-#endif
-
-    __asm emms;
 }
 
 /* this is a horizontal deblocking filter - i.e. it will smooth _vertical_ block edges */
