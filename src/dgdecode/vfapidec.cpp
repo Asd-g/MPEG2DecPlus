@@ -156,23 +156,17 @@ int CMPEG2Decoder::Open(const char *path)
     fscanf(out->VF_File, "MPEG_Type=%d\n", &mpeg_type);
     fscanf(out->VF_File, "iDCT_Algorithm=%d\n", &IDCT_Flag);
 
-    switch (IDCT_Flag)
-    {
-        case IDCT_MMX:
-        case IDCT_SSEMMX:
-        case IDCT_FPU:
-        case IDCT_SKALSSE:
-        case IDCT_SIMPLEIDCT:
-        case IDCT_SSE2MMX:
-            idctFunc = SSE2MMX_IDCT;
-            break;
-        case IDCT_REF:
-            if (!refinit)
-            {
-                refinit = true;
-            }
-            idctFunc = REF_IDCT;
-            break;
+    switch (IDCT_Flag) {
+    case IDCT_REF:
+        if (!refinit)
+        {
+            refinit = true;
+        }
+        idctFunc = REF_IDCT;
+        break;
+    default:
+        idctFunc = SSE2MMX_IDCT;
+        break;
     }
 
     File_Flag = 0;
@@ -891,13 +885,6 @@ copy_oddeven(const uint8_t* odd, const size_t opitch, const uint8_t* even,
         odd += opitch;
         even += epitch;
     } while (--height != 0);
-}
-
-
-void CMPEG2Decoder::CopyPlane(uint8_t *src, int src_pitch, uint8_t* dst, int dst_pitch,
-                              int width, int height)
-{
-    fast_copy(src, src_pitch, dst, dst_pitch, width, height);
 }
 
 void CMPEG2Decoder::CopyAll(YV12PICT *src, YV12PICT *dst)
