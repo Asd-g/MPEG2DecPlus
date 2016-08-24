@@ -27,113 +27,74 @@
 #include "global.h"
 #include "postprocess.h"
 #include "color_convert.h"
+#include "misc.h"
 
-#ifdef uc  // its defined in AvisynthAPI.h, need our own def here
-#undef uc
-#endif
-
-#define uc uint8_t
 
 // Write 2-digits numbers in a 16x16 zone.
-__inline void MBnum(uc* dst, int stride, int number)
+__inline void MBnum(uint8_t* dst, int stride, int number)
 {
-    int y,c,d;
-    uc cc = 255;
-    uc hc = 128;
+    const uint8_t rien[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    const uint8_t nums[10][8] = {
+        1, 4, 4, 4, 4, 4, 1, 0,
+        3, 3, 3, 3, 3, 3, 3, 0,
+        1, 3, 3, 1, 2, 2, 1, 0,
+        1, 3, 3, 1, 3, 3, 1, 0,
+        4, 4, 4, 1, 3, 3, 3, 0,
+        1, 2, 2, 1, 3, 3, 1, 0,
+        1, 2, 2, 1, 4, 4, 1, 0,
+        1, 3, 3, 3, 3, 3, 3, 0,
+        1, 4, 4, 1, 4, 4, 1, 0,
+        1, 4, 4, 1, 3, 3, 1, 0,
+    };
 
-    uc rien[7] = { 0,0,0,0,0,0,0 };
-    uc num0[7] = { 1,4,4,4,4,4,1 };
-    uc num1[7] = { 3,3,3,3,3,3,3 };
-    uc num2[7] = { 1,3,3,1,2,2,1 };
-    uc num3[7] = { 1,3,3,1,3,3,1 };
-    uc num4[7] = { 4,4,4,1,3,3,3 };
-    uc num5[7] = { 1,2,2,1,3,3,1 };
-    uc num6[7] = { 1,2,2,1,4,4,1 };
-    uc num7[7] = { 1,3,3,3,3,3,3 };
-    uc num8[7] = { 1,4,4,1,4,4,1 };
-    uc num9[7] = { 1,4,4,1,3,3,1 };
-    uc* nums[10] = {num0,num1,num2,num3,num4,num5,num6,num7,num8,num9};
-    uc* num;
+    auto write = [](const uint8_t* num, uint8_t* dst, const int stride) {
+        for (int y = 0; y < 7; ++y) {
+            if (num[y] == 1) {
+                dst[1 + y * stride] = 0xFF;
+                dst[2 + y * stride] = 0xFF;
+                dst[3 + y * stride] = 0xFF;
+                dst[4 + y * stride] = 0xFF;
+            }
+            if (num[y] == 2) {
+                dst[1 + y * stride] = 0xFF;
+            }
+            if (num[y] == 3) {
+                dst[4 + y * stride] = 0xFF;
+            }
+            if (num[y] == 4) {
+                dst[1 + y * stride] = 0xFF;
+                dst[4 + y * stride] = 0xFF;
+            }
+        }
+    };
+    const uint8_t* num;
 
     dst += 3*stride;
-    c = (number/100)%10;
+    int c = (number/100)%10;
     num = nums[c]; // x00
     if (c==0) num = rien;
-    for (y=0;y<7;y++) {
-        if (num[y] == 1) { // --
-            dst[1+y*stride] = cc;
-            dst[2+y*stride] = cc;
-            dst[3+y*stride] = cc;
-            dst[4+y*stride] = cc;
-        }
-        if (num[y] == 2) { // |x
-            dst[1+y*stride] = cc;
-        }
-        if (num[y] == 3) { // x|
-            dst[4+y*stride] = cc;
-        }
-        if (num[y] == 4) { // ||
-            dst[1+y*stride] = cc;
-            dst[4+y*stride] = cc;
-        }
-    }
+    write(num, dst, stride);
+
     dst += 5;
-    d = (number/10)%10;
+    int d = (number/10)%10;
     num = nums[d]; // 0x0
     if (c==0 && d==0) num = rien;
-    for (y=0;y<7;y++) {
-        if (num[y] == 1) { // --
-            dst[1+y*stride] = cc;
-            dst[2+y*stride] = cc;
-            dst[3+y*stride] = cc;
-            dst[4+y*stride] = cc;
-        }
-        if (num[y] == 2) { // |x
-            dst[1+y*stride] = cc;
-        }
-        if (num[y] == 3) { // x|
-            dst[4+y*stride] = cc;
-        }
-        if (num[y] == 4) { // ||
-            dst[1+y*stride] = cc;
-            dst[4+y*stride] = cc;
-        }
-    }
+    write(num, dst, stride);
+
     dst += 5;
     num = nums[number%10]; // 00x
-    for (y=0;y<7;y++) {
-        if (num[y] == 1) { // --
-            dst[1+y*stride] = cc;
-            dst[2+y*stride] = cc;
-            dst[3+y*stride] = cc;
-            dst[4+y*stride] = cc;
-        }
-        if (num[y] == 2) { // |x
-            dst[1+y*stride] = cc;
-        }
-        if (num[y] == 3) { // x|
-            dst[4+y*stride] = cc;
-        }
-        if (num[y] == 4) { // ||
-            dst[1+y*stride] = cc;
-            dst[4+y*stride] = cc;
-        }
-    }
+    write(num, dst, stride);
 }
 
 void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
 {
     int *qp;
 
-#ifdef PROFILING
-    start_timer();
-#endif
-
     dst->pf = pf;
 
     if (pp_mode != 0)
     {
-        uc* ppptr[3];
+        uint8_t* ppptr[3];
         if (!(upConv > 0 && chroma_format == 1))
         {
             ppptr[0] = dst->y;
@@ -169,27 +130,23 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
     }
     else
     {
-        YV12PICT psrc;
-        psrc.y = src[0]; psrc.u = src[1]; psrc.v = src[2];
-        psrc.ypitch = psrc.ywidth = Coded_Picture_Width;
-        psrc.uvpitch = psrc.uvwidth = Chroma_Width;
-        psrc.yheight = Coded_Picture_Height;
-        psrc.uvheight = Chroma_Height;
+        fast_copy(src[0], Coded_Picture_Width, dst->y, dst->ypitch, Coded_Picture_Width, Coded_Picture_Height);
         if (upConv > 0 && chroma_format == 1)
         {
-            CopyPlane(psrc.y,psrc.ypitch,dst->y,dst->ypitch,psrc.ywidth,psrc.yheight);
             if (iCC == 1 || (iCC == -1 && pf == 0))
             {
-                conv420to422I(psrc.u,dst->u,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
-                conv420to422I(psrc.v,dst->v,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422I(src[1], dst->u, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
+                conv420to422I(src[2], dst->v, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
             }
             else
             {
-                conv420to422P(psrc.u,dst->u,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
-                conv420to422P(psrc.v,dst->v,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+                conv420to422P(src[1], dst->u, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
+                conv420to422P(src[2], dst->v, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
             }
+        } else {
+            fast_copy(src[1], Chroma_Width, dst->u, dst->uvpitch, Chroma_Width, Chroma_Height);
+            fast_copy(src[2], Chroma_Width, dst->v, dst->uvpitch, Chroma_Width, Chroma_Height);
         }
-        else CopyAll(&psrc,dst);
     }
 
     // Re-order quant data for display order.
@@ -199,11 +156,12 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
             qp = auxQP;
         else
             qp = backwardQP;
+    } else {
+        return;
     }
 
     if (info == 1 || info == 2)
     {
-        __asm emms;
         int x, y, temp;
         int quant;
 
@@ -234,9 +192,4 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
             }
         }
     }
-
-#ifdef PROFILING
-    stop_timer(&tim.post);
-    start_timer();
-#endif
 }
