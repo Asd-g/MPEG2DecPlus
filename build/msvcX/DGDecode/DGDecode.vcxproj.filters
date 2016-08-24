@@ -39,9 +39,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\motion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\mpeg2dec.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
