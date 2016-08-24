@@ -26,6 +26,7 @@
  */
 //#define MPEG2DEC_EXPORTS
 
+#include <emmintrin.h>
 #include "global.h"
 #include "mc.h"
 
@@ -142,20 +143,12 @@ void CMPEG2Decoder::picture_data()
 /* ISO/IEC 13818-2 section 6.3.16 */
 void CMPEG2Decoder::slice(int MBAmax, unsigned int code)
 {
-    int MBA, MBAinc;
-    int macroblock_type, motion_type, dct_type = 0;
-    int dc_dct_pred[3], PMV[2][2][2], motion_vertical_field_select[2][2], dmvector[2];
-    int slice_vert_pos_ext;
-    int *qp;
-
-    MBA = MBAinc = 0;
-
     /* decode slice header (may change quantizer_scale) */
-    slice_vert_pos_ext = slice_header();
+    int slice_vert_pos_ext = slice_header();
 
     /* decode macroblock address increment */
     Fault_Flag = 0;
-    MBAinc = Get_macroblock_address_increment();
+    int MBAinc = Get_macroblock_address_increment();
     if (MBAinc < 0)
     {
         // End of slice but we didn't process any macroblocks!
@@ -166,22 +159,18 @@ void CMPEG2Decoder::slice(int MBAmax, unsigned int code)
     /* set current location */
     /* NOTE: the arithmetic used to derive macroblock_address below is
        equivalent to ISO/IEC 13818-2 section 6.3.17: Macroblock */
-    MBA = ((slice_vert_pos_ext << 7) + (code & 255) - 1) * mb_width + MBAinc - 1;
+    int MBA = ((slice_vert_pos_ext << 7) + (code & 255) - 1) * mb_width + MBAinc - 1;
     MBAinc = 1; // first macroblock in slice: not skipped
 
     /* reset all DC coefficient and motion vector predictors */
     /* ISO/IEC 13818-2 section 7.2.1: DC coefficients in intra blocks */
-    dc_dct_pred[0]=dc_dct_pred[1]=dc_dct_pred[2]=0;
+    int dc_dct_pred[3] = { 0 };
 
     /* ISO/IEC 13818-2 section 7.6.3.4: Resetting motion vector predictors */
-    PMV[0][0][0]=PMV[0][0][1]=PMV[1][0][0]=PMV[1][0][1]=0;
-    PMV[0][1][0]=PMV[0][1][1]=PMV[1][1][0]=PMV[1][1][1]=0;
+    int PMV[2][2][2] = { 0 };
 
     // Set up pointer for storing quants for info and showQ.
-    if (picture_coding_type == B_TYPE)
-        qp = auxQP;
-    else
-        qp = backwardQP;
+    int* qp = (picture_coding_type == B_TYPE) ? auxQP : backwardQP;
     if (picture_structure == BOTTOM_FIELD)
         qp += mb_width*mb_height / 2;
 
@@ -192,41 +181,40 @@ void CMPEG2Decoder::slice(int MBAmax, unsigned int code)
     // by 23 zeroes after a macroblock. To detect that, we use a trick in
     // Get_macroblock_address_increment(). See that function for an
     // explanation.
-    while (MBA < MBAmax)
-    {
-        if (MBAinc == 0)
-        {
+
+    int macroblock_type, motion_type, dct_type = 0;
+    int motion_vertical_field_select[2][2], dmvector[2];
+
+    while (MBA < MBAmax) {
+        if (MBAinc == 0) {
             /* decode macroblock address increment */
             MBAinc = Get_macroblock_address_increment();
-            if (MBAinc < 0 || Fault_Flag == OUT_OF_BITS)
-            {
+            if (MBAinc < 0 || Fault_Flag == OUT_OF_BITS) {
                 // End of slice or out of data.
                 break;
             }
         }
-        if (MBAinc == 1)
-        {
+        if (MBAinc == 1) {
             decode_macroblock(&macroblock_type, &motion_type, &dct_type, PMV,
                               dc_dct_pred, motion_vertical_field_select, dmvector);
-        }
-        else
-        {
+        } else {
             /* ISO/IEC 13818-2 section 7.6.6 */
             skipped_macroblock(dc_dct_pred, PMV, &motion_type, motion_vertical_field_select, &macroblock_type);
         }
-        if (Fault_Flag)
-            break;
 
-        QP[MBA] = quantizer_scale;
-        qp[MBA] = quantizer_scale;
+        if (Fault_Flag) {
+            break;
+        }
+
+        QP[MBA] = qp[MBA] = quantizer_scale;
 
         /* ISO/IEC 13818-2 section 7.6 */
         motion_compensation(MBA, macroblock_type, motion_type, PMV,
                             motion_vertical_field_select, dmvector, dct_type);
 
         /* advance to next macroblock */
-        MBA++;
-        MBAinc--;
+        ++MBA;
+        --MBAinc;
     }
 }
 
@@ -235,59 +223,49 @@ void CMPEG2Decoder::macroblock_modes(int *pmacroblock_type, int *pmotion_type,
                              int *pmotion_vector_count, int *pmv_format,
                              int *pdmv, int *pmvscale, int *pdct_type)
 {
-    int macroblock_type, motion_type, motion_vector_count;
-    int mv_format, dmv, mvscale, dct_type;
-
     /* get macroblock_type */
-    macroblock_type = Get_macroblock_type();
+    int macroblock_type = Get_macroblock_type();
     if (Fault_Flag)
         return;
 
     /* get frame/field motion type */
-    if (macroblock_type & (MACROBLOCK_MOTION_FORWARD|MACROBLOCK_MOTION_BACKWARD))
-    {
-        if (picture_structure==FRAME_PICTURE)
+    int motion_type;
+    if (macroblock_type & (MACROBLOCK_MOTION_FORWARD|MACROBLOCK_MOTION_BACKWARD)) {
+        if (picture_structure == FRAME_PICTURE)
             motion_type = frame_pred_frame_dct ? MC_FRAME : Get_Bits(2);
         else
             motion_type = Get_Bits(2);
-    }
-    else
-    {
-        motion_type = (picture_structure==FRAME_PICTURE) ? MC_FRAME : MC_FIELD;
+    } else {
+        motion_type = (picture_structure == FRAME_PICTURE) ? MC_FRAME : MC_FIELD;
     }
 
     /* derive motion_vector_count, mv_format and dmv, (table 6-17, 6-18) */
-    if (picture_structure==FRAME_PICTURE)
-    {
+    int motion_vector_count, mv_format;
+    if (picture_structure == FRAME_PICTURE) {
         motion_vector_count = (motion_type==MC_FIELD) ? 2 : 1;
         mv_format = (motion_type==MC_FRAME) ? MV_FRAME : MV_FIELD;
-    }
-    else
-    {
-        motion_vector_count = (motion_type==MC_16X8) ? 2 : 1;
+    } else {
+        motion_vector_count = (motion_type == MC_16X8) ? 2 : 1;
         mv_format = MV_FIELD;
     }
 
-    dmv = (motion_type==MC_DMV); /* dual prime */
+    *pdmv = (motion_type==MC_DMV); /* dual prime */
 
     /*
        field mv predictions in frame pictures have to be scaled
        ISO/IEC 13818-2 section 7.6.3.1 Decoding the motion vectors
     */
-    mvscale = (mv_format==MV_FIELD && picture_structure==FRAME_PICTURE);
+    *pmvscale = (mv_format==MV_FIELD && picture_structure==FRAME_PICTURE);
 
     /* get dct_type (frame DCT / field DCT) */
-    dct_type = (picture_structure==FRAME_PICTURE) && (!frame_pred_frame_dct)
-                && (macroblock_type & (MACROBLOCK_PATTERN|MACROBLOCK_INTRA)) ? Get_Bits(1) : 0;
+    *pdct_type = (picture_structure==FRAME_PICTURE) && (!frame_pred_frame_dct)
+                 && (macroblock_type & (MACROBLOCK_PATTERN|MACROBLOCK_INTRA)) ? Get_Bits(1) : 0;
 
     /* return values */
     *pmacroblock_type = macroblock_type;
     *pmotion_type = motion_type;
     *pmotion_vector_count = motion_vector_count;
     *pmv_format = mv_format;
-    *pdmv = dmv;
-    *pmvscale = mvscale;
-    *pdct_type = dct_type;
 }
 
 /* move/add 8x8-Block from block[comp] to backward_reference_frame */
@@ -297,492 +275,156 @@ void CMPEG2Decoder::macroblock_modes(int *pmacroblock_type, int *pmotion_type,
    - ISO/IEC 13818-2 section 7.6.7: Combining predictions
    - ISO/IEC 13818-2 section 6.1.3: Macroblock
 */
-__declspec(align(16))
-static const uint64_t mmmask_128C[2] = {0x8080808080808080, 0x8080808080808080};
-
 
 void CMPEG2Decoder::Add_Block(int count, int bx, int by, int dct_type, int addflag)
 {
-static const uint64_t mmmask_128  = 0x0080008000800080;
+    alignas(16) static const uint64_t mmmask_128C[2] = {
+        0x8080808080808080, 0x8080808080808080
+    };
 
+    const __m128i mask = addflag ? _mm_setzero_si128() :
+        _mm_load_si128(reinterpret_cast<const __m128i*>(mmmask_128C));
 
-    int comp, cc, iincr, bxh, byh;
-    uint8_t *rfp;
-    short *Block_Ptr;
+    for (int comp = 0; comp < count; ++comp) {
+        int16_t* blockp = block[comp];
+        int cc = cc_table[comp];
+        int bxh = bx;
+        int byh = by;
+        int iincr;
+        uint8_t* rfp;
 
-    for (comp=0; comp<count; comp++)
-    {
-        Block_Ptr = block[comp];
-        cc = cc_table[comp];
-
-        /*
-            if(cpu.sse2mmx)
-            __asm
-            {
-                mov eax,Block_Ptr
-                prefetcht0 [eax]
-            };
-        */
-
-        bxh = bx; byh = by;
-
-        if (cc==0)
-        {
-            if (picture_structure==FRAME_PICTURE)
-            {
-                if (dct_type)
-                {
-                    rfp = current_frame[0] + Coded_Picture_Width*(by+((comp&2)>>1)) + bx + ((comp&1)<<3);
-                    iincr = Coded_Picture_Width<<1;
-                }
-                else
-                {
-                    rfp = current_frame[0] + Coded_Picture_Width*(by+((comp&2)<<2)) + bx + ((comp&1)<<3);
+        if (cc == 0) {
+            if (picture_structure == FRAME_PICTURE) {
+                if (dct_type) {
+                    rfp = current_frame[0] + Coded_Picture_Width * (by + (comp & 2) / 2) + bx + (comp & 1) * 8;
+                    iincr = Coded_Picture_Width * 2;
+                } else {
+                    rfp = current_frame[0] + Coded_Picture_Width * (by + (comp & 2) * 4) + bx + (comp & 1) * 8;
                     iincr = Coded_Picture_Width;
                 }
+            } else {
+                rfp = current_frame[0] + (Coded_Picture_Width * 2) * (by + (comp & 2) * 4) + bx + (comp & 1) * 8;
+                iincr = Coded_Picture_Width * 2;
             }
-            else
-            {
-                rfp = current_frame[0] + (Coded_Picture_Width<<1)*(by+((comp&2)<<2)) + bx + ((comp&1)<<3);
-                iincr = Coded_Picture_Width<<1;
-            }
-        }
-        else
-        {
-            if (chroma_format!=CHROMA444)
-                bxh >>= 1;
-            if (chroma_format==CHROMA420)
-                byh >>= 1;
+        } else {
+            if (chroma_format != CHROMA444) bxh /= 2;
+            if (chroma_format==CHROMA420) byh /= 2;
 
-            if (picture_structure==FRAME_PICTURE)
-            {
-                if (dct_type && chroma_format!=CHROMA420)
-                {
+            if (picture_structure==FRAME_PICTURE) {
+                if (dct_type && chroma_format != CHROMA420) {
                     /* field DCT coding */
-                    rfp = current_frame[cc] + Chroma_Width*(byh+((comp&2)>>1)) + bxh + (comp&8);
-                    iincr = Chroma_Width<<1;
-                }
-                else
-                {
+                    rfp = current_frame[cc] + Chroma_Width * (byh + (comp & 2) / 2) + bxh + (comp & 8);
+                    iincr = Chroma_Width * 2;
+                } else {
                     /* frame DCT coding */
-                    rfp = current_frame[cc] + Chroma_Width*(byh+((comp&2)<<2)) + bxh + (comp&8);
+                    rfp = current_frame[cc] + Chroma_Width * (byh + (comp & 2) * 4) + bxh + (comp & 8);
                     iincr = Chroma_Width;
                 }
-            }
-            else
-            {
+            } else {
                 /* field picture */
-                rfp = current_frame[cc] + (Chroma_Width<<1)*(byh+((comp&2)<<2)) + bxh + (comp&8);
-                iincr = Chroma_Width<<1;
+                rfp = current_frame[cc] + (Chroma_Width * 2) * (byh + (comp & 2) * 4) + bxh + (comp & 8);
+                iincr = Chroma_Width * 2;
             }
         }
 
-#ifdef SSE2CHECK
-        sse2checkrun(2);
-#endif
+        uint8_t* rfp1 = rfp + iincr;
+        iincr *= 2;
+        __m128i r0, r1;
 
-        if (addflag)
-        {
-#ifdef USE_SSE2_CODE
-            if(cpu.sse2mmx)
-            __asm
-            {
-                pxor        xmm0,xmm0
-                mov     eax, [rfp]
-                mov     ebx, [Block_Ptr]
-                mov     ecx,[iincr]
-                mov     edx,ecx
-                add     edx,edx
-                add     edx,ecx ;=iincr*3
+        if (addflag) {
+            r0 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rfp));
+            r1 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rfp1));
+            r0 = _mm_unpacklo_epi8(r0, mask);
+            r1 = _mm_unpacklo_epi8(r1, mask);
+            r0 = _mm_adds_epi16(r0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(blockp)));
+            r1 = _mm_adds_epi16(r1, _mm_loadu_si128(reinterpret_cast<const __m128i*>(blockp + 8)));
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp), _mm_packus_epi16(r0, r0));
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp1), _mm_packus_epi16(r1, r1));
 
-                ;--------------------------------------------------
-                movdqa      xmm1,[eax]      ;y7-y0 y7-y0
-                movdqa      xmm2,xmm1
+            rfp += iincr;
+            rfp1 += iincr;
+            r0 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rfp));
+            r1 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rfp1));
+            r0 = _mm_unpacklo_epi8(r0, mask);
+            r1 = _mm_unpacklo_epi8(r1, mask);
+            r0 = _mm_adds_epi16(r0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(blockp + 16)));
+            r1 = _mm_adds_epi16(r1, _mm_loadu_si128(reinterpret_cast<const __m128i*>(blockp + 24)));
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp), _mm_packus_epi16(r0, r0));
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp1), _mm_packus_epi16(r1, r1));
 
-                punpcklbw   xmm1,xmm0       ;low y7-y0
-                paddsw      xmm1,[ebx+32*0]     ;low x7-x0
+            rfp += iincr;
+            rfp1 += iincr;
+            r0 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rfp));
+            r1 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rfp1));
+            r0 = _mm_unpacklo_epi8(r0, mask);
+            r1 = _mm_unpacklo_epi8(r1, mask);
+            r0 = _mm_adds_epi16(r0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(blockp + 32)));
+            r1 = _mm_adds_epi16(r1, _mm_loadu_si128(reinterpret_cast<const __m128i*>(blockp + 40)));
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp), _mm_packus_epi16(r0, r0));
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp1), _mm_packus_epi16(r1, r1));
 
-                punpckhbw   xmm2,xmm0       ;high y7-y0
-                paddsw      xmm2,[ebx+32*0+16]  ;high x7-x0
+            rfp += iincr;
+            rfp1 += iincr;
+            r0 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rfp));
+            r1 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(rfp1));
+            r0 = _mm_unpacklo_epi8(r0, mask);
+            r1 = _mm_unpacklo_epi8(r1, mask);
+            r0 = _mm_adds_epi16(r0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(blockp + 48)));
+            r1 = _mm_adds_epi16(r1, _mm_loadu_si128(reinterpret_cast<const __m128i*>(blockp + 56)));
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp), _mm_packus_epi16(r0, r0));
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp1), _mm_packus_epi16(r1, r1));
 
-                packuswb    xmm1,xmm2
-                movdqa      [eax],xmm1
+        } else {
+            r0 = _mm_load_si128(reinterpret_cast<const __m128i*>(blockp));
+            r1 = _mm_load_si128(reinterpret_cast<const __m128i*>(blockp + 8));
+            r0 = _mm_add_epi8(_mm_packs_epi16(r0, r1), mask);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp), r0);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp1), _mm_srli_si128(r0, 8));
 
-                ;---------------------------------------------------
-                movdqa      xmm3,[eax+ecx]      ;y7-y0 y7-y0
-                movdqa      xmm4,xmm3
+            rfp += iincr;
+            rfp1 += iincr;
+            r0 = _mm_load_si128(reinterpret_cast<const __m128i*>(blockp + 16));
+            r1 = _mm_load_si128(reinterpret_cast<const __m128i*>(blockp + 24));
+            r0 = _mm_add_epi8(_mm_packs_epi16(r0, r1), mask);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp), r0);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp1), _mm_srli_si128(r0, 8));
 
-                punpcklbw   xmm3,xmm0       ;low y7-y0
-                paddsw      xmm3,[ebx+32*1]     ;low x7-x0
+            rfp += iincr;
+            rfp1 += iincr;
+            r0 = _mm_load_si128(reinterpret_cast<const __m128i*>(blockp + 32));
+            r1 = _mm_load_si128(reinterpret_cast<const __m128i*>(blockp + 40));
+            r0 = _mm_add_epi8(_mm_packs_epi16(r0, r1), mask);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp), r0);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp1), _mm_srli_si128(r0, 8));
 
-                punpckhbw   xmm4,xmm0       ;high y7-y0
-                paddsw      xmm4,[ebx+32*1+16]  ;high x7-x0
-
-                packuswb    xmm3,xmm4
-                movdqa      [eax+ecx],xmm3
-
-                ;---------------------------------------------------
-                movdqa      xmm5,[eax+ecx*2]        ;y7-y0 y7-y0
-                movdqa      xmm6,xmm5
-
-                punpcklbw   xmm5,xmm0       ;low y7-y0
-                paddsw      xmm5,[ebx+32*2]     ;low x7-x0
-
-                punpckhbw   xmm6,xmm0       ;high y7-y0
-                paddsw      xmm6,[ebx+32*2+16]  ;high x7-x0
-
-                packuswb    xmm5,xmm6
-                movdqa      [eax+ecx*2],xmm5
-
-                ;---------------------------------------------------
-                movdqa      xmm1,[eax+edx]      ;y7-y0 y7-y0
-                movdqa      xmm2,xmm1
-
-                punpcklbw   xmm1,xmm0       ;low y7-y0
-                paddsw      xmm1,[ebx+32*3]     ;low x7-x0
-
-                punpckhbw   xmm2,xmm0       ;high y7-y0
-                paddsw      xmm2,[ebx+32*3+16]  ;high x7-x0
-
-                packuswb    xmm1,xmm2
-                movdqa      [eax+edx],xmm1
-            }
-            else
-#endif
-
-            __asm
-            {
-                mov         eax, [rfp]
-                mov         ebx, [Block_Ptr]
-                mov         edx, iincr
-                pxor        mm6, mm6
-
-                // make rfp qwords 0, 1
-                movq        mm0, [eax]              // get rfp val, 1st 8 bytes
-                movq        mm2, [eax+edx]          // ", 2nd 8 bytes
-                movq        mm1, mm0
-                movq        mm3, mm2
-
-                punpcklbw   mm0, mm6                // need unsigned words
-                punpckhbw   mm1, mm6
-                punpcklbw   mm2, mm6
-                punpckhbw   mm3, mm6
-
-                paddsw      mm0, [ebx+0*16]         // add block vals to existing rfp vals
-                paddsw      mm1, [ebx+0*16+8]
-                paddsw      mm2, [ebx+1*16]
-                paddsw      mm3, [ebx+1*16+8]
-
-                packuswb    mm0, mm1                // backed to unsigned bytes
-                movq        [eax], mm0              // save at rfp
-                packuswb    mm2, mm3
-                movq        [eax+edx], mm2          // "
-
-                lea         eax, [eax+2*edx]        // bump rfp ptr twice
-
-                // make rfp qwords 2, 3
-                movq        mm0, [eax]              // get rfp val, 1st 8 bytes
-                movq        mm2, [eax+edx]          // ", 2nd 8 bytes
-                movq        mm1, mm0
-                movq        mm3, mm2
-
-                punpcklbw   mm0, mm6                // need unsigned words
-                punpckhbw   mm1, mm6
-                punpcklbw   mm2, mm6
-                punpckhbw   mm3, mm6
-
-                paddsw      mm0, [ebx+2*16]         // add block vals to existing rfp vals
-                paddsw      mm1, [ebx+2*16+8]
-                paddsw      mm2, [ebx+3*16]
-                paddsw      mm3, [ebx+3*16+8]
-
-                packuswb    mm0, mm1                // backed to unsigned bytes
-                movq        [eax], mm0              // save at rfp
-                packuswb    mm2, mm3
-                movq        [eax+edx], mm2          // "
-
-                lea         eax, [eax+2*edx]        // bump rfp ptr twice
-
-                // make rfp qwords 4, 5
-                movq        mm0, [eax]              // get rfp val, 1st 8 bytes
-                movq        mm2, [eax+edx]          // ", 2nd 8 bytes
-                movq        mm1, mm0
-                movq        mm3, mm2
-
-                punpcklbw   mm0, mm6                // need unsigned words
-                punpckhbw   mm1, mm6
-                punpcklbw   mm2, mm6
-                punpckhbw   mm3, mm6
-
-                paddsw      mm0, [ebx+4*16]         // add block vals to existing rfp vals
-                paddsw      mm1, [ebx+4*16+8]
-                paddsw      mm2, [ebx+5*16]
-                paddsw      mm3, [ebx+5*16+8]
-
-                packuswb    mm0, mm1                // backed to unsigned bytes
-                movq        [eax], mm0              // save at rfp
-                packuswb    mm2, mm3
-                movq        [eax+edx], mm2          // "
-
-                lea         eax, [eax+2*edx]        // bump rfp ptr twice
-
-                // make rfp qwords 6, 7
-                movq        mm0, [eax]              // get rfp val, 1st 8 bytes
-                movq        mm2, [eax+edx]          // ", 2nd 8 bytes
-                movq        mm1, mm0
-                movq        mm3, mm2
-
-                punpcklbw   mm0, mm6                // need unsigned words
-                punpckhbw   mm1, mm6
-                punpcklbw   mm2, mm6
-                punpckhbw   mm3, mm6
-
-                paddsw      mm0, [ebx+6*16]         // add block vals to existing rfp vals
-                paddsw      mm1, [ebx+6*16+8]
-                paddsw      mm2, [ebx+7*16]
-                paddsw      mm3, [ebx+7*16+8]
-
-                packuswb    mm0, mm1                // backed to unsigned bytes
-                movq        [eax], mm0              // save at rfp
-                packuswb    mm2, mm3
-                movq        [eax+edx], mm2          // "
-
-
-// * Delete this after testing done and we have some confidence it works >>>>>>>>>>>
-/*
-                pxor        mm0, mm0
-                mov         eax, [rfp]
-                mov         ebx, [Block_Ptr]
-                mov         edi, 8
-                lea         ecx, Testval            // >>>>>>> for test
-addon:
-                movq        mm2, [ebx+8]
-
-                movq        mm3, [eax]
-                movq        mm4, mm3
-
-                movq        mm1, [ebx]
-                punpckhbw   mm3, mm0
-
-                paddsw      mm3, mm2
-                packuswb    mm3, mm0
-
-                punpcklbw   mm4, mm0
-                psllq       mm3, 32
-
-                paddsw      mm4, mm1
-                packuswb    mm4, mm0
-
-                por         mm3, mm4
-                add         ebx, 16
-
-                dec         edi
-                movq        [eax], mm3
-                movq        [ecx], mm3          //>>>>>>>
-                add         ecx, 8              //>>>>>>>>>
-                add         eax, [iincr]
-                cmp         edi, 0x00
-                jg          addon
-*/
-            }
-
+            rfp += iincr;
+            rfp1 += iincr;
+            r0 = _mm_load_si128(reinterpret_cast<const __m128i*>(blockp + 48));
+            r1 = _mm_load_si128(reinterpret_cast<const __m128i*>(blockp + 56));
+            r0 = _mm_add_epi8(_mm_packs_epi16(r0, r1), mask);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp), r0);
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(rfp1), _mm_srli_si128(r0, 8));
         }
-        else
-        {
-#ifdef USE_SSE2_CODE
-            if(cpu.sse2mmx)      // >>> IDCT_Flag==IDCT_SSE2MMX)
-            __asm{
-                mov     eax, [rfp]
-                mov     ebx, [Block_Ptr]
-                mov     ecx,[iincr]
-                mov     edx,ecx
-                add     edx,edx
-                add     edx,ecx ;=iincr*3
-
-                movq        xmm7, [mmmask_128]
-                pshufd      xmm7,xmm7,0
-
-                ;-----------
-                movdqa      xmm0,[ebx+32*0]
-                paddsw      xmm0,xmm7
-
-                movdqa      xmm1,[ebx+32*0+16]
-                paddsw      xmm1,xmm7
-
-                packuswb    xmm0,xmm1
-                movdqa      [eax],xmm0
-                ;-----------
-                movdqa      xmm2,[ebx+32*1]
-                paddsw      xmm2,xmm7
-
-                movdqa      xmm3,[ebx+32*1+16]
-                paddsw      xmm3,xmm7
-
-                packuswb    xmm2,xmm3
-                movdqa      [eax+ecx],xmm2
-                ;-----------
-                movdqa      xmm4,[ebx+32*2]
-                paddsw      xmm4,xmm7
-
-                movdqa      xmm5,[ebx+32*2+16]
-                paddsw      xmm5,xmm7
-
-                packuswb    xmm4,xmm5
-                movdqa      [eax+ecx*2],xmm4
-                ;-----------
-                movdqa      xmm6,[ebx+32*3]
-                paddsw      xmm6,xmm7
-
-                paddsw      xmm7,[ebx+32*3+16]
-
-                packuswb    xmm6,xmm7
-                movdqa      [eax+edx],xmm6
-            } else
-#endif
-            __asm
-            {
-
-    // We can do this faster & as accurate with 8 bit arith, no loop - trbarry 5/2003
-                mov         eax, [rfp]
-                mov         ebx, [Block_Ptr]
-                mov         edx, iincr
-                movq        mm7, [mmmask_128C]
-
-                // make rfp qwords 0, 1
-                movq        mm0, [ebx+0*16]
-                movq        mm1, [ebx+1*16]
-                packsswb    mm0, [ebx+0*16+8]       // pack with SIGNED saturate
-                packsswb    mm1, [ebx+1*16+8]       // pack with SIGNED saturate
-                paddb       mm0, mm7                // bias upwards to unsigned number
-                paddb       mm1, mm7                // "
-                movq        [eax], mm0              // save at rfp
-                movq        [eax+edx], mm1          // "
-                lea         eax, [eax+2*edx]        // bump rfp ptr twice
-
-                // make rfp qwords 2, 3
-                movq        mm0, [ebx+2*16]
-                movq        mm1, [ebx+3*16]
-                packsswb    mm0, [ebx+2*16+8]       // pack with SIGNED saturate
-                packsswb    mm1, [ebx+3*16+8]       // pack with SIGNED saturate
-                paddb       mm0, mm7                // bias upwards to unsigned number
-                paddb       mm1, mm7                // "
-                movq        [eax], mm0              // save at rfp
-                movq        [eax+edx], mm1          // "
-                lea         eax, [eax+2*edx]        // bump rfp ptr twice
-
-                // make rfp qwords 4, 5
-                movq        mm0, [ebx+4*16]
-                movq        mm1, [ebx+5*16]
-                packsswb    mm0, [ebx+4*16+8]       // pack with SIGNED saturate
-                packsswb    mm1, [ebx+5*16+8]       // pack with SIGNED saturate
-                paddb       mm0, mm7                // bias upwards to unsigned number
-                paddb       mm1, mm7                // "
-                movq        [eax], mm0              // save at rfp
-                movq        [eax+edx], mm1          // "
-                lea         eax, [eax+2*edx]        // bump rfp ptr twice
-
-                // make rfp qwords 6, 7
-                movq        mm0, [ebx+6*16]
-                movq        mm1, [ebx+7*16]
-                packsswb    mm0, [ebx+6*16+8]       // pack with SIGNED saturate
-                packsswb    mm1, [ebx+7*16+8]       // pack with SIGNED saturate
-                paddb       mm0, mm7                // bias upwards to unsigned number
-                paddb       mm1, mm7                // "
-                movq        [eax], mm0              // save at rfp
-                movq        [eax+edx], mm1          // "
-                lea         eax, [eax+2*edx]        // bump rfp ptr twice
-
-
-/* delete this after testing >>>>
-                mov         eax, [rfp]
-                mov         ebx, [Block_Ptr]
-                mov         edi, 8
-
-                pxor        mm0, mm0
-                movq        mm7, [mmmask_128]
-addoff:
-                movq        mm3, [ebx+8]
-                movq        mm4, [ebx]
-
-                paddsw      mm3, mm7
-                paddsw      mm4, mm7
-
-                packuswb    mm3, mm0
-                packuswb    mm4, mm0
-
-                psllq       mm3, 32
-                por         mm3, mm4
-
-                add         ebx, 16
-                dec         edi
-
-                movq        [eax], mm3
-
-                add         eax, [iincr]
-                cmp         edi, 0x00
-                jg          addoff
-*/
-            }
-        }
-        #ifdef SSE2CHECK
-            sse2checkpass(2);
-        #endif
     }
-    __asm emms;
 }
 
 
 /* set scratch pad macroblock to zero */
 void CMPEG2Decoder::Clear_Block(int count)
 {
-    int comp;
-    short *Block_Ptr;
-
-    for (comp=0; comp<count; comp++)
-    {
-        Block_Ptr = block[comp];
-
-#ifdef USE_SSE2_CODE
-        if(cpu.sse2mmx)
-        __asm
-        {
-            mov         eax, [Block_Ptr];
-            pxor            xmm0, xmm0;
-            movdqa      [eax+0  ], xmm0;
-            movdqa      [eax+16 ], xmm0;
-            movdqa      [eax+32 ], xmm0;
-            movdqa      [eax+48 ], xmm0;
-            movdqa      [eax+64 ], xmm0;
-            movdqa      [eax+80 ], xmm0;
-            movdqa      [eax+96 ], xmm0;
-            movdqa      [eax+112], xmm0;
-
-        } else
-#endif
-
-        __asm
-        {
-            mov         eax, [Block_Ptr];
-            pxor        mm0, mm0;
-            movq        [eax+0 ], mm0;
-            movq        [eax+8 ], mm0;
-            movq        [eax+16], mm0;
-            movq        [eax+24], mm0;
-            movq        [eax+32], mm0;
-            movq        [eax+40], mm0;
-            movq        [eax+48], mm0;
-            movq        [eax+56], mm0;
-            movq        [eax+64], mm0;
-            movq        [eax+72], mm0;
-            movq        [eax+80], mm0;
-            movq        [eax+88], mm0;
-            movq        [eax+96], mm0;
-            movq        [eax+104],mm0;
-            movq        [eax+112],mm0;
-            movq        [eax+120],mm0;
-        }
+    const __m128i zero = _mm_setzero_si128();
+    for (int comp = 0; comp < count; ++comp) {
+        //memset(block[comp], 0, 128);
+        __m128i* p = reinterpret_cast<__m128i*>(block[comp]);
+        _mm_store_si128(p, zero);
+        _mm_store_si128(++p, zero);
+        _mm_store_si128(++p, zero);
+        _mm_store_si128(++p, zero);
+        _mm_store_si128(++p, zero);
+        _mm_store_si128(++p, zero);
+        _mm_store_si128(++p, zero);
+        _mm_store_si128(++p, zero);
     }
-    __asm emms;
 }
 
 /* ISO/IEC 13818-2 section 7.6 */
@@ -802,41 +444,25 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
     bx = 16*(MBA%mb_width);
     by = 16*(MBA/mb_width);
 
-#ifdef PROFILING
-    start_timer();
-#endif
-
     /* motion compensation */
     if (!(macroblock_type & MACROBLOCK_INTRA))
         form_predictions(bx, by, macroblock_type, motion_type, PMV,
             motion_vertical_field_select, dmvector);
 
-#ifdef PROFILING
-        stop_timer(&tim.mcmp);
-        start_timer();
-#endif
-
     // idct is now a pointer
     if ( IDCT_Flag == IDCT_SSE2MMX )
     {
-#ifdef SSE2CHECK
-        sse2checkrun(4);
-#endif
-
-            for (comp=0; comp<block_count-1; comp++)
-            {
-                prefetchpointer2=block[comp+1];
-                __asm {
-                    mov eax,prefetchpointer2
-                    prefetcht0 [eax]
-                };
-
-                SSE2MMX_IDCT(block[comp]);
+        for (comp=0; comp<block_count-1; comp++)
+        {
+            prefetchpointer2=block[comp+1];
+            __asm {
+                mov eax,prefetchpointer2
+                prefetcht0 [eax]
             };
+
             SSE2MMX_IDCT(block[comp]);
-#ifdef SSE2CHECK
-            sse2checkpass(4);
-#endif
+        };
+        SSE2MMX_IDCT(block[comp]);
     }
     else
     {
@@ -844,16 +470,8 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
             idctFunc(block[comp]);
     }
 
-#ifdef PROFILING
-    stop_timer(&tim.idct);
-    start_timer();
-#endif
-
     Add_Block(block_count, bx, by, dct_type, (macroblock_type & MACROBLOCK_INTRA)==0);
 
-#ifdef PROFILING
-    stop_timer(&tim.addb);
-#endif
 }
 
 /* ISO/IEC 13818-2 section 7.6.6 */
@@ -1901,7 +1519,6 @@ void CMPEG2Decoder::form_predictions(int bx, int by, int macroblock_type, int mo
             }
         }
     }
-    __asm emms;
 }
 
 // Minor rewrite to use the function pointer array - Vlad59 04-20-2002

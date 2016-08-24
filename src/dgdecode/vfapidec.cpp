@@ -202,10 +202,12 @@ int CMPEG2Decoder::Open(const char *path)
 
     block_count = ChromaFormat[chroma_format];
 
-    for (i=0; i<8; i++)
-    {
-        p_block[i] = (short *)_aligned_malloc(sizeof(short)*64 + 64, 32);
-        block[i]   = (short *)((long)p_block[i] + 64 - (long)p_block[i]%64);
+    size_t blsize = sizeof(int16_t) * 64 + 64;
+    void* ptr = _aligned_malloc(blsize * 8, 64);
+    for (i = 0; i < 8; ++i) {
+        size_t px = reinterpret_cast<size_t>(ptr) + i * blsize;
+        p_block[i] = reinterpret_cast<int16_t*>(px);
+        block[i]   = reinterpret_cast<int16_t*>(px + 64);
     }
 
     for (i=0; i<3; i++)
@@ -856,8 +858,7 @@ void CMPEG2Decoder::Close()
     destroy_YV12PICT(auxFrame1);
     destroy_YV12PICT(auxFrame2);
 
-    for (i=0; i<8; i++)
-        _aligned_free(p_block[i]);
+    _aligned_free(p_block[0]);
 
     if (GOPList != NULL)
     {
