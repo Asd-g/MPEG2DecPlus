@@ -24,6 +24,7 @@
   lots of code modified for YV12 / MPEG2Dec3 - MarcFD
 */
 
+#include <algorithm>
 #include <malloc.h>
 #include "global.h"
 #include "mc.h"
@@ -81,7 +82,7 @@ int CMPEG2Decoder::Open(const char *path)
     Choose_Prediction(this->fastMC);
 
     char ID[80], PASS[80] = "DGIndexProjectFile16";
-    DWORD i, j, size, code, type, tff, rff, film, ntsc, gop, top, bottom, mapping;
+    uint32_t i, j, size, code, type, tff, rff, film, ntsc, gop, top, bottom, mapping;
     int repeat_on, repeat_off, repeat_init;
     int vob_id, cell_id;
     __int64 position;
@@ -560,7 +561,7 @@ int CMPEG2Decoder::Open(const char *path)
 // Decode function rewritten by Donald Graft as part of fix for dropped frames and random frame access.
 #define SEEK_THRESHOLD 7
 
-void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
+void CMPEG2Decoder::Decode(uint32_t frame, YV12PICT *dst)
 {
     unsigned int i, f, gop, count, HadI, requested_frame;
     YV12PICT *tmp;
@@ -613,8 +614,8 @@ __try
 
             /* When RFFs are present or we are doing FORCE FILM, we may have already decoded
                the frame that we need. So decode the next frame only when we need to. */
-            if (max(FrameList[frame].top, FrameList[frame].bottom) >
-                max(FrameList[frame-1].top, FrameList[frame-1].bottom))
+            if (std::max(FrameList[frame].top, FrameList[frame].bottom) >
+                std::max(FrameList[frame-1].top, FrameList[frame-1].bottom))
             {
                 if (!Get_Hdr())
                 {
@@ -671,7 +672,7 @@ __try
     else prev_frame = requested_frame;
 
     // Have to do random access.
-    f = max(FrameList[frame].top, FrameList[frame].bottom);
+    f = std::max(FrameList[frame].top, FrameList[frame].bottom);
 
     // Determine the GOP that the requested frame is in.
     for (gop = 0; gop < VF_GOPLimit-1; gop++)

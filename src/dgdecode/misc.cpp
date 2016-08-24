@@ -23,108 +23,11 @@
 
 
 #include <cstdio>
-#include <ctime>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 
 #include "misc.h"
-
-static uint64_t local;
-static char buffer[256];
-
-uint64_t read_counter(void)
-{
-    unsigned __int64 ts;
-    unsigned __int32 ts1, ts2;
-    __asm {
-        rdtsc
-        mov ts1, eax
-        mov ts2, edx
-    }
-    ts = ((unsigned __int64) ts2 << 32) | ((unsigned __int64) ts1);
-    return ts;
-}
-
-// get CPU frequency in Hz (1 Mz precision)
-uint64_t get_freq(void)
-{
-    unsigned __int64  x = 0;
-    time_t i;
-    i = time(NULL);
-    while (i == time(NULL));
-    x -= read_counter();
-    i++;
-    while (i == time(NULL));
-    x += read_counter();
-    return x;
-}
-
-void init_first(ts* timers)
-{
-    memset(timers,0,sizeof(ts));
-    timers->div = 0; timers->sum = 0;
-//    timers->freq = get_freq()/1000;
-    timers->freq = 1412*1000000; // shortcut for my athlon xp 1600+ (1.4 Gz)
-}
-
-void init_timers(ts* timers)
-{
-    timers->idct = 0;
-    timers->conv = 0;
-    timers->mcpy = 0;
-    timers->post = 0;
-    timers->dec = 0;
-    timers->bit = 0;
-    timers->decMB = 0;
-    timers->mcmp = 0;
-    timers->addb = 0;
-    timers->overall = 0;
-    if (timers->div > 25) { timers->div = 0; timers->sum = 0; }
-}
-
-void start_timer()
-{
-    local = read_counter();
-}
-
-void start_timer2(uint64_t* timer)
-{
-    *timer -= read_counter();
-}
-
-void stop_timer(uint64_t* timer)
-{
-    *timer += (read_counter() - local);
-}
-
-void stop_timer2(uint64_t* timer)
-{
-    *timer += read_counter();
-}
-
-void timer_debug(ts* timers)
-{
-    ts tim = *timers;
-    //tim.freq = ;
-//    sprintf(buffer,"conv = %I64d ",tim.conv);
-//    sprintf(buffer,"idct = %I64d overall=%I64d idct%% = %f",tim.idct,tim.overall,(double)tim.idct*100/tim.overall);
-    sprintf(buffer,"| dec%% = %f > mcmp%% = %f addb%% = %f idct%% = %f decMB%% = %f bit%% = %f | conv%% = %f | post%% = %f | mcpy%% = %f | msec = %f fps = %f mean = %f",
-        (double)tim.dec*100/tim.overall,
-        (double)tim.idct*100/tim.overall,
-        (double)tim.addb*100/tim.overall,
-        (double)tim.mcmp*100/tim.overall,
-        (double)tim.decMB*100/tim.overall,
-        (double)tim.bit*100/tim.overall,
-        (double)tim.conv*100/tim.overall,
-        (double)tim.post*100/tim.overall,
-        (double)tim.mcpy*100/tim.overall,
-        (double)tim.overall*1000/tim.freq,
-        tim.freq/(double)tim.overall,
-        (tim.freq)/((double)tim.sum/tim.div)
-        );
-    OutputDebugString(buffer);
-}
 
 
 int __cdecl dprintf(char* fmt, ...)

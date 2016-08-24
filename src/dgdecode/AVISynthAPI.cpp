@@ -43,12 +43,6 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 {
     int status;
 
-    CheckCPU();
-
-#ifdef PROFILING
-    init_first(&tim);
-#endif
-
     /* override */
     m_decoder.refinit = false;
     m_decoder.fpuinit = false;
@@ -316,22 +310,10 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
         out->uvheight = vi.height;
     }
 
-#ifdef PROFILING
-    init_timers(&tim);
-    start_timer2(&tim.overall);
-#endif
-
     m_decoder.Decode(n, out);
 
     if ( m_decoder.Luminance_Flag )
         m_decoder.LuminanceFilter(out->y, out->ywidth, out->yheight, out->ypitch);
-
-#ifdef PROFILING
-    stop_timer2(&tim.overall);
-    tim.sum += tim.overall;
-    tim.div++;
-    timer_debug(&tim);
-#endif
 
     __asm emms;
 

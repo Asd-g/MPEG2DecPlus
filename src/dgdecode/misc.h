@@ -28,34 +28,6 @@
 #include <cstdint>
 #include <cstdarg>
 
-struct ts
-{
-    uint64_t idct;
-    uint64_t conv;
-    uint64_t mcpy;
-    uint64_t post;
-    uint64_t dec;
-    uint64_t bit;
-    uint64_t decMB;
-    uint64_t mcmp;
-    uint64_t addb;
-    uint64_t overall;
-    uint64_t sum;
-    int div;
-    uint64_t freq;
-};
-
-uint64_t read_counter(void);
-uint64_t get_freq(void);
-
-void init_first(ts* timers);
-void init_timers(ts* timers);
-void start_timer();
-void start_timer2(uint64_t* timer);
-void stop_timer(uint64_t* timer);
-void stop_timer2(uint64_t* timer);
-void timer_debug(ts* tim);
-
 void fast_copy(const uint8_t *src, const int src_stride, uint8_t *dst,
                const int dst_stride, const int horizontal_size,
                const int vertical_size) noexcept;

@@ -25,20 +25,24 @@
  *
  */
 
-// MPEG2Dec3 build defines :
-//#define PROFILING
-//#define SSE2CHECK
-//#define USE_SSE2_CODE
-//
+#ifndef __GLOBAL_H
+#define __GLOBAL_H
+
 #include <cstdint>
-#include <math.h>
+#include <cstdio>
+#include <cmath>
+#include <io.h>
+#include <fcntl.h>
+
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <winreg.h>
 
 #ifndef MPEG2DEC_EXPORTS
 #define MPEG2DEC_EXPORTS
 #endif
 
-#ifndef __GLOBAL_H
-#define __GLOBAL_H
 
 #ifdef MPEG2DEC_EXPORTS
 #define MPEG2DEC_API __declspec(dllexport)
@@ -46,14 +50,8 @@
 #define MPEG2DEC_API __declspec(dllimport)
 #endif
 
-#include <avisynth.h>
-#include <avs/win.h>
-#include <avs/minmax.h>
-#include <winreg.h>
-#include <stdio.h>
-#include <io.h>
-#include <fcntl.h>
-#include "misc.h"
+
+//#include "misc.h"
 
 
 #ifdef GLOBAL
@@ -67,8 +65,6 @@
 #else
 #define _INLINE_ inline
 #endif
-
-XTN struct ts tim;
 
 
 /* code definition */
@@ -143,18 +139,6 @@ XTN struct ts tim;
 
 // Fault_Flag values
 #define OUT_OF_BITS 11
-
-struct CPU {
-    bool mmx;
-    bool _3dnow;
-    bool ssemmx;
-    bool ssefpu;
-    bool sse2mmx;
-};
-
-XTN CPU cpu;
-
-void CheckCPU(void);
 
 typedef void (WINAPI *PBufferOp) (uint8_t*, int, int);
 
@@ -256,15 +240,6 @@ private:
   // inline?
   _INLINE_ void form_prediction(uint8_t *src[], int sfield, uint8_t *dst[], int dfield,
       int lx, int lx2, int w, int h, int x, int y, int dx, int dy, int average_flag);
-
-#if 0
-  // inline?
-  _INLINE_ void form_component_prediction(uint8_t *src, uint8_t *dst,
-      int lx, int lx2, int w, int h, int x, int y, int dx, int dy, int average_flag);
-
-  void form_component_predictionSSE2(uint8_t *s, uint8_t *d,
-                                          int lx, int lx2, int w, int h, int flag);
-#endif
 
   // motion.cpp
   void motion_vectors(int PMV[2][2][2], int dmvector[2], int motion_vertical_field_select[2][2],
@@ -377,9 +352,9 @@ protected:
 
   // interface
   struct GOPLIST {
-    DWORD           number;
+    uint32_t        number;
     int             file;
-    __int64         position;
+    int64_t         position;
     uint32_t    I_count;
     int             closed;
     int             progressive;
@@ -389,8 +364,8 @@ protected:
   int GOPListSize;
 
   struct FRAMELIST {
-    DWORD top;
-    DWORD bottom;
+    uint32_t top;
+    uint32_t bottom;
     uint8_t pf;
     uint8_t pct;
   };
@@ -411,20 +386,20 @@ protected:
                               int width, int height);
 
 public:
-  FILE      *VF_File;
+  FILE*     VF_File;
   int       VF_FrameRate;
-  uint32_t VF_FrameRate_Num;
-  uint32_t VF_FrameRate_Den;
-  DWORD     VF_FrameLimit;
-  DWORD     VF_GOPLimit;
-  DWORD     prev_frame;
+  uint32_t  VF_FrameRate_Num;
+  uint32_t  VF_FrameRate_Den;
+  uint32_t  VF_FrameLimit;
+  uint32_t  VF_GOPLimit;
+  uint32_t  prev_frame;
   int horizontal_size, vertical_size, mb_width, mb_height;
 
 
   CMPEG2Decoder();
   int Open(const char *path);
   void Close();
-  void Decode(DWORD frame, YV12PICT *dst);
+  void Decode(uint32_t frame, YV12PICT *dst);
 
   int iPP, iCC;
   bool fastMC;
@@ -438,57 +413,48 @@ public:
   int info;
   int minquant, maxquant, avgquant;
 
-    // Luminance Code
-    bool Luminance_Flag;
-    uint8_t LuminanceTable[256];
+  // Luminance Code
+  bool Luminance_Flag;
+  uint8_t LuminanceTable[256];
 
-    void InitializeLuminanceFilter(int LumGamma, int LumOffset)
-    {
-        int i;
-        double value;
+  void InitializeLuminanceFilter(int LumGamma, int LumOffset)
+  {
+      double value;
 
-        for (i=0; i<256; i++)
-        {
-            value = 255.0 * pow(i/255.0, pow(2.0, -LumGamma/128.0)) + LumOffset + 0.5;
+      for (int i=0; i<256; i++)
+      {
+          value = 255.0 * pow(i/255.0, pow(2.0, -LumGamma/128.0)) + LumOffset + 0.5;
 
-            if (value < 0)
-                LuminanceTable[i] = 0;
-            else if (value > 255.0)
-                LuminanceTable[i] = 255;
-            else
-                LuminanceTable[i] = (uint8_t)value;
-        }
-    }
+          if (value < 0)
+              LuminanceTable[i] = 0;
+          else if (value > 255.0)
+              LuminanceTable[i] = 255;
+          else
+              LuminanceTable[i] = (uint8_t)value;
+      }
+  }
 
-    void LuminanceFilter(uint8_t *src, int width_in, int height_in, int pitch_in)
-    {
-        for (int y=0; y<height_in; ++y)
-        {
-            for (int x=0; x<width_in; ++x)
-            {
-                src[x] = LuminanceTable[src[x]];
-            }
-            src += pitch_in;
-        }
-    }
-    // end luminance code
-
+  void LuminanceFilter(uint8_t *src, int width_in, int height_in, int pitch_in)
+  {
+      for (int y=0; y<height_in; ++y)
+      {
+          for (int x=0; x<width_in; ++x)
+          {
+              src[x] = LuminanceTable[src[x]];
+          }
+          src += pitch_in;
+      }
+  }
+  // end luminance code
 };
 
 
 // idct
-//extern "C" void __fastcall MMX_IDCT(short *block);
-//extern "C" void __fastcall SSEMMX_IDCT(short *block);
 extern "C" void __fastcall SSE2MMX_IDCT(short *block);
 extern "C" void __fastcall IDCT_CONST_PREFETCH(void);
 
-// - Nic more idct
-//extern "C" void __fastcall simple_idct_mmx(short *block);
-//extern "C" void __fastcall Skl_IDct16_SSE(short *block);
-//extern "C" void __fastcall Skl_IDct16_Sparse_SSE(short *block);
 
 void Initialize_FPU_IDCT(void);
-//void __fastcall FPU_IDCT(short *block);
 void __fastcall REF_IDCT(short *block);
 
 /* default intra quantization matrix */
@@ -553,13 +519,13 @@ XTN uint8_t Non_Linear_quantizer_scale[32]
 
 #define ERROR_VALUE (-1)
 
-typedef struct {
+struct DCTtab {
     char run, level, len;
-} DCTtab;
+};
 
-typedef struct {
+struct VLCtab {
     char val, len;
-} VLCtab;
+};
 
 /* Table B-10, motion_code, codes 0001 ... 01xx */
 XTN VLCtab MVtab0[8]

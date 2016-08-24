@@ -62,10 +62,6 @@ void CMPEG2Decoder::Initialize_Buffer()
 
 uint32_t CMPEG2Decoder::Get_Bits_All(uint32_t N)
 {
-#ifdef PROFILING
-//    start_bit_timer();
-#endif
-
     N -= BitsLeft;
     Val = (CurrentBfr << (32 - BitsLeft)) >> (32 - BitsLeft);
 
@@ -76,26 +72,14 @@ uint32_t CMPEG2Decoder::Get_Bits_All(uint32_t N)
     BitsLeft = 32 - N;
     Fill_Next();
 
-#ifdef PROFILING
-//    stop_bit_timer();
-#endif
-
     return Val;
 }
 
 void CMPEG2Decoder::Flush_Buffer_All(uint32_t N)
 {
-#ifdef PROFILING
-//    start_bit_timer();
-#endif
-
     CurrentBfr = NextBfr;
     BitsLeft = BitsLeft + 32 - N;
     Fill_Next();
-
-#ifdef PROFILING
-//    stop_bit_timer();
-#endif
 }
 
 
@@ -301,15 +285,14 @@ void CMPEG2Decoder::Next_Transport_Packet()
 }
 
 // PVA packet data structure.
-typedef struct
-{
+struct pva_packet {
     uint16_t sync_byte;
     uint8_t stream_id;
     uint8_t counter;
     uint8_t reserved;
     uint8_t flags;
     uint16_t length;
-} pva_packet;
+};
 
 // PVA transport stream parser.
 void CMPEG2Decoder::Next_PVA_Packet()
@@ -487,10 +470,6 @@ void CMPEG2Decoder::Next_Packet()
 
 void CMPEG2Decoder::Fill_Buffer()
 {
-#ifdef PROFILING
-//    start_bit_timer();
-#endif
-
     Read = _read(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
 
     if (Read < BUFFER_SIZE)
@@ -500,10 +479,6 @@ void CMPEG2Decoder::Fill_Buffer()
 
     if (SystemStream_Flag)
         Rdmax -= BUFFER_SIZE;
-
-#ifdef PROFILING
-//    stop_bit_timer();
-#endif
 }
 
 void CMPEG2Decoder::Next_File()
@@ -551,14 +526,8 @@ uint32_t CMPEG2Decoder::Get_Bits(uint32_t N)
 {
     if (N < BitsLeft)
     {
-#ifdef PROFILING
-//        start_bit_timer();
-#endif
         Val = (CurrentBfr << (32 - BitsLeft)) >> (32 - N);
         BitsLeft -= N;
-#ifdef PROFILING
-//        stop_bit_timer();
-#endif
         return Val;
     }
     else
@@ -567,26 +536,14 @@ uint32_t CMPEG2Decoder::Get_Bits(uint32_t N)
 
 void CMPEG2Decoder::Flush_Buffer(uint32_t N)
 {
-#ifdef PROFILING
-//    start_bit_timer();
-#endif
-
     if (N < BitsLeft)
         BitsLeft -= N;
     else
         Flush_Buffer_All(N);
-
-#ifdef PROFILING
-//    stop_bit_timer();
-#endif
 }
 
 void CMPEG2Decoder::Fill_Next()
 {
-#ifdef PROFILING
-//    start_bit_timer();
-#endif
-
     // This mechanism is not yet working.
 #if 0
     if (Rdptr >= buffer_invalid)
@@ -637,18 +594,10 @@ void CMPEG2Decoder::Fill_Next()
             Fill_Buffer();
         NextBfr += *Rdptr++;
     }
-
-#ifdef PROFILING
-//    stop_bit_timer();
-#endif
 }
 
 uint32_t CMPEG2Decoder::Get_Byte()
 {
-#ifdef PROFILING
-//    start_bit_timer();
-#endif
-
     // This mechanism is not yet working.
 #if 0
     if (Rdptr >= buffer_invalid)
@@ -668,10 +617,6 @@ uint32_t CMPEG2Decoder::Get_Byte()
         Rdptr -= BUFFER_SIZE;
         Rdmax -= BUFFER_SIZE;
     }
-
-#ifdef PROFILING
-//    stop_bit_timer();
-#endif
 
     return *Rdptr++;
 }

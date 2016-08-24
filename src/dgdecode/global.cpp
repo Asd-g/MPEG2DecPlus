@@ -20,42 +20,8 @@
  *
  */
 
-//#include "stdafx.h"
+
 #define GLOBAL
 #include "global.h"
 
 int testint;
-
-void CheckCPU()
-{
-    __asm
-    {
-        mov         eax, 1
-        cpuid
-        test        edx, 0x00800000     // STD MMX
-        jz          TEST_SSE
-        mov         [cpu.mmx], 1
-TEST_SSE:
-        test        edx, 0x02000000     // STD SSE
-        jz          TEST_3DNOW
-        mov         [cpu.ssemmx], 1
-        mov         [cpu.ssefpu], 1
-
-        test        edx, 0x04000000     // STD SSE2 TRB 12/30/2001
-        jz          TEST_3DNOW
-        mov         [cpu.sse2mmx], 1
-
-TEST_3DNOW:
-        mov         eax, 0x80000001
-        cpuid
-        test        edx, 0x80000000     // 3D NOW
-        jz          TEST_SSEMMX
-        mov         [cpu._3dnow], 1
-
-TEST_SSEMMX:
-        test        edx, 0x00400000     // SSE MMX
-        jz          TEST_END
-        mov         [cpu.ssemmx], 1
-TEST_END:
-    }
-}
