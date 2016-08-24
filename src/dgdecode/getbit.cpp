@@ -84,7 +84,7 @@ void CMPEG2Decoder::Flush_Buffer_All(uint32_t N)
 }
 
 
-typedef struct {
+struct  transport_packet{
     // 1 byte
     uint8_t sync_byte; //         8   bslbf
 
@@ -101,18 +101,18 @@ typedef struct {
 
     // VVV (only valid if adaptation_field_control != 1)
     // 1 byte
-        uint8_t adaptation_field_length; // 8 uimsbf
+    uint8_t adaptation_field_length; // 8 uimsbf
 
-        // VVV (only valid if adaptation_field_length != 0)
-        // 1 byte
-            uint8_t discontinuity_indicator; //   1   bslbf
-            uint8_t random_access_indicator; //   1   bslbf
-            uint8_t elementary_stream_priority_indicator; //  1   bslbf
-            uint8_t PCR_flag; //  1   bslbf
-            uint8_t OPCR_flag; // 1   bslbf
-            uint8_t splicing_point_flag; //   1   bslbf
-            uint8_t transport_private_data_flag; //   1   bslbf
-            uint8_t adaptation_field_extension_flag; //   1   bslbf
+    // VVV (only valid if adaptation_field_length != 0)
+    // 1 byte
+    uint8_t discontinuity_indicator; //   1   bslbf
+    uint8_t random_access_indicator; //   1   bslbf
+    uint8_t elementary_stream_priority_indicator; //  1   bslbf
+    uint8_t PCR_flag; //  1   bslbf
+    uint8_t OPCR_flag; // 1   bslbf
+    uint8_t splicing_point_flag; //   1   bslbf
+    uint8_t transport_private_data_flag; //   1   bslbf
+    uint8_t adaptation_field_extension_flag; //   1   bslbf
 
     /*
     if(adaptation_field_control=='10'  || adaptation_field_control=='11'){
@@ -125,7 +125,7 @@ typedef struct {
     }
     */
 
-} transport_packet;
+};
 
 #define SKIP_TRANSPORT_PACKET_BYTES( bytes_to_skip ) \
 {   Rdptr += (bytes_to_skip); Packet_Length -= (bytes_to_skip); }

@@ -3,10 +3,6 @@
 #include <cstdio>
 #include <cstdarg>
 #include <algorithm>
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#define NOGDI
-#include <windows.h>
 
 #include "PostProcess.h"
 #include "misc.h"

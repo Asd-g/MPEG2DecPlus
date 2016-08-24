@@ -401,14 +401,6 @@ void CMPEG2Decoder::picture_display_extension()
 /* decode picture coding extension */
 void CMPEG2Decoder::picture_coding_extension()
 {
-    int chroma_420_type;
-    int composite_display_flag;
-    int v_axis;
-    int field_sequence;
-    int sub_carrier;
-    int burst_amplitude;
-    int sub_carrier_phase;
-
     f_code[0][0] = Get_Bits(4);
     f_code[0][1] = Get_Bits(4);
     f_code[1][0] = Get_Bits(4);
@@ -423,9 +415,9 @@ void CMPEG2Decoder::picture_coding_extension()
     intra_vlc_format           = Get_Bits(1);
     alternate_scan             = Get_Bits(1);
     repeat_first_field         = Get_Bits(1);
-    chroma_420_type            = Get_Bits(1);
+    uint32_t chroma_420_type   = Get_Bits(1);
     progressive_frame          = Get_Bits(1);
-    composite_display_flag     = Get_Bits(1);
+    uint32_t composite_display_flag = Get_Bits(1);
 
     if (picture_structure != FRAME_PICTURE)
     {
@@ -439,13 +431,13 @@ void CMPEG2Decoder::picture_coding_extension()
 
     pf_current = progressive_frame;
 
-    if (composite_display_flag)
+    if (composite_display_flag != 0)
     {
-        v_axis            = Get_Bits(1);
-        field_sequence    = Get_Bits(3);
-        sub_carrier       = Get_Bits(1);
-        burst_amplitude   = Get_Bits(7);
-        sub_carrier_phase = Get_Bits(8);
+        uint32_t v_axis            = Get_Bits(1);
+        uint32_t field_sequence    = Get_Bits(3);
+        uint32_t sub_carrier       = Get_Bits(1);
+        uint32_t burst_amplitude   = Get_Bits(7);
+        uint32_t sub_carrier_phase = Get_Bits(8);
     }
 }
 
@@ -470,26 +462,17 @@ int CMPEG2Decoder::extra_bit_information()
 /* (header added in November, 1994 to the IS document) */
 void CMPEG2Decoder::copyright_extension()
 {
-    int copyright_flag;
-    int copyright_identifier;
-    int original_or_copy;
-    int copyright_number_1;
-    int copyright_number_2;
-    int copyright_number_3;
-
-    int reserved_data;
-
-    copyright_flag =       Get_Bits(1);
-    copyright_identifier = Get_Bits(8);
-    original_or_copy =     Get_Bits(1);
+    uint32_t copyright_flag =       Get_Bits(1);
+    uint32_t copyright_identifier = Get_Bits(8);
+    uint32_t original_or_copy =     Get_Bits(1);
 
     /* reserved */
-    reserved_data = Get_Bits(7);
+    uint32_t reserved_data = Get_Bits(7);
 
     Flush_Buffer(1); // marker bit
-    copyright_number_1 =   Get_Bits(20);
+    uint32_t copyright_number_1 =   Get_Bits(20);
     Flush_Buffer(1); // marker bit
-    copyright_number_2 =   Get_Bits(22);
+    uint32_t copyright_number_2 =   Get_Bits(22);
     Flush_Buffer(1); // marker bit
-    copyright_number_3 =   Get_Bits(22);
+    uint32_t copyright_number_3 =   Get_Bits(22);
 }
