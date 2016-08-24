@@ -26,7 +26,8 @@
 
 #include <algorithm>
 #include <malloc.h>
-#include "global.h"
+//#include "global.h"
+#include "MPEG2Decoder.h"
 #include "mc.h"
 #include "misc.h"
 #include "shlwapi.h"

@@ -28,6 +28,7 @@
 
 #include <emmintrin.h>
 #include "global.h"
+#include "MPEG2Decoder.h"
 #include "mc.h"
 
 const uint8_t cc_table[12] = {

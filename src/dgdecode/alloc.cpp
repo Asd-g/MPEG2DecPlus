@@ -22,7 +22,7 @@
 // replace with one that doesn't need fixed size table - trbarry 3-22-2002
 
 #include <malloc.h>
-#include "global.h"
+#include "MPEG2Decoder.h"
 
 //#define ptr_t unsigned int
 

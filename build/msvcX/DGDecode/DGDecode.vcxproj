@@ -112,6 +112,7 @@
     <ClInclude Include="..\..\..\src\dgdecode\AvisynthAPI.h" />
     <ClInclude Include="..\..\..\src\dgdecode\mc.h" />
     <ClInclude Include="..\..\..\src\dgdecode\misc.h" />
+    <ClInclude Include="..\..\..\src\dgdecode\MPEG2Decoder.h" />
     <ClInclude Include="..\..\..\src\dgdecode\PostProcess.h" />
   </ItemGroup>
   <ItemGroup>

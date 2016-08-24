@@ -23,8 +23,8 @@
  *
  */
 
-//#define MPEG2DEC_EXPORTS
-#include "global.h"
+
+#include "MPEG2Decoder.h"
 #include "postprocess.h"
 #include "color_convert.h"
 #include "misc.h"

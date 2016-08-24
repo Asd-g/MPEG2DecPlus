@@ -26,6 +26,8 @@
  */
 
 #include "global.h"
+#include "MPEG2Decoder.h"
+
 
 /* decode headers from one input stream */
 int CMPEG2Decoder::Get_Hdr()

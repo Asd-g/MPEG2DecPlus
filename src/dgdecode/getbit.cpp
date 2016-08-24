@@ -19,7 +19,8 @@
  *
  */
 
-#include "global.h"
+
+#include "MPEG2Decoder.h"
 
 void CMPEG2Decoder::Initialize_Buffer()
 {

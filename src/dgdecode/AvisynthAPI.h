@@ -29,7 +29,7 @@
 #include <cstdint>
 #include <avisynth.h>
 #include <avs/win.h>
-#include "global.h"
+#include "MPEG2Decoder.h"
 
 
 class MPEG2Source: public IClip {

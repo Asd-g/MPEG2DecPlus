@@ -26,6 +26,8 @@
  */
 
 #include "global.h"
+#include "MPEG2Decoder.h"
+
 
 /* ISO/IEC 13818-2 sections 6.2.5.2, 6.3.17.2, and 7.6.3: Motion vectors */
 void CMPEG2Decoder::motion_vectors(int PMV[2][2][2],int dmvector[2],
