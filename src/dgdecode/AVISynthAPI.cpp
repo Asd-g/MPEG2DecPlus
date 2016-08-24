@@ -33,6 +33,7 @@
 #include "AvisynthAPI.h"
 #include "postprocess.h"
 #include "color_convert.h"
+#include "misc.h"
 
 
 #define VERSION "DGDecode 1.5.8"

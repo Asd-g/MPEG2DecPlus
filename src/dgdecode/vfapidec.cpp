@@ -27,6 +27,7 @@
 #include <malloc.h>
 #include "global.h"
 #include "mc.h"
+#include "misc.h"
 #include "shlwapi.h"
 
 static const int ChromaFormat[4] = {

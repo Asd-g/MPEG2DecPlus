@@ -21,6 +21,10 @@
  *
  */
 
+#ifndef MPEG2DECPLUS_MISC_H
+#define MPEG2DECPLUS_MISC_H
+
+
 #include <cstdint>
 #include <cstdarg>
 
@@ -57,3 +61,5 @@ void fast_copy(const uint8_t *src, const int src_stride, uint8_t *dst,
                const int vertical_size) noexcept;
 
 int __cdecl dprintf(char* fmt, ...);
+
+#endif
