@@ -30,7 +30,9 @@
 #include "MPEG2Decoder.h"
 #include "mc.h"
 #include "misc.h"
+#include "idct.h"
 #include "shlwapi.h"
+
 
 static const int ChromaFormat[4] = {
     0, 6, 8, 12
@@ -157,9 +159,11 @@ int CMPEG2Decoder::Open(const char *path)
     fscanf(out->VF_File, "iDCT_Algorithm=%d\n", &IDCT_Flag);
 
     if (IDCT_Flag == IDCT_REF) {
-        refinit = true;
+        prefetchTables = prefetch_tables_ref;
+        idctFunction = idct_ref_sse3;
     } else {
-        IDCT_Flag = IDCT_SSE2MMX;
+        prefetchTables = prefetch_tables_ap922;
+        idctFunction = idct_ap922_sse2;
     }
 
     File_Flag = 0;

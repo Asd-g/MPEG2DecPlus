@@ -97,8 +97,8 @@
     <ClCompile Include="..\..\..\src\dgdecode\gethdr.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\getpic.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\global.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\idctref.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\idct_sse2.cpp" />
+    <ClCompile Include="..\..\..\src\dgdecode\idct_ap922_sse2.cpp" />
+    <ClCompile Include="..\..\..\src\dgdecode\idct_ref_sse3.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\LumaYUV.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mc.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\misc.cpp" />

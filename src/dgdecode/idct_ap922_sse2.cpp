@@ -244,7 +244,7 @@ idct_colx8_sse2(int16_t* block) noexcept
 }
 
 
-void __fastcall idct_8x8_sse2(int16_t* block) noexcept
+void __fastcall idct_ap922_sse2(int16_t* block) noexcept
 {
     idct_row_sse2(block +  0, table04, rounders[0]);
     idct_row_sse2(block +  8, table17, rounders[1]);
@@ -259,7 +259,7 @@ void __fastcall idct_8x8_sse2(int16_t* block) noexcept
 }
 
 
-void __fastcall prefetch_tables() noexcept
+void __fastcall prefetch_tables_ap922() noexcept
 {
     _mm_prefetch(reinterpret_cast<const char*>(table04), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(table17), _MM_HINT_NTA);

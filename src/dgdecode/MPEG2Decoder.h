@@ -248,6 +248,8 @@ protected:
     int File_Limit;
     int FO_Flag;
     int IDCT_Flag;
+    void(__fastcall *idctFunction)(int16_t* block);
+    void(__fastcall *prefetchTables)();
     int SystemStream_Flag;    // 0 = none, 1=program, 2=Transport 3=PVA
 
     int TransportPacketSize;

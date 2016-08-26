@@ -427,8 +427,7 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
                                 int PMV[2][2][2], int motion_vertical_field_select[2][2],
                                 int dmvector[2], int dct_type)
 {
-    if (IDCT_Flag == IDCT_SSE2MMX)
-        prefetch_tables();
+    prefetchTables();
 
     /* derive current macroblock position within picture */
     /* ISO/IEC 13818-2 section 6.3.1.6 and 6.3.1.7 */
@@ -441,16 +440,11 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
             motion_vertical_field_select, dmvector);
 
     // idct is now a pointer
-    if (IDCT_Flag == IDCT_SSE2MMX) {
-        for (int comp = 0; comp < block_count - 1; ++comp) {
-            _mm_prefetch(reinterpret_cast<const char*>(block[comp + 1]), _MM_HINT_T0);
-            idct_8x8_sse2(block[comp]);
-        }
-        idct_8x8_sse2(block[block_count - 1]);
-    } else {
-        for (int comp = 0; comp < block_count; ++comp)
-            REF_IDCT(block[comp]);
+    for (int comp = 0; comp < block_count - 1; ++comp) {
+        _mm_prefetch(reinterpret_cast<const char*>(block[comp + 1]), _MM_HINT_T0);
+        idctFunction(block[comp]);
     }
+    idctFunction(block[block_count - 1]);
 
     Add_Block(block_count, bx, by, dct_type, (macroblock_type & MACROBLOCK_INTRA)==0);
 

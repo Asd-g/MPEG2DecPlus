@@ -34,6 +34,7 @@
 #include "postprocess.h"
 #include "color_convert.h"
 #include "misc.h"
+#include "idct.h"
 
 
 #define VERSION "DGDecode 1.5.8"
@@ -205,11 +206,12 @@ void MPEG2Source::override(int ovr_idct)
         m_decoder.IDCT_Flag = ovr_idct;
 
     if (m_decoder.IDCT_Flag == IDCT_REF) {
-        m_decoder.refinit = true;
+        m_decoder.prefetchTables = prefetch_tables_ref;
+        m_decoder.idctFunction = idct_ref_sse3;
     } else {
-        m_decoder.IDCT_Flag = IDCT_SSE2MMX;
+        m_decoder.prefetchTables = prefetch_tables_ap922;
+        m_decoder.idctFunction = idct_ap922_sse2;
     }
-
 }
 
 

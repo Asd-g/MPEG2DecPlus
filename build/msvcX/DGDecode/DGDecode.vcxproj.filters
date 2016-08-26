@@ -30,9 +30,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\getpic.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\idctref.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\motion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -69,7 +66,10 @@
     <ClCompile Include="..\..\..\src\dgdecode\global.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\idct_sse2.cpp">
+    <ClCompile Include="..\..\..\src\dgdecode\idct_ap922_sse2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\idct_ref_sse3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
