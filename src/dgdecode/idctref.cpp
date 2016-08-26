@@ -20,6 +20,8 @@
 //  Perform IEEE 1180 reference (64-bit floating point, separable 8x1
 //  direct matrix multiply) Inverse Discrete Cosine Transform
 
+#include "idct.h"
+
 static const double r[8][8] = {
   {
      3.5355339059327379e-001,  3.5355339059327379e-001,
@@ -64,7 +66,7 @@ static const double r[8][8] = {
   },
 };
 
-void __fastcall REF_IDCT(short *block)
+void __fastcall REF_IDCT(int16_t* block) noexcept
 {
   int *b = (int *)block;
   double tmp[64], rnd[64];

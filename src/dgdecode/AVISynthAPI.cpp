@@ -204,16 +204,12 @@ void MPEG2Source::override(int ovr_idct)
     if (ovr_idct > 0)
         m_decoder.IDCT_Flag = ovr_idct;
 
-    switch (m_decoder.IDCT_Flag) {
-    case IDCT_REF:
+    if (m_decoder.IDCT_Flag == IDCT_REF) {
         m_decoder.refinit = true;
-        m_decoder.idctFunc = REF_IDCT;
-        break;
-
-    default:
-        m_decoder.idctFunc = SSE2MMX_IDCT;
-        break;
+    } else {
+        m_decoder.IDCT_Flag = IDCT_SSE2MMX;
     }
+
 }
 
 

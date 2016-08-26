@@ -30,6 +30,8 @@
 #include "global.h"
 #include "MPEG2Decoder.h"
 #include "mc.h"
+#include "idct.h"
+
 
 const uint8_t cc_table[12] = {
     0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 2
@@ -425,17 +427,13 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
                                 int PMV[2][2][2], int motion_vertical_field_select[2][2],
                                 int dmvector[2], int dct_type)
 {
-    int bx, by;
-    int comp;
-    int16_t* prefetchpointer2;
-
-    if(IDCT_Flag == IDCT_SSE2MMX)
-        IDCT_CONST_PREFETCH();
+    if (IDCT_Flag == IDCT_SSE2MMX)
+        prefetch_tables();
 
     /* derive current macroblock position within picture */
     /* ISO/IEC 13818-2 section 6.3.1.6 and 6.3.1.7 */
-    bx = 16*(MBA%mb_width);
-    by = 16*(MBA/mb_width);
+    int bx = 16*(MBA%mb_width);
+    int by = 16*(MBA/mb_width);
 
     /* motion compensation */
     if (!(macroblock_type & MACROBLOCK_INTRA))
@@ -443,24 +441,15 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
             motion_vertical_field_select, dmvector);
 
     // idct is now a pointer
-    if ( IDCT_Flag == IDCT_SSE2MMX )
-    {
-        for (comp=0; comp<block_count-1; comp++)
-        {
-            prefetchpointer2=block[comp+1];
-            __asm {
-                mov eax,prefetchpointer2
-                prefetcht0 [eax]
-            };
-
-            SSE2MMX_IDCT(block[comp]);
-        };
-        SSE2MMX_IDCT(block[comp]);
-    }
-    else
-    {
-        for (comp=0; comp<block_count; comp++)
-            idctFunc(block[comp]);
+    if (IDCT_Flag == IDCT_SSE2MMX) {
+        for (int comp = 0; comp < block_count - 1; ++comp) {
+            _mm_prefetch(reinterpret_cast<const char*>(block[comp + 1]), _MM_HINT_T0);
+            idct_8x8_sse2(block[comp]);
+        }
+        idct_8x8_sse2(block[block_count - 1]);
+    } else {
+        for (int comp = 0; comp < block_count; ++comp)
+            REF_IDCT(block[comp]);
     }
 
     Add_Block(block_count, bx, by, dct_type, (macroblock_type & MACROBLOCK_INTRA)==0);

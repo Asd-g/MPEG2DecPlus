@@ -156,17 +156,10 @@ int CMPEG2Decoder::Open(const char *path)
     fscanf(out->VF_File, "MPEG_Type=%d\n", &mpeg_type);
     fscanf(out->VF_File, "iDCT_Algorithm=%d\n", &IDCT_Flag);
 
-    switch (IDCT_Flag) {
-    case IDCT_REF:
-        if (!refinit)
-        {
-            refinit = true;
-        }
-        idctFunc = REF_IDCT;
-        break;
-    default:
-        idctFunc = SSE2MMX_IDCT;
-        break;
+    if (IDCT_Flag == IDCT_REF) {
+        refinit = true;
+    } else {
+        IDCT_Flag = IDCT_SSE2MMX;
     }
 
     File_Flag = 0;

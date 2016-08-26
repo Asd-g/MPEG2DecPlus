@@ -123,13 +123,6 @@ typedef void (WINAPI *PBufferOp) (uint8_t*, int, int);
 
 
 
-// idct
-extern "C" void __fastcall SSE2MMX_IDCT(short *block);
-extern "C" void __fastcall IDCT_CONST_PREFETCH(void);
-void Initialize_FPU_IDCT(void);
-void __fastcall REF_IDCT(short *block);
-
-
 struct YV12PICT {
     uint8_t *y, *u, *v;
     int ypitch, uvpitch;
@@ -256,7 +249,6 @@ protected:
     int FO_Flag;
     int IDCT_Flag;
     int SystemStream_Flag;    // 0 = none, 1=program, 2=Transport 3=PVA
-    void (__fastcall *idctFunc)(short *block);
 
     int TransportPacketSize;
     int MPEG2_Transport_AudioPID;  // used only for transport streams
