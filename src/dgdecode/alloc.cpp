@@ -61,10 +61,10 @@ YV12PICT* create_YV12PICT(int height, int width, int chroma_format)
     }
     int uvpitch = (uvwidth + 15) & ~15;
     int ypitch = uvpitch*2;
-    size_t size = height * ypitch + 2 * uvheight * uvpitch;
-    pict->y = (unsigned char*)_aligned_malloc(size, 32);
-    pict->u = pict->y + uvheight * uvpitch;
-    pict->v = pict->u + uvheight * uvpitch;
+
+    pict->y = (uint8_t*)_aligned_malloc(height * ypitch, 32);
+    pict->u = (uint8_t*)_aligned_malloc(uvheight * uvpitch, 16);
+    pict->v = (uint8_t*)_aligned_malloc(uvheight * uvpitch, 16);
     pict->ypitch = ypitch;
     pict->uvpitch = uvpitch;
     pict->ywidth = width;
@@ -77,6 +77,8 @@ YV12PICT* create_YV12PICT(int height, int width, int chroma_format)
 void destroy_YV12PICT(YV12PICT * pict)
 {
     _aligned_free(pict->y);
+    _aligned_free(pict->u);
+    _aligned_free(pict->v);
     free(pict);
     pict = nullptr;
 }

@@ -156,8 +156,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
         override(ovr_idct);
     }
 
-    out = NULL;
-    out = (YV12PICT*)_aligned_malloc(sizeof(YV12PICT), 16);
+    out = (YV12PICT*)malloc(sizeof(YV12PICT));
     if (out == NULL) env->ThrowError("MPEG2Source:  malloc failure (yv12 pic out)!");
 
     m_decoder.pp_mode = _PP_MODE;
@@ -185,7 +184,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 MPEG2Source::~MPEG2Source()
 {
     m_decoder.Close();
-    if (out != NULL) { _aligned_free(out); out = NULL; }
+    if (out != NULL) { free(out); out = NULL; }
     if (bufY != NULL) { _aligned_free(bufY); bufY = NULL; }
     if (bufU != NULL) { _aligned_free(bufU); bufU = NULL; }
     if (bufV != NULL) { _aligned_free(bufV); bufV = NULL; }
