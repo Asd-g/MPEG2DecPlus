@@ -13,7 +13,7 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="DGDecode">
+    <Filter Include="MPEG2DecPlus">
       <UniqueIdentifier>{b92ffe8f-65a1-47d7-b2eb-8eafdef68fd7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -40,16 +40,16 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp">
-      <Filter>DGDecode</Filter>
+      <Filter>MPEG2DecPlus</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\deblock.cpp">
-      <Filter>DGDecode</Filter>
+      <Filter>MPEG2DecPlus</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\color_convert.cpp">
-      <Filter>DGDecode</Filter>
+      <Filter>MPEG2DecPlus</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\LumaYUV.cpp">
-      <Filter>DGDecode</Filter>
+      <Filter>MPEG2DecPlus</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\mc.cpp">
       <Filter>Source Files</Filter>
@@ -72,10 +72,10 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\AvisynthAPI.h">
-      <Filter>DGDecode</Filter>
+      <Filter>MPEG2DecPlus</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\color_convert.h">
-      <Filter>DGDecode</Filter>
+      <Filter>MPEG2DecPlus</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\mc.h">
       <Filter>Header Files</Filter>

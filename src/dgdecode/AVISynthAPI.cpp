@@ -37,7 +37,7 @@
 #include "idct.h"
 
 
-#define VERSION "DGDecode 1.5.8"
+#define VERSION "MPEG2DecPlus 0.0.0"
 
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
@@ -49,8 +49,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     m_decoder.fpuinit = false;
     m_decoder.luminit = false;
 
-    if (iPP != -1 && iPP != 0 && iPP != 1)
-        env->ThrowError("MPEG2Source: iPP must be set to -1, 0, or 1!");
+    //if (iPP != -1 && iPP != 0 && iPP != 1)
+    //    env->ThrowError("MPEG2Source: iPP must be set to -1, 0, or 1!");
 
     if (iCC != -1 && iCC != 0 && iCC != 1)
         env->ThrowError("MPEG2Source: iCC must be set to -1, 0, or 1!");
@@ -92,10 +92,10 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     if (status == 1)
         env->ThrowError("MPEG2Source: Invalid D2V file, it's empty!");
     else if (status == 2)
-        env->ThrowError("MPEG2Source: DGIndex/DGDecode mismatch. You are picking up\n"
-                        "a version of DGDecode, possibly from your plugins directory,\n"
+        env->ThrowError("MPEG2Source: DGIndex/MPEG2DecPlus mismatch. You are picking up\n"
+                        "a version of MPEG2DecPlus, possibly from your plugins directory,\n"
                         "that does not match the version of DGIndex used to make the D2V\n"
-                        "file. Search your hard disk for all copies of DGDecode.dll\n"
+                        "file. Search your hard disk for all copies of MPEG2DecPlus.dll\n"
                         "and delete or rename all of them except for the one that\n"
                         "has the same version number as the DGIndex.exe that was used\n"
                         "to make the D2V file.");
@@ -372,21 +372,21 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
     if (m_decoder.info == 1)
     {
         char msg1[1024];
-        sprintf(msg1,"%s (c) 2007 Donald A. Graft (et al)\n" \
-                     "---------------------------------------\n" \
-                     "Source:        %s\n" \
-                     "Frame Rate:    %3.6f fps (%u/%u) %s\n" \
-                     "Field Order:   %s\n" \
-                     "Picture Size:  %d x %d\n" \
-                     "Aspect Ratio:  %s\n"  \
-                     "Progr Seq:     %s\n" \
-                     "GOP Number:    %d (%d)  GOP Pos = %I64d\n" \
-                     "Closed GOP:    %s\n" \
-                     "Display Frame: %d\n" \
-                     "Encoded Frame: %d (top) %d (bottom)\n" \
-                     "Frame Type:    %c (%d)\n" \
-                     "Progr Frame:   %s\n" \
-                     "Colorimetry:   %s (%d)\n" \
+        sprintf(msg1,"%s\n"
+                     "---------------------------------------\n"
+                     "Source:        %s\n"
+                     "Frame Rate:    %3.6f fps (%u/%u) %s\n"
+                     "Field Order:   %s\n"
+                     "Picture Size:  %d x %d\n"
+                     "Aspect Ratio:  %s\n"
+                     "Progr Seq:     %s\n"
+                     "GOP Number:    %d (%d)  GOP Pos = %I64d\n"
+                     "Closed GOP:    %s\n"
+                     "Display Frame: %d\n"
+                     "Encoded Frame: %d (top) %d (bottom)\n"
+                     "Frame Type:    %c (%d)\n"
+                     "Progr Frame:   %s\n"
+                     "Colorimetry:   %s (%d)\n"
                      "Quants:        %d/%d/%d (avg/min/max)\n",
         VERSION,
         m_decoder.Infilename[m_decoder.GOPList[gop]->file],
@@ -411,24 +411,24 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
     }
     else if (m_decoder.info == 2)
     {
-        dprintf("DGDecode: DGDecode %s (c) 2005 Donald A. Graft\n", VERSION);
-        dprintf("DGDecode: Source:            %s\n", m_decoder.Infilename[m_decoder.GOPList[gop]->file]);
-        dprintf("DGDecode: Frame Rate:        %3.6f fps (%u/%u) %s\n",
+        dprintf("MPEG2DecPlus: %s\n", VERSION);
+        dprintf("MPEG2DecPlus: Source:            %s\n", m_decoder.Infilename[m_decoder.GOPList[gop]->file]);
+        dprintf("MPEG2DecPlus: Frame Rate:        %3.6f fps (%u/%u) %s\n",
             double(m_decoder.VF_FrameRate_Num) / double(m_decoder.VF_FrameRate_Den),
             m_decoder.VF_FrameRate_Num, m_decoder.VF_FrameRate_Den,
             (m_decoder.VF_FrameRate == 25000 || m_decoder.VF_FrameRate == 50000) ? "(PAL)" : m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "");
-        dprintf("DGDecode: Field Order:       %s\n", m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First");
-        dprintf("DGDecode: Picture Size:      %d x %d\n", m_decoder.Coded_Picture_Width, m_decoder.Coded_Picture_Height);
-        dprintf("DGDecode: Aspect Ratio:      %s\n", m_decoder.Aspect_Ratio);
-        dprintf("DGDecode: Progressive Seq:   %s\n", m_decoder.GOPList[gop]->progressive ? "True" : "False");
-        dprintf("DGDecode: GOP Number:        %d (%d)  GOP Pos = %I64d\n", gop, m_decoder.GOPList[gop]->number, m_decoder.GOPList[gop]->position);
-        dprintf("DGDecode: Closed GOP:        %s\n", m_decoder.GOPList[gop]->closed ? "True" : "False");
-        dprintf("DGDecode: Display Frame:     %d\n", n);
-        dprintf("DGDecode: Encoded Frame:     %d (top) %d (bottom)\n", m_decoder.FrameList[n].top, m_decoder.FrameList[n].bottom);
-        dprintf("DGDecode: Frame Type:        %c (%d)\n", pct, raw);
-        dprintf("DGDecode: Progressive Frame: %s\n", m_decoder.FrameList[raw].pf ? "True" : "False");
-        dprintf("DGDecode: Colorimetry:       %s (%d)\n", Matrix_s, m_decoder.GOPList[gop]->matrix);
-        dprintf("DGDecode: Quants:            %d/%d/%d (avg/min/max)\n", m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
+        dprintf("MPEG2DecPlus: Field Order:       %s\n", m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First");
+        dprintf("MPEG2DecPlus: Picture Size:      %d x %d\n", m_decoder.Coded_Picture_Width, m_decoder.Coded_Picture_Height);
+        dprintf("MPEG2DecPlus: Aspect Ratio:      %s\n", m_decoder.Aspect_Ratio);
+        dprintf("MPEG2DecPlus: Progressive Seq:   %s\n", m_decoder.GOPList[gop]->progressive ? "True" : "False");
+        dprintf("MPEG2DecPlus: GOP Number:        %d (%d)  GOP Pos = %I64d\n", gop, m_decoder.GOPList[gop]->number, m_decoder.GOPList[gop]->position);
+        dprintf("MPEG2DecPlus: Closed GOP:        %s\n", m_decoder.GOPList[gop]->closed ? "True" : "False");
+        dprintf("MPEG2DecPlus: Display Frame:     %d\n", n);
+        dprintf("MPEG2DecPlus: Encoded Frame:     %d (top) %d (bottom)\n", m_decoder.FrameList[n].top, m_decoder.FrameList[n].bottom);
+        dprintf("MPEG2DecPlus: Frame Type:        %c (%d)\n", pct, raw);
+        dprintf("MPEG2DecPlus: Progressive Frame: %s\n", m_decoder.FrameList[raw].pf ? "True" : "False");
+        dprintf("MPEG2DecPlus: Colorimetry:       %s (%d)\n", Matrix_s, m_decoder.GOPList[gop]->matrix);
+        dprintf("MPEG2DecPlus: Quants:            %d/%d/%d (avg/min/max)\n", m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
     }
     else if (m_decoder.info == 3)
     {
@@ -500,7 +500,7 @@ if (strncmp(buf, name, len) == 0) \
     {
         FILE *f;
 
-        if ((f = fopen("DGDecode.def", "r")) != NULL)
+        if ((f = fopen("MPEG2DecPlus.def", "r")) != NULL)
         {
             while(fgets(buf, 80, f) != 0)
             {
@@ -589,7 +589,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
     env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]i[i420]b[iCC]b", MPEG2Source::create, nullptr);
     env->AddFunction("LumaYUV","c[lumoff]i[lumgain]f", LumaYUV::create, nullptr);
    // env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", BlindPP::create, nullptr);
-    env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i[mmx]b[isse]b", Deblock::create, nullptr);
+    env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i", Deblock::create, nullptr);
     return 0;
 }
 

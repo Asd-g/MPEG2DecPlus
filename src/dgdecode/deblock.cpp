@@ -1,3 +1,8 @@
+/*
+A rewite of Deblock filter for support all planar 8bit YUV.
+Almost same as tp7's version.
+*/
+
 #include "AvisynthAPI.h"
 
 
