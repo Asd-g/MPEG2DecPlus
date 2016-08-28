@@ -42,13 +42,7 @@
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\PostProcess.cpp">
-      <Filter>DGDecode</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\deblock.cpp">
-      <Filter>DGDecode</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\BlindPP.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\color_convert.cpp">
@@ -78,9 +72,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\AvisynthAPI.h">
-      <Filter>DGDecode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\dgdecode\PostProcess.h">
       <Filter>DGDecode</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\dgdecode\color_convert.h">

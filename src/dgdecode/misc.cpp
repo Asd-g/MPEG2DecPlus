@@ -30,7 +30,7 @@
 #include "misc.h"
 
 
-int __cdecl dprintf(char* fmt, ...)
+size_t __cdecl dprintf(char* fmt, ...)
 {
     char printString[1024];
 

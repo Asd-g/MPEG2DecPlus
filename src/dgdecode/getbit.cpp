@@ -26,7 +26,7 @@ void CMPEG2Decoder::Initialize_Buffer()
 {
     Rdptr = Rdbfr + BUFFER_SIZE;
     Rdmax = Rdptr;
-    buffer_invalid = (uint8_t *) 0xffffffff;
+    buffer_invalid = (uint8_t *)(UINTPTR_MAX);
 
     if (SystemStream_Flag)
     {
@@ -505,7 +505,7 @@ void CMPEG2Decoder::Next_File()
     bytes = _read(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
     if (Read + bytes == BUFFER_SIZE)
         // The whole buffer has valid data.
-        buffer_invalid = (uint8_t *) 0xffffffff;
+        buffer_invalid = (uint8_t *)(UINTPTR_MAX);
     else
         // Point to the first invalid buffer location.
         buffer_invalid = Rdbfr + Read + bytes;

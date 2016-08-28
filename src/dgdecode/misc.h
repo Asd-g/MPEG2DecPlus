@@ -32,6 +32,6 @@ void fast_copy(const uint8_t *src, const int src_stride, uint8_t *dst,
                const int dst_stride, const int horizontal_size,
                const int vertical_size) noexcept;
 
-int __cdecl dprintf(char* fmt, ...);
+size_t __cdecl dprintf(char* fmt, ...);
 
 #endif
