@@ -25,7 +25,7 @@
 
 
 #include "MPEG2Decoder.h"
-#include "postprocess.h"
+//#include "postprocess.h"
 #include "color_convert.h"
 #include "misc.h"
 
@@ -91,7 +91,7 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
     int *qp;
 
     dst->pf = pf;
-
+#if 0
     if (pp_mode != 0)
     {
         uint8_t* ppptr[3];
@@ -129,6 +129,7 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
         }
     }
     else
+#endif
     {
         fast_copy(src[0], Coded_Picture_Width, dst->y, dst->ypitch, Coded_Picture_Width, Coded_Picture_Height);
         if (upConv > 0 && chroma_format == 1)

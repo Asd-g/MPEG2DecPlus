@@ -127,7 +127,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     vi.fps_denominator = m_decoder.VF_FrameRate_Den;
     vi.num_frames = m_decoder.VF_FrameLimit;
     vi.SetFieldBased(false);
-
+#if 0
     switch (cpu) {
         case 0 : _PP_MODE = 0; break;
         case 1 : _PP_MODE = PP_DEBLOCK_Y_H; break;
@@ -149,7 +149,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
         if (cpu2[4]=='x' || cpu2[4] == 'X') { _PP_MODE |= PP_DERING_Y; }
         if (cpu2[5]=='x' || cpu2[5] == 'X') { _PP_MODE |= PP_DERING_C; }
     }
-
+#endif
     if ( ovr_idct != m_decoder.IDCT_Flag && ovr_idct > 0 )
     {
         dprintf("Overiding iDCT With: %d", ovr_idct);
@@ -159,7 +159,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
     out = (YV12PICT*)malloc(sizeof(YV12PICT));
     if (out == NULL) env->ThrowError("MPEG2Source:  malloc failure (yv12 pic out)!");
 
-    m_decoder.pp_mode = _PP_MODE;
+    //m_decoder.pp_mode = _PP_MODE;
 
     bufY = bufU = bufV = NULL;
     if (m_decoder.chroma_format != 1 || (m_decoder.chroma_format == 1 && _upConv > 0))
@@ -588,7 +588,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 
     env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]i[i420]b[iCC]b", MPEG2Source::create, nullptr);
     env->AddFunction("LumaYUV","c[lumoff]i[lumgain]f", LumaYUV::create, nullptr);
-    env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", BlindPP::create, nullptr);
+   // env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", BlindPP::create, nullptr);
     env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i[mmx]b[isse]b", Deblock::create, nullptr);
     return 0;
 }

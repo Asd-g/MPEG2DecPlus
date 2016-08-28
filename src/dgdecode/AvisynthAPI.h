@@ -54,7 +54,7 @@ public:
   static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
 
-
+#if 0
 class BlindPP : public GenericVideoFilter {
     int* QP;
     bool iPP;
@@ -68,7 +68,7 @@ public:
     int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_NICE_FILTER : 0; }
     static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
-
+#endif
 
 class Deblock : public GenericVideoFilter {
    int alpha, beta, c0;
