@@ -36,6 +36,32 @@ alignas(64) static const float ref_dct_matrix_t[] = {
 };
 
 
+#if 0
+static inline void idct_ref_8x8_c(const float* srcp, float*dstp) noexcept
+{
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            float t = 0;
+            for (int z = 0; z < 8; ++z) {
+                t += ref_dct_matrix_t[8 * x + z] * srcp[8 * y + z];
+            }
+            dstp[8 * y + x] = t;
+        }
+    }
+}
+
+static inline void transpose_8x8_c(const float* srcp, float* dstp) noexcept
+{
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            dstp[x] = src[8 * x + y];
+        }
+        dstp += 8;
+    }
+}
+#endif
+
+
 static inline void short_to_float(const short* srcp, float*dstp) noexcept
 {
     const __m128i zero = _mm_setzero_si128();

@@ -235,7 +235,7 @@ void postprocess(unsigned char * src[], int src_stride, int UVsrc_stride,
 /////////////////////////////////////////////////////////////////////////
 
 // Set MMX state back to normal
-void do_emms()
+static void do_emms()
 {
     __asm emms;
 }
@@ -244,91 +244,28 @@ void do_emms()
 /* this is a horizontal deblocking filter - i.e. it will smooth _vertical_ block edges */
 void deblock_horiz(uint8_t *image, int width, int stride, QP_STORE_T *QP_store, int QP_stride, int chromaFlag, int moderate_h)
 {
-    int x, y;
-    int QP;
-    uint8_t *v;
-    int useDC, DC_on;
-    #ifdef PREFETCH_AHEAD_H
-    void *prefetch_addr;
-    #endif
-
-    y = 0;
-
-    /* loop over image's pixel rows , four at a time */
-//  for (y=0; y<height; y+=4)
-//  {
-
-        /* loop over every block boundary in that row */
-        for (x=8; x<width; x+=8)
-        {
-            /* extract QP from the decoder's array of QP values */
-            QP = chromaFlag == 1 ? QP_store[y/8*QP_stride+x/8]
-                      : chromaFlag == 0 ? QP_store[y/16*QP_stride+x/16]
-                      : QP_store[y/16*QP_stride+x/8];
-
-            /* v points to pixel v0, in the left-hand block */
-            v = &(image[y*stride + x]) - 5;
-
-#ifdef PREFETCH_AHEAD_V
-            /* try a prefetch PREFETCH_AHEAD_V bytes ahead on all eight rows... experimental */
-            prefetch_addr = v + PREFETCH_AHEAD_V;
-            __asm {
-                push eax
-                push ebx
-                mov eax, prefetch_addr
-                mov ebx, stride
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                pop ebx
-                pop eax
-            };
-#endif
-
-            /* first decide whether to use default or DC offet mode */
-            useDC = deblock_horiz_useDC(v, stride, moderate_h);
-
-            if (useDC) /* use DC offset mode */
-            {
-
-                DC_on = deblock_horiz_DC_on(v, stride, QP);
-
-                if (DC_on)
-                {
-
-                    deblock_horiz_lpf9(v, stride, QP);
-
-#ifdef SHOWDECISIONS_H
-                    if (!chromaFlag) {
-                        v[0*stride + 4] =
-                        v[1*stride + 4] =
-                        v[2*stride + 4] =
-                        v[3*stride + 4] = 255;
-                    }
-#endif
-                }
-            }
-            else    /* use default mode */
-            {
-
-                deblock_horiz_default_filter(v, stride, QP);
-
-#ifdef SHOWDECISIONS_H
-                if (!chromaFlag) {
-                    v[0*stride + 4] =
-                    v[1*stride + 4] =
-                    v[2*stride + 4] =
-                    v[3*stride + 4] = 0;
-                }
-#endif
-
-            }
+    /* loop over every block boundary in that row */
+    for (int x = 8; x < width; x += 8) {
+        int QP ;
+        /* extract QP from the decoder's array of QP values */
+        if (chromaFlag == 0) {
+            QP = QP_store[x / 16];
+        } else {
+            QP = QP_store[x / 8];
         }
+
+        /* v points to pixel v0, in the left-hand block */
+        uint8_t* v = image + x - 5;
+
+        /* first decide whether to use default or DC offet mode */
+        if (deblock_horiz_useDC(v, stride, moderate_h)) {/* use DC offset mode */
+            if (deblock_horiz_DC_on(v, stride, QP)) {
+                deblock_horiz_lpf9(v, stride, QP);
+            }
+        } else {   /* use default mode */
+            deblock_horiz_default_filter(v, stride, QP);
+        }
+    }
     __asm emms;
 }
 
@@ -336,13 +273,13 @@ void deblock_horiz(uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 inline int deblock_horiz_DC_on(uint8_t *v, int stride, int QP)
 {
     /* 99% of the time, this test turns out the same as the |max-min| strategy in the standard */
-    for (int i=0; i<4; ++i)
-    {
-        if (std::abs(v[0]-v[5]) >= 2*QP) return false;
-        if (std::abs(v[1]-v[8]) >= 2*QP) return false;
-        if (std::abs(v[1]-v[4]) >= 2*QP) return false;
-        if (std::abs(v[2]-v[7]) >= 2*QP) return false;
-        if (std::abs(v[3]-v[6]) >= 2*QP) return false;
+    QP *= 2;
+    for (int i = 0; i < 4; ++i) {
+        if (std::abs(v[0] - v[5]) >= QP) return false;
+        if (std::abs(v[1] - v[8]) >= QP) return false;
+        if (std::abs(v[1] - v[4]) >= QP) return false;
+        if (std::abs(v[2] - v[7]) >= QP) return false;
+        if (std::abs(v[3] - v[6]) >= QP) return false;
         v += stride;
     }
     return true;
@@ -351,69 +288,50 @@ inline int deblock_horiz_DC_on(uint8_t *v, int stride, int QP)
 /* horizontal deblocking filter used in default (non-DC) mode */
 inline void deblock_horiz_default_filter(uint8_t *v, int stride, int QP)
 {
-    int a3_0, a3_1, a3_2, d;
-    int q1, q;
-    int y;
-
-
-    for (y=0; y<4; y++) {
-
-        q1 = v[4] - v[5];
-        q = q1 / 2;
-        if (q) {
-
-            a3_0  = q1;
-            a3_0 += a3_0 << 2;
-            a3_0 = 2*(v[3]-v[6]) - a3_0;
+    for (int y = 0; y < 4; ++y) {
+        int q1 = v[4] - v[5];
+        int q = q1 / 2;
+        if (q != 0) {
+            int a3_0  = 2 * (v[3] - v[6]) - 5 * q1;
+            int aa3_0 = std::abs(a3_0);
 
             /* apply the 'delta' function first and check there is a difference to avoid wasting time */
-            if (std::abs(a3_0) < 8*QP) {
-                a3_1  = v[3]-v[2];
-                a3_2  = v[7]-v[8];
-                a3_1 += a3_1 << 2;
-                a3_2 += a3_2 << 2;
-                a3_1 += (v[1]-v[4]) << 1;
-                a3_2 += (v[5]-v[8]) << 1;
-                d = std::abs(a3_0) - std::min(std::abs(a3_1), std::abs(a3_2));
+            if (aa3_0 < 8 * QP) {
+                int a3_1  = std::abs(5 * (v[3] - v[2]) + 2 * (v[1] - v[4]));
+                int a3_2  = std::abs(5 * (v[7] - v[8]) + 2 * (v[5] - v[8]));
 
-                if (d > 0) { /* energy across boundary is greater than in one or both of the blocks */
-                    d += d<<2;
-                    d = (d + 32) >> 6;
+                int d = aa3_0 - std::min(a3_1, a3_2);
 
-                    if (d > 0) {
-
-                        //d *= SIGN(-a3_0);
-
-                        /* clip d in the range 0 ... q */
-                        if (q > 0) {
-                            if (a3_0 < 0) {
-                                //d = d<0 ? 0 : d;
-                                d = d>q ? q : d;
+                if (d > 6) { /* energy across boundary is greater than in one or both of the blocks */
+                    /* clip d in the range 0 ... q */
+                    if (q > 0) {
+                        if (a3_0 < 0) {
+                            if (d > q) {
+                                v[4] -= q;
+                                v[5] += q;
+                            } else {
                                 v[4] -= d;
                                 v[5] += d;
                             }
-                        } else {
-                            if (a3_0 > 0) {
-                                //d = d>0 ? 0 : d;
-                                d = (-d)<q ? q : (-d);
-                                v[4] -= d;
-                                v[5] += d;
+                        }
+                    } else {
+                        if (a3_0 > 0) {
+                            if (-d < q) {
+                                v[4] -= q;
+                                v[5] += q;
+                            } else {
+                                v[4] += d;
+                                v[5] -= d;
                             }
                         }
                     }
                 }
             }
         }
-
-#ifdef PP_SELF_CHECK
-        /* no selfcheck written for this yet */
-#endif;
-
         v += stride;
     }
-
-
 }
+
 
 const static uint64_t mm64_0008 = 0x0008000800080008;
 const static uint64_t mm64_0101 = 0x0101010101010101;
@@ -429,52 +347,20 @@ const static uint64_t mm64_coefs[18] =  {
     0x0001000100000000, /* v7 left */ 0x0004000200020001, /* v8 right */
     0x0001000000000000, /* v8 left */ 0x0006000400020001  /* p2 right */
 };
-static uint32_t mm32_p1p2;
-static uint8_t *pmm1;
+
 
 /* The 9-tap low pass filter used in "DC" regions */
 /* I'm not sure that I like this implementation any more...! */
 inline void deblock_horiz_lpf9(uint8_t *v, int stride, int QP)
 {
-    int y, p1, p2;
+    for (int y = 0; y < 4; ++y) {
+        int ys = y * stride;
+        int p1 = (std::abs(v[0 + ys] - v[1 + ys]) < QP ) ?  v[0 + ys] : v[1 + ys];
+        int p2 = (std::abs(v[8 + ys] - v[9 + ys]) < QP ) ?  v[9 + ys] : v[8 + ys];
 
-#ifdef PP_SELF_CHECK
-    uint8_t selfcheck[9];
-    int psum;
-    uint8_t *vv;
-    int i;
-#endif
+        uint32_t mm32_p1p2 = 0x0101 * ((p2 << 16) + p1);
 
-    for (y=0; y<4; y++)
-    {
-        p1 = (std::abs(v[0+y*stride]-v[1+y*stride]) < QP ) ?  v[0+y*stride] : v[1+y*stride];
-        p2 = (std::abs(v[8+y*stride]-v[9+y*stride]) < QP ) ?  v[9+y*stride] : v[8+y*stride];
-
-        mm32_p1p2 = 0x0101 * ((p2 << 16) + p1);
-
-#ifdef PP_SELF_CHECK
-        /* generate a self-check version of the filter result in selfcheck[9] */
-        /* low pass filtering (LPF9: 1 1 2 2 4 2 2 1 1) */
-        vv = &(v[y*stride]);
-        psum = p1 + p1 + p1 + vv[1] + vv[2] + vv[3] + vv[4] + 4;
-        selfcheck[1] = (((psum + vv[1]) << 1) - (vv[4] - vv[5])) >> 4;
-        psum += vv[5] - p1;
-        selfcheck[2] = (((psum + vv[2]) << 1) - (vv[5] - vv[6])) >> 4;
-        psum += vv[6] - p1;
-        selfcheck[3] = (((psum + vv[3]) << 1) - (vv[6] - vv[7])) >> 4;
-        psum += vv[7] - p1;
-        selfcheck[4] = (((psum + vv[4]) << 1) + p1 - vv[1] - (vv[7] - vv[8])) >> 4;
-        psum += vv[8] - vv[1];
-        selfcheck[5] = (((psum + vv[5]) << 1) + (vv[1] - vv[2]) - vv[8] + p2) >> 4;
-        psum += p2 - vv[2];
-        selfcheck[6] = (((psum + vv[6]) << 1) + (vv[2] - vv[3])) >> 4;
-        psum += p2 - vv[3];
-        selfcheck[7] = (((psum + vv[7]) << 1) + (vv[3] - vv[4])) >> 4;
-        psum += p2 - vv[4];
-        selfcheck[8] = (((psum + vv[8]) << 1) + (vv[4] - vv[5])) >> 4;
-#endif
-
-        pmm1 = (&(v[y*stride-3])); /* this is 64-aligned */
+        uint8_t* pmm1 = v + y * stride - 3; /* this is 64-aligned */
 
         /* mm7 = 0, mm6 is left hand accumulator, mm5 is right hand acc */
         __asm
@@ -634,16 +520,6 @@ inline void deblock_horiz_lpf9(uint8_t *v, int stride, int QP)
             pop ebx
             pop eax
         };
-
-#ifdef PP_SELF_CHECK
-        for (i=1; i<=8; i++)
-        {
-            if (selfcheck[i] != v[i+y*stride])
-            {
-                dprintf("ERROR: MMX version of horiz lpf9 is incorrect at %d\n", i);
-            }
-        }
-#endif
     }
 }
 
@@ -654,10 +530,6 @@ inline int deblock_horiz_useDC(uint8_t *v, int stride, int moderate_h)
     uint32_t mm32_result;
     uint64_t *pmm1;
     int eq_cnt, useDC;
-
-#ifdef PP_SELF_CHECK
-    int eq_cnt2, j, k;
-#endif
 
     pmm1 = (uint64_t *)(&(v[1])); /* this is a 32-bit aligned pointer, not 64-aligned */
 
@@ -763,19 +635,6 @@ inline int deblock_horiz_useDC(uint8_t *v, int stride, int moderate_h)
 
     eq_cnt = mm32_result & 0xff;
 
-#ifdef PP_SELF_CHECK
-    eq_cnt2 = 0;
-    for (k=0; k<4; k++)
-    {
-        for (j=1; j<=7; j++)
-        {
-            if (std::abs(v[j+k*stride]-v[1+j+k*stride]) <= 1) eq_cnt2++;
-        }
-    }
-    if (eq_cnt2 != eq_cnt)
-        dprintf("ERROR: MMX version of useDC is incorrect\n");
-#endif
-
     useDC = eq_cnt >= moderate_h;
 
     return useDC;
@@ -791,10 +650,6 @@ void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
     uint8_t *v;
     int useDC, DC_on;
 
-#ifdef PREFETCH_AHEAD_V
-    void *prefetch_addr;
-#endif
-
     y = 0;
 
     /* loop over image's block boundary rows */
@@ -808,36 +663,6 @@ void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
                         : QP_store[y/16*QP_stride+Bx/8];
             QPx16 = 16 * QP;
             v = &(image[y*stride + Bx]) - 5*stride;
-
-#ifdef PREFETCH_AHEAD_V
-            /* try a prefetch PREFETCH_AHEAD_V bytes ahead on all eight rows... experimental */
-            prefetch_addr = v + PREFETCH_AHEAD_V;
-            __asm
-            {
-                push eax
-                push ebx
-                mov eax, prefetch_addr
-                mov ebx, stride
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                add      eax , ebx        /* prefetch_addr+= stride */
-                prefetcht0 [eax]
-                pop ebx
-                pop eax
-            };
-#endif
 
             /* decide whether to use DC mode on a block-by-block basis */
             useDC = deblock_vert_useDC(v, stride, moderate_v);
@@ -861,19 +686,6 @@ void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 
                     deblock_vert_lpf9(v_local, p1p2, v, stride);
 
-#ifdef SHOWDECISIONS_V
-                    if (!chromaFlag)
-                    {
-                        v[4*stride  ] =
-                        v[4*stride+1] =
-                        v[4*stride+2] =
-                        v[4*stride+3] =
-                        v[4*stride+4] =
-                        v[4*stride+5] =
-                        v[4*stride+6] =
-                        v[4*stride+7] = 255;
-                    }
-#endif
                 }
             }
 
@@ -889,19 +701,6 @@ void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
                     deblock_vert_default_filter(v, stride, QP);
 
                 //}
-#ifdef SHOWDECISIONS_V
-                if (!chromaFlag)
-                {
-                    v[4*stride  ] =
-                    v[4*stride+1] =
-                    v[4*stride+2] =
-                    v[4*stride+3] =
-                    v[4*stride+4] =
-                    v[4*stride+5] =
-                    v[4*stride+6] =
-                    v[4*stride+7] = 0;
-                }
-#endif
             }
         }
     __asm emms;
@@ -913,10 +712,6 @@ inline void deblock_vert_choose_p1p2(uint8_t *v, int stride, uint64_t *p1p2, int
 {
     uint64_t *pmm1, *pmm2;
     uint64_t mm_b_qp;
-
-#ifdef PP_SELF_CHECK
-    int i;
-#endif
 
     /* load QP into every one of the 8 bytes in mm_b_qp */
     ((uint32_t *)&mm_b_qp)[0] =
@@ -998,30 +793,6 @@ inline void deblock_vert_choose_p1p2(uint8_t *v, int stride, uint64_t *p1p2, int
         pop ebx
         pop eax
     };
-
-#ifdef PP_SELF_CHECK
-    /* check p1 and p2 have been calculated correctly */
-    /* p2 */
-    for (i=0; i<8; i++)
-    {
-        if ( ((std::abs(v[9*stride+i] - v[8*stride+i]) - QP > 0) ? v[8*stride+i] : v[9*stride+i])
-             != ((uint16_t *)(&(p1p2[2])))[i] )
-        {
-            dprintf("ERROR: problem with P2\n");
-        }
-    }
-
-    /* p1 */
-    for (i=0; i<8; i++)
-    {
-        if ( ((std::abs(v[0*stride+i] - v[1*stride+i]) - QP > 0) ? v[1*stride+i] : v[0*stride+i])
-             != ((uint16_t *)(&(p1p2[0])))[i] )
-        {
-            dprintf("ERROR: problem with P1\n");
-        }
-    }
-#endif
-
 }
 
 /* function using MMX to copy an 8-pixel wide column and unpack to 16-bit values */
@@ -1031,10 +802,6 @@ inline void deblock_vert_copy_and_unpack(int stride, uint8_t *source, uint64_t *
     uint64_t *pmm1 = (uint64_t *)source;
     uint64_t *pmm2 = (uint64_t *)dest;
     int i = -n / 2;
-
-#ifdef PP_SELF_CHECK
-    int j, k;
-#endif
 
     /* copy block to local store whilst unpacking to 16-bit values */
     __asm
@@ -1050,10 +817,6 @@ inline void deblock_vert_copy_and_unpack(int stride, uint8_t *source, uint64_t *
         pxor   mm7, mm7                        /* set mm7 = 0                     */
     deblock_v_L1:                             /* now p1 is in mm1                */
         movq   mm0, [eax]                     /* mm0 = v[0*stride]               */
-
-    #ifdef PREFETCH_ENABLE
-        prefetcht0 0[ebx]
-    #endif
 
         add   eax, stride                    /* p_data += stride                */
         movq   mm1, mm0                        /* mm1 = v[0*stride]               */
@@ -1084,102 +847,22 @@ inline void deblock_vert_copy_and_unpack(int stride, uint8_t *source, uint64_t *
         pop eax
         pop edi
     };
-
-#ifdef PP_SELF_CHECK
-    /* check that MMX copy has worked correctly */
-    for (k=0; k<n; k++)
-    {
-        for (j=0; j<8; j++)
-        {
-            if ( ((uint16_t *)dest)[k*8+j] != source[k*stride+j] )
-            {
-                dprintf("ERROR: MMX copy block is flawed at (%d, %d)\n", j, k);
-            }
-        }
-    }
-#endif
-
 }
 
 /* decide whether the DC filter should be turned on accoding to QP */
 inline int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
 {
-    for (int i=0; i<8; ++i)
-    {
-        if (std::abs(v[i+0*stride]-v[i+5*stride]) >= 2*QP) return false;
-        if (std::abs(v[i+1*stride]-v[i+4*stride]) >= 2*QP) return false;
-        if (std::abs(v[i+1*stride]-v[i+8*stride]) >= 2*QP) return false;
-        if (std::abs(v[i+2*stride]-v[i+7*stride]) >= 2*QP) return false;
-        if (std::abs(v[i+3*stride]-v[i+6*stride]) >= 2*QP) return false;
+    QP *= 2;
+    for (int i=0; i<8; ++i) {
+        if (std::abs(v[i + 0 * stride] - v[i + 5 * stride]) >= QP) return false;
+        if (std::abs(v[i + 1 * stride] - v[i + 4 * stride]) >= QP) return false;
+        if (std::abs(v[i + 1 * stride] - v[i + 8 * stride]) >= QP) return false;
+        if (std::abs(v[i + 2 * stride] - v[i + 7 * stride]) >= QP) return false;
+        if (std::abs(v[i + 3 * stride] - v[i + 6 * stride]) >= QP) return false;
     }
     return true;
 }
 
-#if 0
-// This older method produces artifacts.
-inline int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
-{
-    uint64_t QP_x_2;
-    uint8_t *ptr1;
-    uint8_t *ptr2;
-    int DC_on;
-
-#ifdef PP_SELF_CHECK
-    int i, DC_on2;
-#endif
-
-    ptr1 = &(v[1*stride]);
-    ptr2 = &(v[8*stride]);
-
-#ifdef PP_SELF_CHECK
-    DC_on2 = 1;
-    for (i=0; i<8; i++)
-    {
-        if (std::abs(v[i+1*stride]-v[i+8*stride]) > 2 *QP) DC_on2 = 0;
-    }
-#endif
-
-    /* load 2*QP into every byte in QP_x_2 */
-    ((uint32_t *)(&QP_x_2))[0] =
-    ((uint32_t *)(&QP_x_2))[1] = 0x02020202 * QP;
-
-    /* MMX assembler to compute DC_on */
-    __asm
-    {
-        push eax
-        push ebx
-
-        mov eax, ptr1
-        mov ebx, ptr2
-
-        movq     mm0, [eax]               /* mm0 = v[l1]                   */
-        movq     mm1, mm0                 /* mm1 = v[l1]                   */
-        movq     mm2, [ebx]               /* mm2 = v[l8]                   */
-        psubusb  mm0, mm2                 /* mm0 -= mm2                    */
-        psubusb  mm2, mm1                 /* mm2 -= mm1                    */
-        por      mm0, mm2                 /* mm0 |= mm2                    */
-        psubusb  mm0, QP_x_2              /* mm0 -= 2 * QP                 */
-        movq     mm1, mm0                 /* mm1 = mm0                     */
-        psrlq    mm0, 32                  /* shift mm0 right 32 bits       */
-        por      mm0, mm1                 /*                               */
-        movd     DC_on, mm0               /* this is actually !DC_on       */
-
-        pop ebx
-        pop eax
-    };
-
-    DC_on = !DC_on; /* the above assembler computes the opposite sense! */
-
-#ifdef PP_SELF_CHECK
-    if (DC_on != DC_on2)
-    {
-        dprintf("ERROR: MMX version of DC_on is incorrect\n");
-    }
-#endif
-
-    return DC_on;
-}
-#endif
 
 /* Vertical deblocking filter for use in non-flat picture regions */
 inline void deblock_vert_default_filter(uint8_t *v, int stride, int QP)
@@ -1189,62 +872,7 @@ inline void deblock_vert_default_filter(uint8_t *v, int stride, int QP)
     uint64_t mm_8_x_QP;
     int i;
 
-#ifdef PP_SELF_CHECK
-    /* define semi-constants to enable us to move up and down the picture easily... */
-    int l1 = 1 * stride;
-    int l2 = 2 * stride;
-    int l3 = 3 * stride;
-    int l4 = 4 * stride;
-    int l5 = 5 * stride;
-    int l6 = 6 * stride;
-    int l7 = 7 * stride;
-    int l8 = 8 * stride;
-    int x, y, a3_0_SC, a3_1_SC, a3_2_SC, d_SC, q_SC;
-    uint8_t selfcheck[8][2];
-#endif
-
-#ifdef PP_SELF_CHECK
-    /* compute selfcheck matrix for later comparison */
-    for (x=0; x<8; x++)
-    {
-        a3_0_SC = 2*v[l3+x] - 5*v[l4+x] + 5*v[l5+x] - 2*v[l6+x];
-        a3_1_SC = 2*v[l1+x] - 5*v[l2+x] + 5*v[l3+x] - 2*v[l4+x];
-        a3_2_SC = 2*v[l5+x] - 5*v[l6+x] + 5*v[l7+x] - 2*v[l8+x];
-        q_SC    = (v[l4+x] - v[l5+x]) / 2;
-
-        if (std::abs(a3_0_SC) < 8*QP)
-        {
-
-            d_SC = std::abs(a3_0_SC) - MIN(std::abs(a3_1_SC), std::abs(a3_2_SC));
-            if (d_SC < 0) d_SC=0;
-
-            d_SC = (5*d_SC + 32) >> 6;
-            d_SC *= SIGN(-a3_0_SC);
-
-            //printf("d_SC[%d] preclip=%d\n", x, d_SC);
-            /* clip d in the range 0 ... q */
-            if (q_SC > 0)
-            {
-                d_SC = d_SC<0    ? 0    : d_SC;
-                d_SC = d_SC>q_SC ? q_SC : d_SC;
-            }
-            else
-            {
-                d_SC = d_SC>0    ? 0    : d_SC;
-                d_SC = d_SC<q_SC ? q_SC : d_SC;
-            }
-        }
-        else
-        {
-            d_SC = 0;
-        }
-        selfcheck[x][0] = v[l4+x] - d_SC;
-        selfcheck[x][1] = v[l5+x] + d_SC;
-    }
-#endif
-
-    ((uint32_t *)&mm_8_x_QP)[0] =
-     ((uint32_t *)&mm_8_x_QP)[1] = 0x00080008 * QP;
+    ((uint32_t *)&mm_8_x_QP)[0] = ((uint32_t *)&mm_8_x_QP)[1] = 0x00080008 * QP;
 
     /* working in 4-pixel wide columns, left to right */
     /*i=0 in left, i=1 in right */
@@ -1455,22 +1083,6 @@ inline void deblock_vert_default_filter(uint8_t *v, int stride, int QP)
         movq      [ecx], mm6
         pop ecx
     };
-
-#ifdef PP_SELF_CHECK
-    /* do selfcheck */
-    for (x=0; x<8; x++)
-    {
-        for (y=0; y<2; y++)
-        {
-            if (selfcheck[x][y] != v[l4+x+y*stride])
-            {
-                dprintf("ERROR: problem with vertical default filter in col %d, row %d\n", x, y);
-                dprintf("%d should be %d\n", v[l4+x+y*stride], selfcheck[x][y]);
-
-            }
-        }
-    }
-#endif
 }
 
 const static uint64_t mm_fours  = 0x0004000400040004;
@@ -1479,50 +1091,6 @@ const static uint64_t mm_fours  = 0x0004000400040004;
 /* Vertical 9-tap low-pass filter for use in "DC" regions of the picture */
 inline void deblock_vert_lpf9(uint64_t *v_local, uint64_t *p1p2, uint8_t *v, int stride)
 {
-#ifdef PP_SELF_CHECK
-    int j, k;
-    uint8_t selfcheck[64], *vv;
-    int p1, p2, psum;
-    /* define semi-constants to enable us to move up and down the picture easily... */
-    int l1 = 1 * stride;
-    int l2 = 2 * stride;
-    int l3 = 3 * stride;
-    int l4 = 4 * stride;
-    int l5 = 5 * stride;
-    int l6 = 6 * stride;
-    int l7 = 7 * stride;
-    int l8 = 8 * stride;
-#endif
-
-
-#ifdef PP_SELF_CHECK
-    /* generate a self-check version of the filter result in selfcheck[64] */
-    /* loop left->right */
-    for (j=0; j<8; j++)
-    {
-        vv = &(v[j]);
-        p1 = ((uint16_t *)(&(p1p2[0+j/4])))[j%4]; /* yuck! */
-        p2 = ((uint16_t *)(&(p1p2[2+j/4])))[j%4]; /* yuck! */
-        /* the above may well be endian-fussy */
-        psum = p1 + p1 + p1 + vv[l1] + vv[l2] + vv[l3] + vv[l4] + 4;
-        selfcheck[j+8*0] = (((psum + vv[l1]) << 1) - (vv[l4] - vv[l5])) >> 4;
-        psum += vv[l5] - p1;
-        selfcheck[j+8*1] = (((psum + vv[l2]) << 1) - (vv[l5] - vv[l6])) >> 4;
-        psum += vv[l6] - p1;
-        selfcheck[j+8*2] = (((psum + vv[l3]) << 1) - (vv[l6] - vv[l7])) >> 4;
-        psum += vv[l7] - p1;
-        selfcheck[j+8*3] = (((psum + vv[l4]) << 1) + p1 - vv[l1] - (vv[l7] - vv[l8])) >> 4;
-        psum += vv[l8] - vv[l1];
-        selfcheck[j+8*4] = (((psum + vv[l5]) << 1) + (vv[l1] - vv[l2]) - vv[l8] + p2) >> 4;
-        psum += p2 - vv[l2];
-        selfcheck[j+8*5] = (((psum + vv[l6]) << 1) + (vv[l2] - vv[l3])) >> 4;
-        psum += p2 - vv[l3];
-        selfcheck[j+8*6] = (((psum + vv[l7]) << 1) + (vv[l3] - vv[l4])) >> 4;
-        psum += p2 - vv[l4];
-        selfcheck[j+8*7] = (((psum + vv[l8]) << 1) + (vv[l4] - vv[l5])) >> 4;
-    }
-#endif
-
     /* vertical DC filter in MMX
         mm2 - p1/2 left
         mm3 - p1/2 right
@@ -1865,23 +1433,6 @@ inline void deblock_vert_lpf9(uint64_t *v_local, uint64_t *p1p2, uint8_t *v, int
         pop ebx
         pop eax
     };
-
-#ifdef PP_SELF_CHECK
-    /* use the self-check version of the filter result in selfcheck[64] to verify the filter output */
-    /* loop top->bottom */
-    for (k=0; k<8; k++)
-    {   /* loop left->right */
-        for (j=0; j<8; j++)
-        {
-            vv = &(v[(k+1)*stride + j]);
-            if (*vv != selfcheck[j+8*k])
-            {
-                dprintf("ERROR: problem with vertical LPF9 filter in row %d\n", k+1);
-            }
-        }
-    }
-#endif
-
 }
 
 /* decide DC mode or default mode in assembler */
@@ -1891,22 +1442,6 @@ inline  int deblock_vert_useDC(uint8_t *v, int stride, int moderate_v)
     uint32_t mm_data1;
     uint64_t *pmm1;
     int eq_cnt, useDC;
-#ifdef PP_SELF_CHECK
-    int useDC2, i, j;
-#endif
-
-#ifdef PP_SELF_CHECK
-    /* C-code version for testing */
-    eq_cnt = 0;
-    for (j=1; j<8; j++)
-    {
-        for (i=0; i<8; i++)
-        {
-            if (ABS(v[j*stride+i] - v[(j+1)*stride+i]) <= 1) eq_cnt++;
-        }
-    }
-    useDC2 = (eq_cnt > moderate_v);
-#endif
 
     /* starting pointer is at v[stride] == v1 in mpeg4 notation */
     pmm1 = (uint64_t *)(&(v[stride]));
@@ -2698,755 +2233,3 @@ void dering( uint8_t *image, int width, int height, int stride, QP_STORE_T *QP_s
     }
 }
 
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-// this is the OLD deringing filter
-
-// This is dead code left in temporarily for doc and maybe so someday some MMX users may
-// try to (slowly) run it
-#if 0
-
-void dering_OLD( uint8_t *image, int width, int height, int stride, QP_STORE_T *QP_store, int QP_stride, int chroma)
-{
-    int x, y, h, v, i, j;
-    uint8_t *b8x8, *b10x10;
-    uint8_t b8x8filtered[64];
-    int QP, max_diff;
-    uint8_t min, max, thr, range;
-    uint8_t max_diffq[8];   // a qword value of max_diff
-    uint16_t indicesP[10];  /* bitwise array of binary indices above threshold */
-    uint16_t indicesN[10];  /* bitwise array of binary indices below threshold */
-    uint16_t indices3x3[8]; /* bitwise array of pixels where we should filter */
-    uint16_t sr;
-
-//  uint8_t tmp;
-    int tmp2;
-
-    /* loop over all the 8x8 blocks in the image... */
-    /* don't process outer row of blocks for the time being. */
-    for (y=8; y<height-8; y+=8)
-    {
-        for (x=8; x< width-8; x+=8)
-        {
-            /* QP for this block.. */
-            QP = chroma == 1 ? QP_store[(y>>3)*QP_stride+(x>>3)] // Nick: QP_store[y/8*QP_stride+x/8]
-                        : chroma == 0 ? QP_store[(y>>4)*QP_stride+(x>>4)] //Nick: QP_store[y/16*QP_stride+x/16];
-                        : QP_store[(y>>4)*QP_stride+(x>>3)];
-
-            /* pointer to the top left pixel in 8x8   block */
-            b8x8   = &(image[stride*y + x]);
-
-            /* pointer to the top left pixel in 10x10 block */
-            b10x10 = &(image[stride*(y-1) + (x-1)]);
-
-            /* Threshold determination - find min and max grey levels in the block */
-
-/* replaced with SSEMMX code
-            min = 255; max = 0;
-            for (v=0; v<8; v++)
-            {
-                tmp2 = stride*v;
-                for (h=0; h<8; h++)
-                {
-                    tmp = b8x8[tmp2 + h];
-                    min = tmp < min ? tmp : min;
-                    max = tmp > max ? tmp : max;
-                }
-            }
-
-*/
-            // Threshold determination - find min and max grey levels in the block
-            // but remove loop thru 64 bytes.  trbarry 03/13/2002
-
-            __asm
-            {
-                mov     esi, b8x8       // the block addr
-                mov     eax, stride     // offset to next qword in block
-
-                movq    mm0, qword ptr[esi] // row 0, 1st qword is our min
-                movq    mm1, mm0            // .. and our max
-
-                pminub  mm0, qword ptr[esi+eax]     // row 1
-                pmaxub  mm1, qword ptr[esi+eax]
-
-                lea     esi, [esi+2*eax]            // bump for next 2
-                pminub  mm0, qword ptr[esi]         // row 2
-                pmaxub  mm1, qword ptr[esi]
-
-                pminub  mm0, qword ptr[esi+eax]     // row 3
-                pmaxub  mm1, qword ptr[esi+eax]
-
-                lea     esi, [esi+2*eax]            // bump for next 2
-                pminub  mm0, qword ptr[esi]         // row 4
-                pmaxub  mm1, qword ptr[esi]
-
-                pminub  mm0, qword ptr[esi+eax]     // row 5
-                pmaxub  mm1, qword ptr[esi+eax]
-
-                lea     esi, [esi+2*eax]            // bump for next 2
-                pminub  mm0, qword ptr[esi]         // row 6
-                pmaxub  mm1, qword ptr[esi]
-
-                pminub  mm0, qword ptr[esi+eax]     // row 7
-                pmaxub  mm1, qword ptr[esi+eax]
-
-                // get min of 8 bytes in mm0
-                pshufw  mm2, mm0, (3 << 2) + 2          // words 3,2 into low words of mm2
-                pminub  mm0, mm2                        // now 4 min bytes in low half of mm0
-                pshufw  mm2, mm0, 1                     // get word 1 of mm0 in low word of mm2
-                pminub  mm0, mm2                        // got it down to 2 bytes
-                movq    mm2, mm0
-                psrlq   mm2, 8                          // byte 1 to low byte
-                pminub  mm0, mm2                        // our answer in low order byte
-                movd    eax, mm0
-                mov     min, al                         // save answer
-
-                // get max of 8 bytes in mm1
-                pshufw  mm2, mm1, (3 << 2) + 2          // words 3,2 into low words of mm2
-                pmaxub  mm1, mm2                        // now 4 max bytes in low half of mm1
-                pshufw  mm2, mm1, 1                     // get word 1 of mm1 in low word of mm2
-                pmaxub  mm1, mm2                        // got it down to 2 bytes
-                movq    mm2, mm1
-                psrlq   mm2, 8                          // byte 1 to low byte
-                pmaxub  mm1, mm2                        // our answer in low order byte
-                movd    eax, mm1
-                mov     max, al                         // save answer
-
-                emms;
-            }
-
-            /* Threshold detirmination - compute threshold and dynamic range */
-            thr = (max + min + 1) >> 1; // Nick / 2 changed to >> 1
-            range = max - min;
-
-            /* Threshold rearrangement not implemented yet */
-
-            /* Index aquisition */
-            for (j=0; j<10; j++)
-            {
-                indicesP[j] = 0;
-                tmp2 = j*stride;
-                for (i=0; i<10; i++)
-                {
-                    if (b10x10[tmp2+i] >= thr) indicesP[j] |= (2 << i);
-                }
-                indicesN[j] = ~indicesP[j];
-            }
-
-            /* Adaptive filtering */
-            /* need to identify 3x3 blocks of '1's in indicesP and indicesN */
-            for (j=0; j<10; j++)
-            {
-                indicesP[j] = (indicesP[j]<<1) & indicesP[j] & (indicesP[j]>>1);
-                indicesN[j] = (indicesN[j]<<1) & indicesN[j] & (indicesN[j]>>1);
-            }
-
-            for (j=1; j<9; j++)
-            {
-                indices3x3[j-1]  = indicesP[j-1] & indicesP[j] & indicesP[j+1];
-                indices3x3[j-1] |= indicesN[j-1] & indicesN[j] & indicesN[j+1];
-            }
-
-            max_diff = QP>>1;
-            max_diffq[0] = max_diffq[1] = max_diffq[2] = max_diffq[3]
-                = max_diffq[4] = max_diffq[5] = max_diffq[6] = max_diffq[7]
-                = max_diff;
-
-            /* To opimize in MMX it's better to always fill in the b8x8filtered[] array
-
-            b8x8filtered[8*v + h] = ( 8
-                + 1 * b10x10[stride*(v+0) + (h+0)] + 2 * b10x10[stride*(v+0) + (h+1)]
-                                                        + 1 * b10x10[stride*(v+0) + (h+2)]
-                + 2 * b10x10[stride*(v+1) + (h+0)] + 4 * b10x10[stride*(v+1) + (h+1)]
-                                                        + 2 * b10x10[stride*(v+1) + (h+2)]
-                + 1 * b10x10[stride*(v+2) + (h+0)] + 2 * b10x10[stride*(v+2) + (h+1)]
-                                                        + 1 * b10x10[stride*(v+2) + (h+2)]
-                     >> 4;  // Nick / 16 changed to >> 4
-
-            Note - As near as I can see, (a + 2*b + c)/4 = avg( avg(a,c), b) and likewise vertical. So since
-            there is a nice pavgb MMX instruction that gives a rounded vector average we may as well use it.
-            */
-            // Fill in b10x10 array completely with  2 dim center weighted average
-            // This section now also includes the clipping step.
-            // trbarry 03/14/2002
-
-            _asm
-            {
-                mov     esi, b10x10                 // ptr to 10x10 source array
-                lea     edi, b8x8filtered           // ptr to 8x8 output array
-                mov     eax, stride                 // amt to bump source ptr for next row
-
-                movq    mm7, qword ptr[esi]         // this is really line -1
-                pavgb   mm7, qword ptr[esi+2]       // avg( b[v,h], b[v,h+2] }
-                pavgb   mm7, qword ptr[esi+1]       // center weighted avg of 3 pixels  w=1,2,1
-
-                lea     esi, [esi+eax]              // bump src ptr to point at line 0
-                movq    mm0, qword ptr[esi]         // really line 0
-                pavgb   mm0, qword ptr[esi+2]
-                movq    mm2, qword ptr[esi+1]       // save orig line 0 vals for later clip
-                pavgb   mm0, mm2
-
-                movq    mm1, qword ptr[esi+eax]     // get line 1
-                pavgb   mm1, qword ptr[esi+eax+2]
-                movq    mm3, qword ptr[esi+eax+1]   // save orig line 1 vals for later clip
-                pavgb   mm1, mm3
-
-                // 0
-                pavgb   mm7, mm1                    // avg lines surrounding line 0
-                pavgb   mm7, mm0                    // center weighted avg of lines -1,0,1
-
-                movq    mm4, mm2                    // value for clip min
-                psubusb mm4, max_diffq              // min
-                pmaxub  mm7, mm4                    // must be at least min
-                paddusb mm2, max_diffq              // max
-                pminub  mm7, mm2                    // but no greater than max
-
-                movq    qword ptr[edi], mm7
-
-                lea     esi, [esi+2*eax]            // bump source ptr 2 lines
-                movq    mm2, qword ptr[esi]         // get line 2
-                pavgb   mm2, qword ptr[esi+2]
-                movq    mm4, qword ptr[esi+1]       // save orig line 2 vals for later clip
-                pavgb   mm2, mm4
-
-                // 1
-                pavgb   mm0, mm2                    // avg lines surrounding line 1
-                pavgb   mm0, mm1                    // center weighted avg of lines 0,1,2
-
-                movq    mm5, mm3                    // value for clip min
-                psubusb mm5, max_diffq              // min
-                pmaxub  mm0, mm5                    // must be at least min
-                paddusb mm3, max_diffq              // max
-                pminub  mm0, mm3                    // but no greater than max
-
-                movq    qword ptr[edi+8], mm0
-
-                movq    mm3, qword ptr[esi+eax]     // get line 3
-                pavgb   mm3, qword ptr[esi+eax+2]
-                movq    mm5, qword ptr[esi+eax+1]   // save orig line 3 vals for later clip
-                pavgb   mm3, mm5
-
-                // 2
-                pavgb   mm1, mm3                    // avg lines surrounding line 2
-                pavgb   mm1, mm2                    // center weighted avg of lines 1,2,3
-
-                movq    mm6, mm4                    // value for clip min
-                psubusb mm6, max_diffq              // min
-                pmaxub  mm1, mm6                    // must be at least min
-                paddusb mm4, max_diffq              // max
-                pminub  mm1, mm4                    // but no greater than max
-
-                movq    qword ptr[edi+16], mm1
-
-                lea     esi, [esi+2*eax]            // bump source ptr 2 lines
-                movq    mm4, qword ptr[esi]         // get line 4
-                pavgb   mm4, qword ptr[esi+2]
-                movq    mm6, qword ptr[esi+1]       // save orig line 4 vals for later clip
-                pavgb   mm4, mm6
-
-                // 3
-                pavgb   mm2, mm4                    // avg lines surrounding line 3
-                pavgb   mm2, mm3                    // center weighted avg of lines 2,3,4
-
-                movq    mm7, mm5                    // save value for clip min
-                psubusb mm7, max_diffq              // min
-                pmaxub  mm2, mm7                    // must be at least min
-                paddusb mm5, max_diffq              // max
-                pminub  mm2, mm5                    // but no greater than max
-
-                movq    qword ptr[edi+24], mm2
-
-                movq    mm5, qword ptr[esi+eax]     // get line 5
-                pavgb   mm5, qword ptr[esi+eax+2]
-                movq    mm7, qword ptr[esi+eax+1]   // save orig line 5 vals for later clip
-                pavgb   mm5, mm7
-
-                // 4
-                pavgb   mm3, mm5                    // avg lines surrounding line 4
-                pavgb   mm3, mm4                    // center weighted avg of lines 3,4,5
-
-                movq    mm0, mm6                    // save value for clip min
-                psubusb mm0, max_diffq              // min
-                pmaxub  mm3, mm0                    // must be at least min
-                paddusb mm6, max_diffq              // max
-                pminub  mm3, mm6                    // but no greater than max
-
-                movq    qword ptr[edi+32], mm3
-
-                lea     esi, [esi+2*eax]            // bump source ptr 2 lines
-                movq    mm6, qword ptr[esi]         // get line 6
-                pavgb   mm6, qword ptr[esi+2]
-                movq    mm0, qword ptr[esi+1]       // save orig line 6 vals for later clip
-                pavgb   mm6, mm0
-
-                // 5
-                pavgb   mm4, mm6                    // avg lines surrounding line 5
-                pavgb   mm4, mm5                    // center weighted avg of lines 4,5,6
-
-                movq    mm1, mm7                    // save value for clip min
-                psubusb mm1, max_diffq              // min
-                pmaxub  mm4, mm1                    // must be at least min
-                paddusb mm7, max_diffq              // max
-                pminub  mm4, mm7                    // but no greater than max
-
-                movq    qword ptr[edi+40], mm4
-
-                movq    mm7, qword ptr[esi+eax]     // get line 7
-                pavgb   mm7, qword ptr[esi+eax+2]
-                movq    mm1, qword ptr[esi+eax+1]   // save orig line 7 vals for later clip
-                pavgb   mm7, mm1
-
-                // 6
-                pavgb   mm5, mm7                    // avg lines surrounding line 6
-                pavgb   mm5, mm6                    // center weighted avg of lines 5,6,7
-
-                movq    mm2, mm0                    // save value for clip min
-                psubusb mm2, max_diffq              // min
-                pmaxub  mm5, mm2                    // must be at least min
-                paddusb mm0, max_diffq              // max
-                pminub  mm5, mm0                    // but no greater than max
-
-                movq    qword ptr[edi+48], mm5
-
-                movq    mm0, qword ptr[esi+2*eax]   // get line 8
-                pavgb   mm0, qword ptr[esi+2*eax+2]
-                pavgb   mm0, qword ptr[esi+2*eax+1]
-
-                // 7
-                pavgb   mm6, mm0                    // avg lines surrounding line 7
-                pavgb   mm6, mm7                    // center weighted avg of lines 6,7,8
-
-                movq    mm3, mm1                    // save value for clip min
-                psubusb mm3, max_diffq              // min
-                pmaxub  mm6, mm3                    // must be at least min
-                paddusb mm1, max_diffq              // max
-                pminub  mm6, mm1                    // but no greater than max
-
-                movq    qword ptr[edi+56], mm6
-
-                emms
-            }
-
-            // trbarry 03-15-2002
-            // If I (hopefully) understand all this correctly then we are supposed to only use the filtered
-            // pixels created above in the case where the orig pixel and all its 8 surrounding neighbors
-            // are either all above or all below the threashold.  Since a mmx compare sets the mmx reg
-            // bytes to either 00 or ff we will just check a lopside average of all 9 of these to see
-            // if it is still 00 or ff.
-            // register notes:
-            // esi  b10x10
-            // edi  b8x8filtered
-            // eax  stride
-            // mm0  line 0, 3, or 6   compare average
-            // mm1  line 1, 4, or 7         "
-            // mm2  line 2, 5, 8, or -1     "
-            // mm3  odd line original pixel value
-            // mm4  even line original pixel value
-            // mm5
-            // mm6  8 00's
-            // mm7  8 copies of threshold
-
-            _asm
-            {
-                mov     esi, b10x10                 // ptr to 10x10 source array
-                lea     edi, b8x8filtered           // ptr to 8x8 output array
-                mov     eax, stride                 // amt to bump source ptr for next row
-                mov     bh, thr
-                mov     bl, thr
-                psubusb mm6, mm6                    // all 00
-                movd    mm7, ebx
-                pshufw  mm7, mm7, 0                 // low word to all words
-
-                // get compare avg of row -1
-                movq    mm3, qword ptr[esi+1]       // save center pixels of line -1
-
-                movq    mm2, mm7
-                psubusb mm2, qword ptr[esi]         // left pixels >= threshold?
-                pcmpeqb mm2, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm3                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm2, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+2]       // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm2, mm5                    // combine answers
-
-                lea     esi, [esi+eax]              // &row 0
-
-                // get compare avg of row 0
-                movq    mm4, qword ptr[esi+1]       // save center pixels
-
-                movq    mm0, mm7
-                psubusb mm0, qword ptr[esi]         // left pixels >= threshold?
-                pcmpeqb mm0, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm4                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm0, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+2]       // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm0, mm5                    // combine answers
-
-                // get compare avg of row 1
-
-                movq    mm3, qword ptr[esi+eax+1]   // save center pixels
-
-                movq    mm1, mm7
-                psubusb mm1, qword ptr[esi+eax]     // left pixels >= threshold?
-                pcmpeqb mm1, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm3                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm1, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+eax+2]   // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm1, mm5                    // combine answers
-
-                // decide whether to move filtered or orig pixels to row 0, move them
-
-                pavgb   mm2, mm0
-                pavgb   mm2, mm1
-                pcmpeqb mm5, mm5                    // all ff
-                pcmpeqb mm5, mm2                    // 00 or ff
-                pcmpeqb mm5, mm2                    // mm2 = ff or 00 ? ff : 00
-                psubusb mm2, mm2                    // 00
-                pcmpeqb mm2, mm5                    // opposite of mm5
-                pand    mm2, mm4                    // use orig vales if thresh's diff, else 00
-                pand    mm5, qword ptr[edi]         // use filterd vales if thresh's same, else 00
-                por     mm5, mm2                    // one of them hsa a value
-                movq    qword ptr[esi+1], mm5       // and store 8 pixels
-
-                lea     esi, [esi+eax]              // &row 1
-
-                // get compare avg of row 2
-
-                movq    mm4, qword ptr[esi+eax+1]   // save center pixels
-
-                movq    mm2, mm7
-                psubusb mm2, qword ptr[esi+eax]     // left pixels >= threshold?
-                pcmpeqb mm2, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm4                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm2, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+eax+2]   // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm2, mm5                    // combine answers
-
-                // decide whether to move filtered or orig pixels to row 1, move them
-
-                pavgb   mm0, mm1
-                pavgb   mm0, mm2
-                pcmpeqb mm5, mm5                    // all ff
-                pcmpeqb mm5, mm0                    // 00 or ff
-                pcmpeqb mm5, mm0                    // mm2 = ff or 00 ? ff : 00
-                psubusb mm0, mm0                    // 00
-                pcmpeqb mm0, mm5                    // opposite of mm5
-                pand    mm0, mm3                    // use orig vales if thresh's diff, else 00
-                pand    mm5, qword ptr[edi+1*8]     // use filterd vales if thresh's same, else 00
-                por     mm5, mm0                    // one of them hsa a value
-                movq    qword ptr[esi+1], mm5       // and store 8 pixels
-
-                lea     esi, [esi+eax]              // &row 2
-
-                // get compare avg of row 3
-
-                movq    mm3, qword ptr[esi+eax+1]   // save center pixels
-
-                movq    mm0, mm7
-                psubusb mm0, qword ptr[esi+eax]     // left pixels >= threshold?
-                pcmpeqb mm0, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm3                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm0, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+eax+2]   // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm0, mm5                    // combine answers
-
-                // decide whether to move filtered or orig pixels to row 2, move them
-
-                pavgb   mm1, mm0
-                pavgb   mm1, mm2
-                pcmpeqb mm5, mm5                    // all ff
-                pcmpeqb mm5, mm1                    // 00 or ff
-                pcmpeqb mm5, mm1                    // mm2 = ff or 00 ? ff : 00
-                psubusb mm1, mm1                    // 00
-                pcmpeqb mm1, mm5                    // opposite of mm5
-                pand    mm1, mm4                    // use orig vales if thresh's diff, else 00
-                pand    mm5, qword ptr[edi+2*8]     // use filterd vales if thresh's same, else 00
-                por     mm5, mm1                    // one of them hsa a value
-                movq    qword ptr[esi+1], mm5       // and store 8 pixels
-
-                lea     esi, [esi+eax]              // &row 3
-
-                // get compare avg of row 4
-
-                movq    mm4, qword ptr[esi+eax+1]   // save center pixels
-
-                movq    mm1, mm7
-                psubusb mm1, qword ptr[esi+eax]     // left pixels >= threshold?
-                pcmpeqb mm1, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm4                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm1, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+eax+2]   // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm1, mm5                    // combine answers
-
-                // decide whether to move filtered or orig pixels to row 3, move them
-
-                pavgb   mm2, mm0
-                pavgb   mm2, mm1
-                pcmpeqb mm5, mm5                    // all ff
-                pcmpeqb mm5, mm2                    // 00 or ff
-                pcmpeqb mm5, mm2                    // mm2 = ff or 00 ? ff : 00
-                psubusb mm2, mm2                    // 00
-                pcmpeqb mm2, mm5                    // opposite of mm5
-                pand    mm2, mm3                    // use orig vales if thresh's diff, else 00
-                pand    mm5, qword ptr[edi+3*8]     // use filterd vales if thresh's same, else 00
-                por     mm5, mm2                    // one of them hsa a value
-                movq    qword ptr[esi+1], mm5       // and store 8 pixels
-
-                lea     esi, [esi+eax]              // &row 4
-
-                // get compare avg of row 5
-
-                movq    mm3, qword ptr[esi+eax+1]   // save center pixels
-
-                movq    mm2, mm7
-                psubusb mm2, qword ptr[esi+eax]     // left pixels >= threshold?
-                pcmpeqb mm2, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm3                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm2, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+eax+2]   // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm2, mm5                    // combine answers
-
-                // decide whether to move filtered or orig pixels to row 4, move them
-
-                pavgb   mm0, mm2
-                pavgb   mm0, mm1
-                pcmpeqb mm5, mm5                    // all ff
-                pcmpeqb mm5, mm0                    // 00 or ff
-                pcmpeqb mm5, mm0                    // mm2 = ff or 00 ? ff : 00
-                psubusb mm0, mm0                    // 00
-                pcmpeqb mm0, mm5                    // opposite of mm5
-                pand    mm0, mm4                    // use orig vales if thresh's diff, else 00
-                pand    mm5, qword ptr[edi+4*8]     // use filterd vales if thresh's same, else 00
-                por     mm5, mm0                    // one of them hsa a value
-                movq    qword ptr[esi+1], mm5       // and store 8 pixels
-
-                lea     esi, [esi+eax]              // &row 5
-
-                // get compare avg of row 6
-
-                movq    mm4, qword ptr[esi+eax+1]   // save center pixels
-
-                movq    mm0, mm7
-                psubusb mm0, qword ptr[esi+eax]     // left pixels >= threshold?
-                pcmpeqb mm0, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm4                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm0, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+eax+2]   // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm0, mm5                    // combine answers
-
-                // decide whether to move filtered or orig pixels to row 5, move them
-
-                pavgb   mm1, mm0
-                pavgb   mm1, mm2
-                pcmpeqb mm5, mm5                    // all ff
-                pcmpeqb mm5, mm1                    // 00 or ff
-                pcmpeqb mm5, mm1                    // mm2 = ff or 00 ? ff : 00
-                psubusb mm1, mm1                    // 00
-                pcmpeqb mm1, mm5                    // opposite of mm5
-                pand    mm1, mm3                    // use orig vales if thresh's diff, else 00
-                pand    mm5, qword ptr[edi+5*8]     // use filterd vales if thresh's same, else 00
-                por     mm5, mm1                    // one of them hsa a value
-                movq    qword ptr[esi+1], mm5       // and store 8 pixels
-
-                lea     esi, [esi+eax]              // &row 6
-
-                // get compare avg of row 7
-
-                movq    mm3, qword ptr[esi+eax+1]   // save center pixels
-
-                movq    mm1, mm7
-                psubusb mm1, qword ptr[esi+eax]     // left pixels >= threshold?
-                pcmpeqb mm1, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm3                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm1, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+eax+2]   // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm1, mm5                    // combine answers
-
-                // decide whether to move filtered or orig pixels to row 6, move them
-
-                pavgb   mm2, mm0
-                pavgb   mm2, mm1
-                pcmpeqb mm5, mm5                    // all ff
-                pcmpeqb mm5, mm2                    // 00 or ff
-                pcmpeqb mm5, mm2                    // mm2 = ff or 00 ? ff : 00
-                psubusb mm2, mm2                    // 00
-                pcmpeqb mm2, mm5                    // opposite of mm5
-                pand    mm2, mm4                    // use orig vales if thresh's diff, else 00
-                pand    mm5, qword ptr[edi+6*8]     // use filterd vales if thresh's same, else 00
-                por     mm5, mm2                    // one of them hsa a value
-                movq    qword ptr[esi+1], mm5       // and store 8 pixels
-
-                lea     esi, [esi+eax]              // &row 7
-
-                // get compare avg of row 8
-
-                movq    mm4, qword ptr[esi+eax+1]   // save center pixels
-
-                movq    mm2, mm7
-                psubusb mm2, qword ptr[esi+eax]     // left pixels >= threshold?
-                pcmpeqb mm2, mm6                    // ff if >= else 00
-
-                movq    mm5, mm7
-                psubusb mm5, mm4                    // center pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm2, mm5                    // combine answers
-
-                movq    mm5, mm7
-                psubusb mm5, qword ptr[esi+eax+2]   // right pixels >= threshold?
-                pcmpeqb mm5, mm6
-                pavgb   mm2, mm5                    // combine answers
-
-                // decide whether to move filtered or orig pixels to row 7, move them
-
-                pavgb   mm0, mm1
-                pavgb   mm0, mm2
-                pcmpeqb mm5, mm5                    // all ff
-                pcmpeqb mm5, mm0                    // 00 or ff
-                pcmpeqb mm5, mm0                    // mm2 = ff or 00 ? ff : 00
-                psubusb mm0, mm0                    // 00
-                pcmpeqb mm0, mm5                    // opposite of mm5
-                pand    mm0, mm3                    // use orig vales if thresh's diff, else 00
-                pand    mm5, qword ptr[edi+7*8]     // use filterd vales if thresh's same, else 00
-                por     mm5, mm0                    // one of them hsa a value
-                movq    qword ptr[esi+1], mm5       // and store 8 pixels
-
-                emms
-            }
-
-            // Replaced by MMX - trbarry 3/15/2002
-            for (v=0; v<8; v++)
-            {
-                sr = 4;
-                for (h=0; h<8; h++)
-                {
-                    if (indices3x3[v] & sr)
-                    {
-                        /* replaced with MMX above - trbarry 03/13/2002
-                        b8x8filtered[8*v + h] = ( 8
-                         + 1 * b10x10[stride*(v+0) + (h+0)] + 2 * b10x10[stride*(v+0) + (h+1)] + 1 * b10x10[stride*(v+0) + (h+2)]
-                         + 2 * b10x10[stride*(v+1) + (h+0)] + 4 * b10x10[stride*(v+1) + (h+1)] + 2 * b10x10[stride*(v+1) + (h+2)]
-                         + 1 * b10x10[stride*(v+2) + (h+0)] + 2 * b10x10[stride*(v+2) + (h+1)] + 1 * b10x10[stride*(v+2) + (h+2)]
-                        ) >> 4; // Nick / 16 changed to >> 4
-                        */
-
-                        // Do clipping
-
-                        tmp2 = stride * v + h;
-
-                        /*  now also in MMX above - trbarry 03/14/2002
-
-                        // Nick: Changed all 8*v's to << 3
-                        if (b8x8filtered[(v<<3) + h] - b8x8[tmp2] >  max_diff)
-                        {
-                            b8x8[tmp2] = b8x8[tmp2] + max_diff;
-                        }
-                        else
-                        if (b8x8filtered[(v<<3) + h] - b8x8[tmp2] < -max_diff)
-                        {
-                            b8x8[tmp2] = b8x8[tmp2] - max_diff;
-                        }
-                        else
-                        {
-                            b8x8[tmp2] = b8x8filtered[(v<<3) + h];
-                        }
-                        */
-                        b8x8[tmp2] = b8x8filtered[(v<<3) + h]; // just move in val
-
-                    }
-                    sr <<= 1;
-                }
-            }
-
-            /* Clipping */
-            /*
-            max_diff = QP>>1; // Nick /2 changed to >> 1
-            for (v=0; v<8; v++)
-            {
-                sr = 4;
-                for (h=0; h<8; h++)
-                {
-                    if (indices3x3[v] & sr)
-                    {
-                        tmp2 = stride * v + h;
-                        // Nick: Changed all 8*v's to << 3
-                        if (b8x8filtered[(v<<3) + h] - b8x8[tmp2] >  max_diff)
-                        {
-                            b8x8[tmp2] = b8x8[tmp2] + max_diff;
-                        }
-                        else
-                        if (b8x8filtered[(v<<3) + h] - b8x8[tmp2] < -max_diff)
-                        {
-                            b8x8[tmp2] = b8x8[tmp2] - max_diff;
-                        }
-                        else
-                        {
-                            b8x8[tmp2] = b8x8filtered[(v<<3) + h];
-                        }
-                    }
-                    sr <<= 1;
-                }
-            }
-            */
-
-        }
-    }
-}
-#endif
-
-// Grabbed from AviH's source
-// usage is same as printf. output using OutputDebugString.
