@@ -285,9 +285,9 @@ void conv422to444(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitch
 }
 
 
+#if 0
 const int64_t mmmask_0001 = 0x0001000100010001;
 const int64_t mmmask_0128 = 0x0080008000800080;
-
 
 void conv444toRGB24(const uint8_t *py, const uint8_t *pu, const uint8_t *pv,
     uint8_t *dst, int src_pitchY, int src_pitchUV, int dst_pitch, int width,
@@ -539,5 +539,5 @@ void convYUY2to422P(const uint8_t *src, uint8_t *py, uint8_t *pu, uint8_t *pv,
         pv += pitch2uv;
     }
 }
-
+#endif
 

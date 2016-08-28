@@ -118,10 +118,10 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
         else
             vi.pixel_type = VideoInfo::CS_YV12;
     }
-    else if (m_decoder.chroma_format == 1 && _upConv == 1) vi.pixel_type = VideoInfo::CS_YUY2;
-    else if (m_decoder.chroma_format == 1 && _upConv == 2) vi.pixel_type = VideoInfo::CS_BGR24;
-    else if (m_decoder.chroma_format == 2 && _upConv != 2) vi.pixel_type = VideoInfo::CS_YUY2;
-    else if (m_decoder.chroma_format == 2 && _upConv == 2) vi.pixel_type = VideoInfo::CS_BGR24;
+    else if (m_decoder.chroma_format == 1 && _upConv == 1) vi.pixel_type = VideoInfo::CS_YV16;
+    else if (m_decoder.chroma_format == 1 && _upConv == 2) vi.pixel_type = VideoInfo::CS_YV24;
+    else if (m_decoder.chroma_format == 2 && _upConv != 2) vi.pixel_type = VideoInfo::CS_YV16;
+    else if (m_decoder.chroma_format == 2 && _upConv == 2) vi.pixel_type = VideoInfo::CS_YV24;
     else env->ThrowError("MPEG2Source:  currently unsupported input color format (4:4:4)");
     vi.fps_numerator = m_decoder.VF_FrameRate_Num;
     vi.fps_denominator = m_decoder.VF_FrameRate_Den;
@@ -312,25 +312,25 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
     if ( m_decoder.Luminance_Flag )
         m_decoder.LuminanceFilter(out->y, out->ywidth, out->yheight, out->ypitch);
 
-    __asm emms;
-
     if ((m_decoder.chroma_format == 2 && m_decoder.upConv != 2) ||
         (m_decoder.chroma_format == 1 && m_decoder.upConv == 1)) // convert 4:2:2 (planar) to YUY2 (packed)
     {
-        conv422PtoYUY2(out->y,out->u,out->v,frame->GetWritePtr(),out->ypitch,out->uvpitch,
-            frame->GetPitch(),vi.width,vi.height);
+        env->BitBlt(frame->GetWritePtr(PLANAR_Y), frame->GetPitch(PLANAR_Y),
+                    bufY, vi.width, vi.width, vi.height);
+        env->BitBlt(frame->GetWritePtr(PLANAR_U), frame->GetPitch(PLANAR_U),
+                    bufU, m_decoder.Chroma_Width, m_decoder.Chroma_Width, vi.height);
+        env->BitBlt(frame->GetWritePtr(PLANAR_V), frame->GetPitch(PLANAR_V),
+                    bufV, m_decoder.Chroma_Width, m_decoder.Chroma_Width, vi.height);
     }
 
     if (m_decoder.upConv == 2) // convert 4:2:2 (planar) to 4:4:4 (planar) and then to RGB24
     {
-        conv422to444(out->u,u444,out->uvpitch,vi.width,vi.width,vi.height);
-        conv422to444(out->v,v444,out->uvpitch,vi.width,vi.width,vi.height);
-        PVideoFrame frame2 = env->NewVideoFrame(vi);
-        conv444toRGB24(out->y,u444,v444,frame2->GetWritePtr(),out->ypitch,vi.width,
-            frame2->GetPitch(),vi.width,vi.height,m_decoder.GOPList[gop]->matrix,m_decoder.pc_scale);
-        env->BitBlt(frame->GetWritePtr(), frame->GetPitch(),
-            frame2->GetReadPtr() + (vi.height-1) * frame2->GetPitch(), -frame2->GetPitch(),
-            frame->GetRowSize(), frame->GetHeight());
+        env->BitBlt(frame->GetWritePtr(PLANAR_Y), frame->GetPitch(PLANAR_Y),
+                    bufY, vi.width, vi.width, vi.height);
+        conv422to444(out->u, frame->GetWritePtr(PLANAR_U), out->uvpitch,
+                     frame->GetPitch(PLANAR_U), vi.width, vi.height);
+        conv422to444(out->v, frame->GetWritePtr(PLANAR_V), out->uvpitch,
+                     frame->GetPitch(PLANAR_V), vi.width, vi.height);
     }
 
     if (m_decoder.info != 0)
