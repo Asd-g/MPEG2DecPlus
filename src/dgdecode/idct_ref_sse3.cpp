@@ -16,32 +16,59 @@ OKA Motofumi - August 21, 2016
 
 
 /* cosine transform matrix for 8x1 IDCT */
-alignas(64) static const float ref_dct_matrix_t[] = {
-     0.353553f,  0.490393f,  0.461940f,  0.415735f,
-     0.353553f,  0.277785f,  0.191342f,  0.097545f,
-     0.353553f,  0.415735f,  0.191342f, -0.097545f,
-    -0.353553f, -0.490393f, -0.461940f, -0.277785f,
-     0.353553f,  0.277785f, -0.191342f, -0.490393f,
-    -0.353553f,  0.097545f,  0.461940f,  0.415735f,
-     0.353553f,  0.097545f, -0.461940f, -0.277785f,
-     0.353553f,  0.415735f, -0.191342f, -0.490393f,
-     0.353553f, -0.097545f, -0.461940f,  0.277785f,
-     0.353553f, -0.415735f, -0.191342f,  0.490393f,
-     0.353553f, -0.277785f, -0.191342f,  0.490393f,
-    -0.353553f, -0.097545f,  0.461940f, -0.415735f,
-     0.353553f, -0.415735f,  0.191342f,  0.097545f,
-    -0.353553f,  0.490393f, -0.461940f,  0.277785f,
-     0.353553f, -0.490393f,  0.461940f, -0.415735f,
-     0.353553f, -0.277785f,  0.191342f, -0.097545f,
+alignas(64) static const double ref_dct_matrix_t[] = {
+     3.5355339059327379e-001,  4.9039264020161522e-001,
+     4.6193976625564337e-001,  4.1573480615127262e-001,
+     3.5355339059327379e-001,  2.7778511650980114e-001,
+     1.9134171618254492e-001,  9.7545161008064166e-002,
+     3.5355339059327379e-001,  4.1573480615127262e-001,
+     1.9134171618254492e-001, -9.7545161008064096e-002,
+    -3.5355339059327373e-001, -4.9039264020161522e-001,
+    -4.6193976625564342e-001, -2.7778511650980109e-001,
+     3.5355339059327379e-001,  2.7778511650980114e-001,
+    -1.9134171618254486e-001, -4.9039264020161522e-001,
+    -3.5355339059327384e-001,  9.7545161008064152e-002,
+     4.6193976625564326e-001,  4.1573480615127273e-001,
+     3.5355339059327379e-001,  9.7545161008064166e-002,
+    -4.6193976625564337e-001, -2.7778511650980109e-001,
+     3.5355339059327368e-001,  4.1573480615127273e-001,
+    -1.9134171618254495e-001, -4.9039264020161533e-001,
+     3.5355339059327379e-001, -9.7545161008064096e-002,
+    -4.6193976625564342e-001,  2.7778511650980092e-001,
+     3.5355339059327384e-001, -4.1573480615127256e-001,
+    -1.9134171618254528e-001,  4.9039264020161522e-001,
+     3.5355339059327379e-001, -2.7778511650980098e-001,
+    -1.9134171618254517e-001,  4.9039264020161522e-001,
+    -3.5355339059327334e-001, -9.7545161008064013e-002,
+     4.6193976625564337e-001, -4.1573480615127251e-001,
+     3.5355339059327379e-001, -4.1573480615127267e-001,
+     1.9134171618254500e-001,  9.7545161008064388e-002,
+    -3.5355339059327356e-001,  4.9039264020161533e-001,
+    -4.6193976625564320e-001,  2.7778511650980076e-001,
+     3.5355339059327379e-001, -4.9039264020161522e-001,
+     4.6193976625564326e-001, -4.1573480615127256e-001,
+     3.5355339059327329e-001, -2.7778511650980076e-001,
+     1.9134171618254478e-001, -9.7545161008064291e-002,
 };
 
 
 #if 0
-static inline void idct_ref_8x8_c(const float* srcp, float*dstp) noexcept
+static inline void transpose_8x8_c(const double* srcp, double* dstp) noexcept
 {
     for (int y = 0; y < 8; ++y) {
         for (int x = 0; x < 8; ++x) {
-            float t = 0;
+            dstp[x] = srcp[8 * x + y];
+        }
+        dstp += 8;
+    }
+}
+
+
+static inline void idct_ref_8x8_c(const double* srcp, double* dstp) noexcept
+{
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            double t = 0;
             for (int z = 0; z < 8; ++z) {
                 t += ref_dct_matrix_t[8 * x + z] * srcp[8 * y + z];
             }
@@ -50,150 +77,120 @@ static inline void idct_ref_8x8_c(const float* srcp, float*dstp) noexcept
     }
 }
 
-static inline void transpose_8x8_c(const float* srcp, float* dstp) noexcept
-{
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
-            dstp[x] = src[8 * x + y];
-        }
-        dstp += 8;
-    }
-}
 #endif
 
 
-static inline void short_to_float(const short* srcp, float*dstp) noexcept
+static inline void short_to_double_sse2(const short* srcp, double* dstp) noexcept
 {
     const __m128i zero = _mm_setzero_si128();
     for (int i = 0; i < 64; i += 8) {
         __m128i s = _mm_load_si128(reinterpret_cast<const __m128i*>(srcp + i));
         __m128i mask = _mm_cmpgt_epi16(zero, s);
-        __m128 d0 = _mm_cvtepi32_ps(_mm_unpacklo_epi16(s, mask));
-        __m128 d1 = _mm_cvtepi32_ps(_mm_unpackhi_epi16(s, mask));
-        _mm_store_ps(dstp + i, d0);
-        _mm_store_ps(dstp + i + 4, d1);
+        __m128i s0 = _mm_unpacklo_epi16(s, mask);
+        __m128i s1 = _mm_unpackhi_epi16(s, mask);
+        __m128d d0 = _mm_cvtepi32_pd(s0);
+        __m128d d1 = _mm_cvtepi32_pd(_mm_srli_si128(s0, 8));
+        __m128d d2 = _mm_cvtepi32_pd(s1);
+        __m128d d3 = _mm_cvtepi32_pd(_mm_srli_si128(s1, 8));
+        _mm_store_pd(dstp + i, d0);
+        _mm_store_pd(dstp + i + 2, d1);
+        _mm_store_pd(dstp + i + 4, d2);
+        _mm_store_pd(dstp + i + 6, d3);
     }
 }
 
 
-static inline void transpose_8x8(const float* srcp, float* dstp) noexcept
+static inline void transpose_8x8_sse2(const double* srcp, double* dstp) noexcept
 {
-    __m128 s0 = _mm_load_ps(srcp +  0);
-    __m128 s1 = _mm_load_ps(srcp +  8);
-    __m128 s2 = _mm_load_ps(srcp + 16);
-    __m128 s3 = _mm_load_ps(srcp + 24);
-    _MM_TRANSPOSE4_PS(s0, s1, s2, s3);
-    _mm_store_ps(dstp +  0, s0);
-    _mm_store_ps(dstp +  8, s1);
-    _mm_store_ps(dstp + 16, s2);
-    _mm_store_ps(dstp + 24, s3);
-
-    s0 = _mm_load_ps(srcp + 32);
-    s1 = _mm_load_ps(srcp + 40);
-    s2 = _mm_load_ps(srcp + 48);
-    s3 = _mm_load_ps(srcp + 56);
-    _MM_TRANSPOSE4_PS(s0, s1, s2, s3);
-    _mm_store_ps(dstp +  4, s0);
-    _mm_store_ps(dstp + 12, s1);
-    _mm_store_ps(dstp + 20, s2);
-    _mm_store_ps(dstp + 28, s3);
-
-    s0 = _mm_load_ps(srcp +  4);
-    s1 = _mm_load_ps(srcp + 12);
-    s2 = _mm_load_ps(srcp + 20);
-    s3 = _mm_load_ps(srcp + 28);
-    _MM_TRANSPOSE4_PS(s0, s1, s2, s3);
-    _mm_store_ps(dstp + 32, s0);
-    _mm_store_ps(dstp + 40, s1);
-    _mm_store_ps(dstp + 48, s2);
-    _mm_store_ps(dstp + 56, s3);
-
-    s0 = _mm_load_ps(srcp + 36);
-    s1 = _mm_load_ps(srcp + 44);
-    s2 = _mm_load_ps(srcp + 52);
-    s3 = _mm_load_ps(srcp + 60);
-    _MM_TRANSPOSE4_PS(s0, s1, s2, s3);
-    _mm_store_ps(dstp + 36, s0);
-    _mm_store_ps(dstp + 44, s1);
-    _mm_store_ps(dstp + 52, s2);
-    _mm_store_ps(dstp + 60, s3);
+    for (int y = 0; y < 8; y += 2) {
+        double* d = dstp + y;
+        for (int x = 0; x < 8; x += 2) {
+            __m128d s0 = _mm_load_pd(srcp + x);
+            __m128d s1 = _mm_load_pd(srcp + x + 8);
+            _mm_store_pd(d, _mm_unpacklo_pd(s0, s1));
+            _mm_store_pd(d + 8, _mm_unpackhi_pd(s0, s1));
+            d += 16;
+        }
+        srcp += 16;
+    }
 }
 
 
-static inline void idct_ref_8x8_sse3(const float* srcp, float* dstp) noexcept
+static inline void idct_ref_8x8_sse3(const double* srcp, double* dstp) noexcept
 {
     for (int i = 0; i < 8; ++i) {
-        __m128 s0 = _mm_load_ps(srcp + 8 * i);
-        __m128 s1 = _mm_load_ps(srcp + 8 * i + 4);
+        __m128d s0 = _mm_load_pd(srcp + 8 * i);
+        __m128d s1 = _mm_load_pd(srcp + 8 * i + 2);
+        __m128d s2 = _mm_load_pd(srcp + 8 * i + 4);
+        __m128d s3 = _mm_load_pd(srcp + 8 * i + 6);
 
-        for (int j = 0; j < 8; j += 4) {
-            const float* mpos = ref_dct_matrix_t + 8 * j;
+        for (int j = 0; j < 8; j += 2) {
+            const double* mpos = ref_dct_matrix_t + 8 * j;
 
-            __m128 m0 = _mm_load_ps(mpos);
-            __m128 m1 = _mm_load_ps(mpos + 4);
-            __m128 m2 = _mm_load_ps(mpos + 8);
-            __m128 m3 = _mm_load_ps(mpos + 12);
-            m0 = _mm_mul_ps(m0, s0);
-            m1 = _mm_mul_ps(m1, s1);
-            m2 = _mm_mul_ps(m2, s0);
-            m3 = _mm_mul_ps(m3, s1);
-            __m128 d0 = _mm_hadd_ps(_mm_add_ps(m0, m1), _mm_add_ps(m2, m3));
+            __m128d m0 = _mm_mul_pd(_mm_load_pd(mpos), s0);
+            __m128d m1 = _mm_mul_pd(_mm_load_pd(mpos + 2), s1);
+            __m128d m2 = _mm_mul_pd(_mm_load_pd(mpos + 4), s2);
+            __m128d m3 = _mm_mul_pd(_mm_load_pd(mpos + 6), s3);
+            __m128d d0 = _mm_add_pd(_mm_add_pd(m0, m1), _mm_add_pd(m2, m3));
 
-            m0 = _mm_load_ps(mpos + 16);
-            m1 = _mm_load_ps(mpos + 20);
-            m2 = _mm_load_ps(mpos + 24);
-            m3 = _mm_load_ps(mpos + 28);
-            m0 = _mm_mul_ps(m0, s0);
-            m1 = _mm_mul_ps(m1, s1);
-            m2 = _mm_mul_ps(m2, s0);
-            m3 = _mm_mul_ps(m3, s1);
-            __m128 d1 = _mm_hadd_ps(_mm_add_ps(m0, m1), _mm_add_ps(m2, m3));
+            m0 = _mm_mul_pd(_mm_load_pd(mpos + 8), s0);
+            m1 = _mm_mul_pd(_mm_load_pd(mpos + 10), s1);
+            m2 = _mm_mul_pd(_mm_load_pd(mpos + 12), s2);
+            m3 = _mm_mul_pd(_mm_load_pd(mpos + 14), s3);
+            __m128d d1 = _mm_add_pd(_mm_add_pd(m0, m1), _mm_add_pd(m2, m3));
 
-            _mm_store_ps(dstp + 8 * i + j, _mm_hadd_ps(d0, d1));
+            _mm_store_pd(dstp + 8 * i + j, _mm_hadd_pd(d0, d1));
         }
     }
 }
 
 
-static inline void float_to_dst(const float* srcp, int16_t* dst) noexcept
+static inline void double_to_dst_sse2(const double* srcp, int16_t* dst) noexcept
 {
     static const __m128i minimum = _mm_set1_epi16(-256);
     static const __m128i maximum = _mm_set1_epi16(255);
 
     for (int i = 0; i < 64; i += 8) {
-        __m128 s0 = _mm_load_ps(srcp + i);
-        __m128 s1 = _mm_load_ps(srcp + i + 4);
-        __m128i si = _mm_packs_epi32(_mm_cvtps_epi32(s0), _mm_cvtps_epi32(s1));
-        si = _mm_min_epi16(_mm_max_epi16(si, minimum), maximum);
-        _mm_store_si128(reinterpret_cast<__m128i*>(dst + i), si);
+        __m128d s0 = _mm_load_pd(srcp + i);
+        __m128d s1 = _mm_load_pd(srcp + i + 2);
+        __m128d s2 = _mm_load_pd(srcp + i + 4);
+        __m128d s3 = _mm_load_pd(srcp + i + 6);
+        __m128i d0 = _mm_unpacklo_epi64(_mm_cvtpd_epi32(s0), _mm_cvtpd_epi32(s1));
+        __m128i d1 = _mm_unpacklo_epi64(_mm_cvtpd_epi32(s2), _mm_cvtpd_epi32(s3));
+        d0 = _mm_min_epi16(_mm_max_epi16(_mm_packs_epi32(d0, d1), minimum), maximum);
+        _mm_store_si128(reinterpret_cast<__m128i*>(dst + i), d0);
     }
 }
 
 
 void __fastcall idct_ref_sse3(int16_t* block) noexcept
 {
-    alignas(64) float blockf[64];
-    alignas(64) float tmp[64];
+    alignas(64) double blockf[64];
+    alignas(64) double tmp[64];
 
-    short_to_float(block, blockf);
-
-    idct_ref_8x8_sse3(blockf, tmp);
-
-    transpose_8x8(tmp, blockf);
+    short_to_double_sse2(block, blockf);
 
     idct_ref_8x8_sse3(blockf, tmp);
 
-    transpose_8x8(tmp, blockf);
+    transpose_8x8_sse2(tmp, blockf);
 
-    float_to_dst(blockf, block);
+    idct_ref_8x8_sse3(blockf, tmp);
+
+    transpose_8x8_sse2(tmp, blockf);
+
+    double_to_dst_sse2(blockf, block);
 }
 
 
 void __fastcall prefetch_ref() noexcept
-void __fastcall prefetch_tables_ref() noexcept
 {
-    _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t), _MM_HINT_NTA);
+    _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t +  0), _MM_HINT_NTA);
+    _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t +  8), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t + 16), _MM_HINT_NTA);
+    _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t + 24), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t + 32), _MM_HINT_NTA);
+    _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t + 40), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t + 48), _MM_HINT_NTA);
+    _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t + 56), _MM_HINT_NTA);
 }
+
