@@ -34,4 +34,10 @@ void fast_copy(const uint8_t *src, const int src_stride, uint8_t *dst,
 
 size_t __cdecl dprintf(char* fmt, ...);
 
+bool has_sse2() noexcept;
+
+bool has_sse3() noexcept;
+
+bool has_avx2() noexcept;
+
 #endif

@@ -125,6 +125,8 @@
       <AdditionalIncludeDirectories>C:\my_projects\AviSynthPlus\avs_core\include;..\..\..\src\dgdecode</AdditionalIncludeDirectories>
       <OmitFramePointers>true</OmitFramePointers>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -149,6 +151,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <StringPooling>true</StringPooling>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -168,6 +171,10 @@
     <ClCompile Include="..\..\..\src\dgdecode\getpic.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\global.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\idct_ap922_sse2.cpp" />
+    <ClCompile Include="..\..\..\src\dgdecode\idct_llm_float_avx2.cpp">
+      <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\idct_llm_float_sse2.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\idct_ref_sse3.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\LumaYUV.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mc.cpp" />

@@ -150,7 +150,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
         if (cpu2[5]=='x' || cpu2[5] == 'X') { _PP_MODE |= PP_DERING_C; }
     }
 #endif
-    if ( ovr_idct != m_decoder.IDCT_Flag && ovr_idct > 0 )
+    if (ovr_idct > 0 )
     {
         dprintf("Overiding iDCT With: %d", ovr_idct);
         override(ovr_idct);
@@ -201,14 +201,22 @@ bool __stdcall MPEG2Source::GetParity(int)
 
 void MPEG2Source::override(int ovr_idct)
 {
-    if (ovr_idct > 0)
+    if (ovr_idct > IDCT_AUTO)
         m_decoder.IDCT_Flag = ovr_idct;
 
     if (m_decoder.IDCT_Flag == IDCT_REF) {
-        m_decoder.prefetchTables = prefetch_tables_ref;
+        m_decoder.prefetchTables = prefetch_ref;
         m_decoder.idctFunction = idct_ref_sse3;
+    } else if (m_decoder.IDCT_Flag == IDCT_LLM_FLOAT) {
+        if (has_avx2()) {
+            m_decoder.idctFunction = idct_llm_float_avx2;
+            m_decoder.prefetchTables = prefetch_llm_float_avx2;
+        } else {
+            m_decoder.idctFunction = idct_llm_float_sse2;
+            m_decoder.prefetchTables = prefetch_llm_float_sse2;
+        }
     } else {
-        m_decoder.prefetchTables = prefetch_tables_ap922;
+        m_decoder.prefetchTables = prefetch_ap922;
         m_decoder.idctFunction = idct_ap922_sse2;
     }
 }

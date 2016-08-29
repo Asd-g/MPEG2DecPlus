@@ -189,6 +189,7 @@ void __fastcall idct_ref_sse3(int16_t* block) noexcept
 }
 
 
+void __fastcall prefetch_ref() noexcept
 void __fastcall prefetch_tables_ref() noexcept
 {
     _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t), _MM_HINT_NTA);

@@ -259,7 +259,7 @@ void __fastcall idct_ap922_sse2(int16_t* block) noexcept
 }
 
 
-void __fastcall prefetch_tables_ap922() noexcept
+void __fastcall prefetch_ap922() noexcept
 {
     _mm_prefetch(reinterpret_cast<const char*>(table04), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(table17), _MM_HINT_NTA);

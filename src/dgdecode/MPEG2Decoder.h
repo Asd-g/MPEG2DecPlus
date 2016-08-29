@@ -100,13 +100,10 @@ enum {
 
 
 enum {
-    IDCT_MMX        = 1,
-    IDCT_SSEMMX     = 2,
-    IDCT_SSE2MMX    = 3,
-    IDCT_FPU        = 4,
-    IDCT_REF        = 5,
-    IDCT_SKALSSE    = 6,
-    IDCT_SIMPLEIDCT = 7,
+    IDCT_AUTO      = 0,
+    IDCT_AP922_INT = 3,
+    IDCT_LLM_FLOAT = 4,
+    IDCT_REF       = 5,
 };
 
 enum {

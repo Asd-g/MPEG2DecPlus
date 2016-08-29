@@ -158,10 +158,18 @@ int CMPEG2Decoder::Open(const char *path)
     fscanf(out->VF_File, "iDCT_Algorithm=%d\n", &IDCT_Flag);
 
     if (IDCT_Flag == IDCT_REF) {
-        prefetchTables = prefetch_tables_ref;
+        prefetchTables = prefetch_ref;
         idctFunction = idct_ref_sse3;
+    } else if (IDCT_Flag == IDCT_LLM_FLOAT) {
+        if (has_avx2()) {
+            prefetchTables = prefetch_llm_float_avx2;
+            idctFunction = idct_llm_float_avx2;
+        } else {
+            prefetchTables = prefetch_llm_float_sse2;
+            idctFunction = idct_llm_float_sse2;
+        }
     } else {
-        prefetchTables = prefetch_tables_ap922;
+        prefetchTables = prefetch_ap922;
         idctFunction = idct_ap922_sse2;
     }
 

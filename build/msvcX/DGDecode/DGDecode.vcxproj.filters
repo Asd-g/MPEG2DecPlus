@@ -66,6 +66,12 @@
     <ClCompile Include="..\..\..\src\dgdecode\idct_ref_sse3.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\idct_llm_float_sse2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\idct_llm_float_avx2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\dgdecode\global.h">
