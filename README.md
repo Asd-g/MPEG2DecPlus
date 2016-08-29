@@ -21,7 +21,11 @@
 
     cpu: 現在使用不可。設定しても何も起こらない。iPP, moderate_h, moderate_v, fastMC, cpu2も同様。
 
-    idct: 1,2,3,4,6,7 はすべてSSE2MMX(AP922互換)、5はIEEE 1180 reference(単精度小数点)。
+    idct: 使用するiDCTアルゴリズム。
+        0: d2vの指定に従う。
+        1,2,3,6,7: AP922整数(SSE2MMXと同じもの)。
+        4: SSE2/AVX2 LLM(単精度浮動小数点、SSE2/AVX2の判定は自動)。
+        5: IEEE 1180 reference(倍精度浮動小数点)。
 
     showQ: マクロブロックの量子化器を表示する。
 
@@ -46,7 +50,7 @@
 ```
 Deblock(clip c, int "quant", int "aOffset", int "bOffset")
 ```
-H.264式でブロックフィルタ。manao氏のフィルタを取り込んだもの。
+H.264式デブロックフィルタ。manao氏のフィルタを取り込んだもの。
 
     clip: Y8, YV12, YV16, YV411, YV24をサポート。
 
@@ -71,6 +75,7 @@ LumaYUV(clip c, int "lumoff", int "lumgain")
 
     lumgain: 0.0 ～ 2.0 (デフォルト1.0)
 
-
+###ソースコード
+	https://github.com/chikuzen/MPEG2DecPlus/
 
 
