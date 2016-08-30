@@ -1,8 +1,8 @@
-/* 
+/*
 idct_reference_sse3.cpp
 
-rewite to single precision sse3 intrinsic code.
-OKA Motofumi - August 21, 2016
+rewite to double precision sse3 intrinsic code.
+OKA Motofumi - August 29, 2016
 
 */
 

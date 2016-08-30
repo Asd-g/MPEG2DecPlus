@@ -37,7 +37,7 @@
 #include "idct.h"
 
 
-#define VERSION "MPEG2DecPlus 0.0.0"
+#define VERSION "MPEG2DecPlus 0.1.0"
 
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
@@ -590,14 +590,31 @@ if (strncmp(buf, name, len) == 0) \
 const AVS_Linkage* AVS_linkage = nullptr;
 
 
-extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors)
+extern "C" __declspec(dllexport) const char* __stdcall
+AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors)
 {
     AVS_linkage = vectors;
 
-    env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]i[i420]b[iCC]b", MPEG2Source::create, nullptr);
+    const char* msargs =
+        "[d2v]s"
+        "[cpu]i"
+        "[idct]i"
+        "[iPP]b"
+        "[moderate_h]i"
+        "[moderate_v]i"
+        "[showQ]b"
+        "[fastMC]b"
+        "[cpu2]s"
+        "[info]i"
+        "[upConv]i"
+        "[i420]b"
+        "[iCC]b";
+
+    env->AddFunction("MPEG2Source", msargs, MPEG2Source::create, nullptr);
     env->AddFunction("LumaYUV","c[lumoff]i[lumgain]f", LumaYUV::create, nullptr);
-   // env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", BlindPP::create, nullptr);
     env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i", Deblock::create, nullptr);
-    return 0;
+   // env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", BlindPP::create, nullptr);
+
+    return VERSION;
 }
 
