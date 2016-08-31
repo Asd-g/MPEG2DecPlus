@@ -140,7 +140,6 @@ class MPEG2DEC_API CMPEG2Decoder
     friend class MPEG2Source;
 
 protected:
-    bool refinit,fpuinit,luminit;
     int moderate_h, moderate_v, pp_mode;
 
     // getbit.cpp
@@ -282,7 +281,7 @@ protected:
     // global values
     uint8_t *backward_reference_frame[3], *forward_reference_frame[3];
     uint8_t *auxframe[3], *current_frame[3];
-    uint8_t *u422, *v422;
+   // uint8_t *u422, *v422;
     YV12PICT *auxFrame1;
     YV12PICT *auxFrame2;
     YV12PICT *saved_active;

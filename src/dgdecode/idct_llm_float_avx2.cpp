@@ -1,3 +1,7 @@
+#ifndef __AVX2__
+#error arch:avx2 is not set.
+#endif
+
 #include <immintrin.h>
 #include "idct.h"
 

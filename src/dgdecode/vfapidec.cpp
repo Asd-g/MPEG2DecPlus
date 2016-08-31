@@ -69,7 +69,7 @@ CMPEG2Decoder::CMPEG2Decoder()
   i420 = false;
   pc_scale = 1;
   maxquant = minquant = avgquant = 0;
-  u422 = v422 = NULL;
+  //u422 = v422 = NULL;
   DirectAccess = NULL;
   FrameList = NULL;
   GOPList = NULL;
@@ -246,9 +246,9 @@ int CMPEG2Decoder::Open(const char *path)
         // these are labeled u422 and v422, but I'm only using them as a temporary
         // storage place for YV12 chroma before upsampling to 4:2:2 so that's why its
         // /4 and not /2  --  (tritical - 1/05/2005)
-        int tpitch = (((Chroma_Width+15)>>4)<<4); // mod 16 chroma pitch needed to work with YV12PICTs
-        u422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
-        v422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
+      //  int tpitch = (((Chroma_Width+15)>>4)<<4); // mod 16 chroma pitch needed to work with YV12PICTs
+      //  u422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
+      //  v422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
         auxFrame1 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
         auxFrame2 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
     }
@@ -826,16 +826,13 @@ __except(EXCEPTION_EXECUTE_HANDLER)
 void CMPEG2Decoder::Close()
 {
     int i;
-    CMPEG2Decoder* in = this;
 
-    if (in->VF_File)
-    {
-        fclose(in->VF_File);
-        in->VF_File = NULL;
+    if (VF_File) {
+        fclose(VF_File);
+        VF_File = NULL;
     }
 
-    while (File_Limit)
-    {
+    while (File_Limit) {
         File_Limit--;
         _close(Infile[File_Limit]);
         _aligned_free(Infilename[File_Limit]);
@@ -852,8 +849,8 @@ void CMPEG2Decoder::Close()
     _aligned_free(backwardQP);
     _aligned_free(auxQP);
 
-    if (u422 != NULL) _aligned_free(u422);
-    if (v422 != NULL) _aligned_free(v422);
+   // if (u422 != NULL) _aligned_free(u422);
+   // if (v422 != NULL) _aligned_free(v422);
 
     destroy_YV12PICT(auxFrame1);
     destroy_YV12PICT(auxFrame2);

@@ -37,7 +37,7 @@
 #include "idct.h"
 
 
-#define VERSION "MPEG2DecPlus 0.1.0"
+#define VERSION "MPEG2DecPlus 0.1.1"
 
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
@@ -48,11 +48,6 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
     bufY(nullptr), bufU(nullptr), bufV(nullptr)
 {
     int status;
-
-    /* override */
-    m_decoder.refinit = false;
-    m_decoder.fpuinit = false;
-    m_decoder.luminit = false;
 
     //if (iPP != -1 && iPP != 0 && iPP != 1)
     //    env->ThrowError("MPEG2Source: iPP must be set to -1, 0, or 1!");
@@ -214,9 +209,6 @@ void MPEG2Source::override(int ovr_idct)
 
 
 constexpr uint32_t MAGIC_NUMBER = 0xdeadbeef;
-constexpr uint32_t PROGRESSIVE = 0x00000001;
-constexpr int COLORIMETRY_SHIFT = 2;
-
 
 bool PutHintingData(uint8_t *video, uint32_t hint)
 {
@@ -282,7 +274,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
     PVideoFrame frame = env->NewVideoFrame(vi);
     YV12PICT out = {};
 
-    if (m_decoder.upConv != 2) { // YV12 || YV16
+    if (m_decoder.upConv != 2) { // YV12 or YV16 output
         out.y = frame->GetWritePtr(PLANAR_Y);
         out.u = frame->GetWritePtr(PLANAR_U);
         out.v = frame->GetWritePtr(PLANAR_V);
@@ -292,7 +284,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
         out.uvwidth = frame->GetRowSize(PLANAR_U);
         out.yheight = frame->GetHeight(PLANAR_Y);
         out.uvheight = frame->GetHeight(PLANAR_V);
-    } else {
+    } else { // YV24 output
         out.y = bufY;
         out.u = bufU;
         out.v = bufV;
@@ -354,8 +346,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
         }
     }
 
-    if (m_decoder.info == 1)
-    {
+    if (m_decoder.info == 1) {
         char msg1[1024];
         sprintf(msg1,"%s\n"
                      "---------------------------------------\n"
@@ -393,9 +384,8 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
         Matrix_s, m_decoder.GOPList[gop]->matrix,
         m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
         env->ApplyMessage(&frame, vi, msg1, 150, 0xdfffbf, 0x0, 0x0);
-    }
-    else if (m_decoder.info == 2)
-    {
+
+    } else if (m_decoder.info == 2) {
         dprintf("MPEG2DecPlus: %s\n", VERSION);
         dprintf("MPEG2DecPlus: Source:            %s\n", m_decoder.Infilename[m_decoder.GOPList[gop]->file]);
         dprintf("MPEG2DecPlus: Frame Rate:        %3.6f fps (%u/%u) %s\n",
@@ -414,9 +404,11 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
         dprintf("MPEG2DecPlus: Progressive Frame: %s\n", m_decoder.FrameList[raw].pf ? "True" : "False");
         dprintf("MPEG2DecPlus: Colorimetry:       %s (%d)\n", Matrix_s, m_decoder.GOPList[gop]->matrix);
         dprintf("MPEG2DecPlus: Quants:            %d/%d/%d (avg/min/max)\n", m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
-    }
-    else if (m_decoder.info == 3)
-    {
+
+    } else if (m_decoder.info == 3) {
+        constexpr uint32_t PROGRESSIVE = 0x00000001;
+        constexpr int COLORIMETRY_SHIFT = 2;
+
         hint = 0;
         if (m_decoder.FrameList[raw].pf == 1) hint |= PROGRESSIVE;
         hint |= ((m_decoder.GOPList[gop]->matrix & 7) << COLORIMETRY_SHIFT);
