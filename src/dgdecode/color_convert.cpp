@@ -195,8 +195,8 @@ void conv420to422P(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitc
     const __m128i one = _mm_set1_epi8(0x01);
 
     for (int x = 0; x < width; x += 16) {
-        const __m128i sx0 = _mm_load_si128(reinterpret_cast<const __m128i*>(s0 + x));
-        __m128i sx1 = _mm_load_si128(reinterpret_cast<const __m128i*>(s1 + x));
+        const __m128i sx0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s0 + x));
+        __m128i sx1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s1 + x));
 
         sx1 = _mm_subs_epu8(sx1, one);
         sx1 = _mm_avg_epu8(_mm_avg_epu8(sx1, sx0), sx0);
@@ -212,9 +212,9 @@ void conv420to422P(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitc
         const uint8_t* s2 = s1 + src_pitch;
 
         for (int x = 0; x < width; x += 16) {
-            __m128i sx0 = _mm_load_si128(reinterpret_cast<const __m128i*>(s0 + x));
-            const __m128i sx1 = _mm_load_si128(reinterpret_cast<const __m128i*>(s1 + x));
-            __m128i sx2 = _mm_load_si128(reinterpret_cast<const __m128i*>(s2 + x));
+            __m128i sx0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s0 + x));
+            const __m128i sx1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s1 + x));
+            __m128i sx2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s2 + x));
 
             sx0 = _mm_subs_epu8(sx0, one);
             sx2 = _mm_subs_epu8(sx2, one);
@@ -231,8 +231,8 @@ void conv420to422P(const uint8_t *src, uint8_t *dst, int src_pitch, int dst_pitc
     }
 
     for (int x = 0; x < width; x += 16) {
-        __m128i sx0 = _mm_load_si128(reinterpret_cast<const __m128i*>(s0 + x));
-        const __m128i sx1 = _mm_load_si128(reinterpret_cast<const __m128i*>(s1 + x));
+        __m128i sx0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s0 + x));
+        const __m128i sx1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s1 + x));
 
         sx0 = _mm_subs_epu8(sx0, one);
         sx0 = _mm_avg_epu8(_mm_avg_epu8(sx0, sx1), sx1);

@@ -40,7 +40,12 @@
 #define VERSION "MPEG2DecPlus 0.1.0"
 
 
-MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
+MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
+                         int moderate_h, int moderate_v, bool showQ,
+                         bool fastMC, const char* _cpu2, int _info,
+                         int _upConv, bool _i420, int iCC,
+                         IScriptEnvironment* env) :
+    bufY(nullptr), bufU(nullptr), bufV(nullptr)
 {
     int status;
 
@@ -150,46 +155,32 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
         if (cpu2[5]=='x' || cpu2[5] == 'X') { _PP_MODE |= PP_DERING_C; }
     }
 #endif
-    if (ovr_idct > 0 )
+    if (ovr_idct > 0)
     {
         dprintf("Overiding iDCT With: %d", ovr_idct);
         override(ovr_idct);
     }
 
-    out = (YV12PICT*)malloc(sizeof(YV12PICT));
-    if (out == NULL) env->ThrowError("MPEG2Source:  malloc failure (yv12 pic out)!");
-
     //m_decoder.pp_mode = _PP_MODE;
 
-    bufY = bufU = bufV = NULL;
-    if (m_decoder.chroma_format != 1 || (m_decoder.chroma_format == 1 && _upConv > 0))
-    {
-        bufY = (uint8_t*)_aligned_malloc(vi.width*vi.height+2048,32);
-        bufU = (uint8_t*)_aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
-        bufV =  (uint8_t*)_aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
+    if (_upConv == 2) {
+        size_t ypitch = (vi.width + 31) & ~31;
+        size_t uvpitch = (m_decoder.Chroma_Width + 15) & ~15;
+        bufY = (uint8_t*)_aligned_malloc(ypitch * (vi.height + 1), 32);
+        bufU = (uint8_t*)_aligned_malloc(uvpitch * (vi.height + 1), 32);
+        bufV =  (uint8_t*)_aligned_malloc(uvpitch * (vi.height + 1), 32);
         if (bufY == NULL || bufU == NULL || bufV == NULL)
             env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
-    }
-
-    u444 = v444 = NULL;
-    if (_upConv == 2)
-    {
-        u444 = (uint8_t*)_aligned_malloc(vi.width*vi.height+2048,32);
-        v444 = (uint8_t*)_aligned_malloc(vi.width*vi.height+2048,32);
-        if (u444 == NULL || v444 == NULL)
-            env->ThrowError("MPEG2Source:  malloc failure (u444, v444)!");
     }
 }
 
 MPEG2Source::~MPEG2Source()
 {
     m_decoder.Close();
-    if (out != NULL) { free(out); out = NULL; }
-    if (bufY != NULL) { _aligned_free(bufY); bufY = NULL; }
-    if (bufU != NULL) { _aligned_free(bufU); bufU = NULL; }
-    if (bufV != NULL) { _aligned_free(bufV); bufV = NULL; }
-    if (u444 != NULL) { _aligned_free(u444); u444 = NULL; }
-    if (v444 != NULL) { _aligned_free(v444); v444 = NULL; }
+    _aligned_free(bufY);
+    _aligned_free(bufU);
+    _aligned_free(bufV);
+    bufY = bufU = bufV = nullptr;
 }
 
 
@@ -289,55 +280,41 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
     }
 
     PVideoFrame frame = env->NewVideoFrame(vi);
+    YV12PICT out = {};
 
-    if (m_decoder.chroma_format == 1 && m_decoder.upConv == 0) // YV12
-    {
-        out->y = frame->GetWritePtr(PLANAR_Y);
-        out->u = frame->GetWritePtr(PLANAR_U);
-        out->v = frame->GetWritePtr(PLANAR_V);
-        out->ypitch = frame->GetPitch(PLANAR_Y);
-        out->uvpitch = frame->GetPitch(PLANAR_U);
-        out->ywidth = frame->GetRowSize(PLANAR_Y);
-        out->uvwidth = frame->GetRowSize(PLANAR_U);
-        out->yheight = frame->GetHeight(PLANAR_Y);
-        out->uvheight = frame->GetHeight(PLANAR_V);
-    }
-    else // its 4:2:2, pass our own buffers
-    {
-        out->y = bufY;
-        out->u = bufU;
-        out->v = bufV;
-        out->ypitch = vi.width;
-        out->uvpitch = m_decoder.Chroma_Width;
-        out->ywidth = vi.width;
-        out->uvwidth = m_decoder.Chroma_Width;
-        out->yheight = vi.height;
-        out->uvheight = vi.height;
+    if (m_decoder.upConv != 2) { // YV12 || YV16
+        out.y = frame->GetWritePtr(PLANAR_Y);
+        out.u = frame->GetWritePtr(PLANAR_U);
+        out.v = frame->GetWritePtr(PLANAR_V);
+        out.ypitch = frame->GetPitch(PLANAR_Y);
+        out.uvpitch = frame->GetPitch(PLANAR_U);
+        out.ywidth = frame->GetRowSize(PLANAR_Y);
+        out.uvwidth = frame->GetRowSize(PLANAR_U);
+        out.yheight = frame->GetHeight(PLANAR_Y);
+        out.uvheight = frame->GetHeight(PLANAR_V);
+    } else {
+        out.y = bufY;
+        out.u = bufU;
+        out.v = bufV;
+        out.ypitch = (vi.width + 31) & ~31;
+        out.uvpitch = (m_decoder.Chroma_Width + 15) & ~15;
+        out.ywidth = vi.width;
+        out.uvwidth = m_decoder.Chroma_Width;
+        out.yheight = vi.height;
+        out.uvheight = vi.height;
     }
 
-    m_decoder.Decode(n, out);
+    m_decoder.Decode(n, &out);
 
     if ( m_decoder.Luminance_Flag )
-        m_decoder.LuminanceFilter(out->y, out->ywidth, out->yheight, out->ypitch);
+        m_decoder.LuminanceFilter(out.y, out.ywidth, out.yheight, out.ypitch);
 
-    if ((m_decoder.chroma_format == 2 && m_decoder.upConv != 2) ||
-        (m_decoder.chroma_format == 1 && m_decoder.upConv == 1)) // convert 4:2:2 (planar) to YUY2 (packed)
-    {
+    if (m_decoder.upConv == 2) { // convert 4:2:2 (planar) to 4:4:4 (planar)
         env->BitBlt(frame->GetWritePtr(PLANAR_Y), frame->GetPitch(PLANAR_Y),
-                    bufY, vi.width, vi.width, vi.height);
-        env->BitBlt(frame->GetWritePtr(PLANAR_U), frame->GetPitch(PLANAR_U),
-                    bufU, m_decoder.Chroma_Width, m_decoder.Chroma_Width, vi.height);
-        env->BitBlt(frame->GetWritePtr(PLANAR_V), frame->GetPitch(PLANAR_V),
-                    bufV, m_decoder.Chroma_Width, m_decoder.Chroma_Width, vi.height);
-    }
-
-    if (m_decoder.upConv == 2) // convert 4:2:2 (planar) to 4:4:4 (planar) and then to RGB24
-    {
-        env->BitBlt(frame->GetWritePtr(PLANAR_Y), frame->GetPitch(PLANAR_Y),
-                    bufY, vi.width, vi.width, vi.height);
-        conv422to444(out->u, frame->GetWritePtr(PLANAR_U), out->uvpitch,
+                    bufY, out.ypitch, vi.width, vi.height);
+        conv422to444(out.u, frame->GetWritePtr(PLANAR_U), out.uvpitch,
                      frame->GetPitch(PLANAR_U), vi.width, vi.height);
-        conv422to444(out->v, frame->GetWritePtr(PLANAR_V), out->uvpitch,
+        conv422to444(out.v, frame->GetWritePtr(PLANAR_V), out.uvpitch,
                      frame->GetPitch(PLANAR_V), vi.width, vi.height);
     }
 

@@ -36,9 +36,7 @@ class MPEG2Source: public IClip {
   VideoInfo vi;
   int ovr_idct;
   int _PP_MODE;
-  YV12PICT *out;
   uint8_t *bufY, *bufU, *bufV; // for 4:2:2 input support
-  uint8_t *u444, *v444;        // for RGB24 output
   CMPEG2Decoder m_decoder;
 
   void override(int ovr_idct);
