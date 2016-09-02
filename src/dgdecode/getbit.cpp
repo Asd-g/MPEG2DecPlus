@@ -61,13 +61,14 @@ void CMPEG2Decoder::Initialize_Buffer()
     BitsLeft = 32;
 }
 
+
 uint32_t CMPEG2Decoder::Get_Bits_All(uint32_t N)
 {
     N -= BitsLeft;
     Val = (CurrentBfr << (32 - BitsLeft)) >> (32 - BitsLeft);
 
     if (N != 0)
-        Val = (Val << N) + (NextBfr >> (32 - N));
+        Val = (Val << N) | (NextBfr >> (32 - N));
 
     CurrentBfr = NextBfr;
     BitsLeft = 32 - N;
@@ -76,12 +77,14 @@ uint32_t CMPEG2Decoder::Get_Bits_All(uint32_t N)
     return Val;
 }
 
+
 void CMPEG2Decoder::Flush_Buffer_All(uint32_t N)
 {
     CurrentBfr = NextBfr;
-    BitsLeft = BitsLeft + 32 - N;
+    BitsLeft += 32 - N;
     Fill_Next();
 }
+
 
 
 struct  transport_packet{
@@ -364,9 +367,6 @@ void CMPEG2Decoder::Next_PVA_Packet()
 
 void CMPEG2Decoder::Next_Packet()
 {
-    uint32_t code, Packet_Length, Packet_Header_Length;
-    static int stream_type;
-
     if ( SystemStream_Flag == 2 )  // MPEG-2 transport packet?
     {
         Next_Transport_Packet();
@@ -378,6 +378,8 @@ void CMPEG2Decoder::Next_Packet()
         return;
     }
 
+    uint32_t code, Packet_Length, Packet_Header_Length;
+    static int stream_type;
     for (;;)
     {
         code = Get_Short();
@@ -469,31 +471,15 @@ void CMPEG2Decoder::Next_Packet()
     }
 }
 
-void CMPEG2Decoder::Fill_Buffer()
-{
-    Read = _read(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
-
-    if (Read < BUFFER_SIZE)
-        Next_File();
-
-    Rdptr = Rdbfr;
-
-    if (SystemStream_Flag)
-        Rdmax -= BUFFER_SIZE;
-}
 
 void CMPEG2Decoder::Next_File()
 {
-    int bytes;
-
-    if (File_Flag < File_Limit-1)
-    {
+    if (File_Flag < static_cast<int>(Infile.size() - 1)) {
         File_Flag ++;
-    }
-    else
-    {
-        // This mechanism is not yet working.
+
+    } else {
 #if 0
+        // This mechanism is not yet working.
         Fault_Flag = OUT_OF_BITS;
 #endif
         File_Flag = 0;
@@ -502,7 +488,7 @@ void CMPEG2Decoder::Next_File()
     // the decoder at least processes valid data until it detects the
     // fault flag and exits.
     _lseeki64(Infile[File_Flag], 0, SEEK_SET);
-    bytes = _read(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
+    int bytes = _read(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
     if (Read + bytes == BUFFER_SIZE)
         // The whole buffer has valid data.
         buffer_invalid = (uint8_t *)(UINTPTR_MAX);
@@ -511,138 +497,3 @@ void CMPEG2Decoder::Next_File()
         buffer_invalid = Rdbfr + Read + bytes;
 }
 
-uint32_t CMPEG2Decoder::Show_Bits(uint32_t N)
-{
-    if (N <= BitsLeft) {
-        return (CurrentBfr << (32 - BitsLeft)) >> (32 - N);;
-    }
-    else
-    {
-        N -= BitsLeft;
-        return (((CurrentBfr << (32 - BitsLeft)) >> (32 - BitsLeft)) << N) + (NextBfr >> (32 - N));;
-    }
-}
-
-uint32_t CMPEG2Decoder::Get_Bits(uint32_t N)
-{
-    if (N < BitsLeft)
-    {
-        Val = (CurrentBfr << (32 - BitsLeft)) >> (32 - N);
-        BitsLeft -= N;
-        return Val;
-    }
-    else
-        return Get_Bits_All(N);
-}
-
-void CMPEG2Decoder::Flush_Buffer(uint32_t N)
-{
-    if (N < BitsLeft)
-        BitsLeft -= N;
-    else
-        Flush_Buffer_All(N);
-}
-
-void CMPEG2Decoder::Fill_Next()
-{
-    // This mechanism is not yet working.
-#if 0
-    if (Rdptr >= buffer_invalid)
-    {
-        Fault_Flag = OUT_OF_BITS;
-        return;
-    }
-#endif
-
-    if (SystemStream_Flag && Rdptr > Rdmax - 4)
-    {
-        if (Rdptr >= Rdmax)
-            Next_Packet();
-        NextBfr = Get_Byte() << 24;
-
-        if (Rdptr >= Rdmax)
-            Next_Packet();
-        NextBfr += Get_Byte() << 16;
-
-        if (Rdptr >= Rdmax)
-            Next_Packet();
-        NextBfr += Get_Byte() << 8;
-
-        if (Rdptr >= Rdmax)
-            Next_Packet();
-        NextBfr += Get_Byte();
-    }
-    else if (Rdptr <= Rdbfr + BUFFER_SIZE - 4)
-    {
-        NextBfr = (*Rdptr << 24) + (*(Rdptr+1) << 16) + (*(Rdptr+2) << 8) + *(Rdptr+3);
-        Rdptr += 4;
-    }
-    else
-    {
-        if (Rdptr >= Rdbfr+BUFFER_SIZE)
-            Fill_Buffer();
-        NextBfr = *Rdptr++ << 24;
-
-        if (Rdptr >= Rdbfr+BUFFER_SIZE)
-            Fill_Buffer();
-        NextBfr += *Rdptr++ << 16;
-
-        if (Rdptr >= Rdbfr+BUFFER_SIZE)
-            Fill_Buffer();
-        NextBfr += *Rdptr++ << 8;
-
-        if (Rdptr >= Rdbfr+BUFFER_SIZE)
-            Fill_Buffer();
-        NextBfr += *Rdptr++;
-    }
-}
-
-uint32_t CMPEG2Decoder::Get_Byte()
-{
-    // This mechanism is not yet working.
-#if 0
-    if (Rdptr >= buffer_invalid)
-    {
-        Fault_Flag = OUT_OF_BITS;
-        return Rdptr[-1];
-    }
-#endif
-
-    while (Rdptr >= (Rdbfr + BUFFER_SIZE))
-    {
-        Read = _read(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
-
-        if (Read < BUFFER_SIZE)
-            Next_File();
-
-        Rdptr -= BUFFER_SIZE;
-        Rdmax -= BUFFER_SIZE;
-    }
-
-    return *Rdptr++;
-}
-
-uint32_t CMPEG2Decoder::Get_Short()
-{
-    uint32_t i = Get_Byte();
-    return (i<<8) + Get_Byte();
-}
-
-void CMPEG2Decoder::next_start_code()
-{
-    uint32_t show;
-
-    // This is contrary to the spec but is more resilient to some
-    // stream corruption scenarios.
-    BitsLeft = ((BitsLeft + 7) / 8) * 8;
-
-    while (1)
-    {
-        show = Show_Bits(24);
-        if (Fault_Flag == OUT_OF_BITS)
-            return;
-        if (show == 0x000001)
-            return;
-        Flush_Buffer(8);
-    }
-}

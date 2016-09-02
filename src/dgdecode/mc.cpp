@@ -295,7 +295,7 @@ static void MC_avg_xy16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int 
 
 MCFuncPtr ppppf_motion[2][2][4];
 
-void Choose_Prediction(bool)
+void Choose_Prediction(void)
 {
     ppppf_motion[0][0][0] = MC_put_8_c;
     ppppf_motion[0][0][1] = MC_put_y8_sse2;

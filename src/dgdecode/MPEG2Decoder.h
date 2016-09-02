@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cmath>
+#include <vector>
 #include <io.h>
 #include <fcntl.h>
 
@@ -12,24 +13,8 @@
 #define NOMINMAX
 #include <windows.h>
 #include <winreg.h>
+#include <avisynth.h>
 
-
-#ifndef MPEG2DEC_EXPORTS
-#define MPEG2DEC_EXPORTS
-#endif
-
-
-#ifdef MPEG2DEC_EXPORTS
-#define MPEG2DEC_API __declspec(dllexport)
-#else
-#define MPEG2DEC_API __declspec(dllimport)
-#endif
-
-#ifdef _DEBUG
-#define _INLINE_
-#else
-#define _INLINE_ inline
-#endif
 
 /* code definition */
 enum {
@@ -116,8 +101,32 @@ enum {
 #define OUT_OF_BITS 11
 
 
-typedef void (WINAPI *PBufferOp) (uint8_t*, int, int);
+struct GOPLIST {
+    uint32_t        number;
+    int             file;
+    int64_t         position;
+    uint32_t    I_count;
+    int             closed;
+    int             progressive;
+    int             matrix;
+    GOPLIST(int _film, int _matrix, int _file, int64_t pos, int ic, uint32_t type)
+    {
+        number = _film;
+        matrix = (_matrix < 0 || _matrix > 7) ? 3 : _matrix; // 3:reserved
+        file = _file;
+        position = pos;
+        I_count = ic;
+        closed = !!(type & 0x0400);
+        progressive = !!(type & 0x0200);
+    }
+};
 
+struct FRAMELIST {
+    uint32_t top;
+    uint32_t bottom;
+    uint8_t pf;
+    uint8_t pct;
+};
 
 
 struct YV12PICT {
@@ -132,15 +141,12 @@ extern "C" YV12PICT* create_YV12PICT(int height, int width, int chroma_format);
 extern "C" void destroy_YV12PICT(YV12PICT* pict);
 
 #define BUFFER_SIZE         2048
-#define MAX_FILE_NUMBER     256
+//#define MAX_FILE_NUMBER     256
 
 
-class MPEG2DEC_API CMPEG2Decoder
+class CMPEG2Decoder
 {
-    friend class MPEG2Source;
-
-protected:
-    int moderate_h, moderate_v, pp_mode;
+    //int moderate_h, moderate_v, pp_mode;
 
     // getbit.cpp
     void Initialize_Buffer(void);
@@ -152,13 +158,13 @@ protected:
     uint32_t Get_Bits_All(uint32_t N);
     void Next_File(void);
 
-    inline uint32_t Show_Bits(uint32_t N);
-    inline uint32_t Get_Bits(uint32_t N);
-    inline void Flush_Buffer(uint32_t N);
-    inline void Fill_Next(void);
-    inline uint32_t Get_Byte(void);
-    inline uint32_t Get_Short(void);
-    inline void next_start_code(void);
+    uint32_t Show_Bits(uint32_t N);
+    uint32_t Get_Bits(uint32_t N);
+    void Flush_Buffer(uint32_t N);
+    void Fill_Next(void);
+    uint32_t Get_Byte(void);
+    uint32_t Get_Short(void);
+    void Next_Start_Code(void);
 
     uint8_t Rdbfr[BUFFER_SIZE], *Rdptr, *Rdmax;
     uint32_t CurrentBfr, NextBfr, BitsLeft, Val, Read;
@@ -166,11 +172,10 @@ protected:
 
     // gethdr.cpp
     int Get_Hdr(void);
-    void sequence_header(void);
+    void Sequence_Header(void);
     int slice_header(void);
-private:
-    inline void group_of_pictures_header(void);
-    inline void picture_header(void);
+    void group_of_pictures_header(void);
+    void picture_header(void);
     void sequence_extension(void);
     void sequence_display_extension(void);
     void quant_matrix_extension(void);
@@ -180,26 +185,23 @@ private:
     int  extra_bit_information(void);
     void extension_and_user_data(void);
 
-protected:
     // getpic.cpp
     void Decode_Picture(YV12PICT *dst);
-
-private:
-    inline void Update_Picture_Buffers(void);
+    inline void update_picture_buffers(void);
     inline void picture_data(void);
     inline void slice(int MBAmax, uint32_t code);
     inline void macroblock_modes(int *pmacroblock_type, int *pmotion_type,
         int *pmotion_vector_count, int *pmv_format, int *pdmv, int *pmvscale, int *pdct_type);
-    inline void Clear_Block(int count);
-    inline void Add_Block(int count, int bx, int by, int dct_type, int addflag);
+    inline void clear_block(int count);
+    inline void add_block(int count, int bx, int by, int dct_type, int addflag);
     inline void motion_compensation(int MBA, int macroblock_type, int motion_type,
         int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2], int dct_type);
     inline void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2],
         int *motion_type, int motion_vertical_field_select[2][2], int *macroblock_type);
     inline void decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
         int PMV[2][2][2], int dc_dct_pred[3], int motion_vertical_field_select[2][2], int dmvector[2]);
-    inline void Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[]);
-    inline void Decode_MPEG1_Non_Intra_Block(int comp);
+    inline void decode_mpeg1_intra_block(int comp, int dc_dct_pred[]);
+    inline void decode_mpeg1_non_intra_block(int comp);
     inline void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[]);
     inline void Decode_MPEG2_Non_Intra_Block(int comp);
 
@@ -213,12 +215,10 @@ private:
     inline int Get_Luma_DC_dct_diff(void);
     inline int Get_Chroma_DC_dct_diff(void);
 
-    // inline?
     void form_predictions(int bx, int by, int macroblock_type, int motion_type,
         int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2]);
 
-    // inline?
-    inline void form_prediction(uint8_t *src[], int sfield, uint8_t *dst[], int dfield,
+    void form_prediction(uint8_t *src[], int sfield, uint8_t *dst[], int dfield,
         int lx, int lx2, int w, int h, int x, int y, int dx, int dy, int average_flag);
 
     // motion.cpp
@@ -234,16 +234,13 @@ private:
     inline int Get_motion_code(void);
     inline int Get_dmvector(void);
 
-protected:
     // store.cpp
     void assembleFrame(uint8_t *src[], int pf, YV12PICT *dst);
 
     // decoder operation control flags
     int Fault_Flag;
     int File_Flag;
-    int File_Limit;
     int FO_Flag;
-    int IDCT_Flag;
     void(__fastcall *idctFunction)(int16_t* block);
     void(__fastcall *prefetchTables)();
     int SystemStream_Flag;    // 0 = none, 1=program, 2=Transport 3=PVA
@@ -254,11 +251,8 @@ protected:
     int MPEG2_Transport_PCRPID;  // used only for transport streams
 
     int lfsr0, lfsr1;
-    PBufferOp BufferOp;
 
-    int Infile[MAX_FILE_NUMBER];
-    char *Infilename[MAX_FILE_NUMBER];
-    uint32_t BadStartingFrames;
+    std::vector<int> Infile;
     int closed_gop;
 
     int intra_quantizer_matrix[64];
@@ -281,27 +275,23 @@ protected:
     // global values
     uint8_t *backward_reference_frame[3], *forward_reference_frame[3];
     uint8_t *auxframe[3], *current_frame[3];
-   // uint8_t *u422, *v422;
+    //uint8_t *u422, *v422;
     YV12PICT *auxFrame1;
     YV12PICT *auxFrame2;
     YV12PICT *saved_active;
     YV12PICT *saved_store;
 
+    enum {
+        ELEMENTARY_STREAM = 0,
+        MPEG1_PROGRAM_STREAM,
+        MPEG2_PROGRAM_STREAM,
+    };
 
-public:
-    int Clip_Width, Clip_Height;
-    int D2V_Width, D2V_Height;
-    int Clip_Top, Clip_Bottom, Clip_Left, Clip_Right;
-    char Aspect_Ratio[20];
-
-protected:
-
-#define ELEMENTARY_STREAM 0
-#define MPEG1_PROGRAM_STREAM 1
-#define MPEG2_PROGRAM_STREAM 2
-#define IS_NOT_MPEG 0
-#define IS_MPEG1 1
-#define IS_MPEG2 2
+    enum {
+        IS_NOT_MPEG = 0,
+        IS_MPEG1,
+        IS_MPEG2,
+    };
 
     int mpeg_type;
     int Coded_Picture_Width, Coded_Picture_Height, Chroma_Width, Chroma_Height;
@@ -331,105 +321,216 @@ protected:
     int repeat_first_field;
     int intra_vlc_format;
 
-    // interface
-    struct GOPLIST {
-        uint32_t        number;
-        int             file;
-        int64_t         position;
-        uint32_t    I_count;
-        int             closed;
-        int             progressive;
-        int             matrix;
-    };
-    GOPLIST **GOPList;
-    int GOPListSize;
+    void copy_all(YV12PICT *src, YV12PICT *dst);
+    void copy_top(YV12PICT *src, YV12PICT *dst);
+    void copy_bottom(YV12PICT *src, YV12PICT *dst);
+    //inline void CopyTopBot(YV12PICT *odd, YV12PICT *even, YV12PICT *dst);
 
-    struct FRAMELIST {
-        uint32_t top;
-        uint32_t bottom;
-        uint8_t pf;
-        uint8_t pct;
-    };
-    FRAMELIST *FrameList;
+    int *QP, *backwardQP, *auxQP;
+    uint32_t  prev_frame;
 
-    char *DirectAccess;
+    std::vector<char> DirectAccess;
 
 public:
+    CMPEG2Decoder();
+    int Open(FILE* file, const char* path);
+    void Close();
+    void Decode(uint32_t frame, YV12PICT *dst);
+
+    std::vector<std::string> Infilename;
+    uint32_t BadStartingFrames;
+
+    int Clip_Width, Clip_Height;
+    int D2V_Width, D2V_Height;
+    int Clip_Top, Clip_Bottom, Clip_Left, Clip_Right;
+    char Aspect_Ratio[20];
+
+    std::vector<GOPLIST> GOPList;
+    std::vector<FRAMELIST> FrameList;
+
     int Field_Order;
     bool HaveRFFs;
 
-private:
-    inline void CopyAll(YV12PICT *src, YV12PICT *dst);
-    inline void CopyTop(YV12PICT *src, YV12PICT *dst);
-    inline void CopyBot(YV12PICT *src, YV12PICT *dst);
-    inline void CopyTopBot(YV12PICT *odd, YV12PICT *even, YV12PICT *dst);
-//    inline void CopyPlane(uint8_t *src, int src_pitch, uint8_t *dst, int dst_pitch,
-//        int width, int height);
-
-public:
-    FILE*     VF_File;
+    FILE* VF_File;
     int       VF_FrameRate;
     uint32_t  VF_FrameRate_Num;
     uint32_t  VF_FrameRate_Den;
     uint32_t  VF_FrameLimit;
-    uint32_t  VF_GOPLimit;
-    uint32_t  prev_frame;
+
     int horizontal_size, vertical_size, mb_width, mb_height;
-
-
-    CMPEG2Decoder();
-    int Open(const char *path);
-    void Close();
-    void Decode(uint32_t frame, YV12PICT *dst);
-
-    int iPP, iCC;
-    bool fastMC;
+    //int iPP;
+    int iCC;
     bool showQ;
-    int *QP, *backwardQP, *auxQP;
     int upConv;
     bool i420;
-    int pc_scale;
 
     // info option stuff
     int info;
     int minquant, maxquant, avgquant;
 
     // Luminance Code
-    bool Luminance_Flag;
-    uint8_t LuminanceTable[256];
+    int lumGamma;
+    int lumOffset;
 
-    void InitializeLuminanceFilter(int LumGamma, int LumOffset)
-    {
-        double value;
-
-        for (int i=0; i<256; i++)
-        {
-            value = 255.0 * pow(i/255.0, pow(2.0, -LumGamma/128.0)) + LumOffset + 0.5;
-
-            if (value < 0)
-                LuminanceTable[i] = 0;
-            else if (value > 255.0)
-                LuminanceTable[i] = 255;
-            else
-                LuminanceTable[i] = (uint8_t)value;
-        }
-    }
-
-    void LuminanceFilter(uint8_t *src, int width_in, int height_in, int pitch_in)
-    {
-        for (int y=0; y<height_in; ++y)
-        {
-            for (int x=0; x<width_in; ++x)
-            {
-                src[x] = LuminanceTable[src[x]];
-            }
-            src += pitch_in;
-        }
-    }
-    // end luminance code
+    int getChromaFormat() { return chroma_format; }
+    int getChromaWidth() { return Chroma_Width; }
+    int getLumaWidth() { return Coded_Picture_Width; }
+    int getLumaHeight() { return Coded_Picture_Height; }
+    void setIDCT(int idct);
 };
 
 
+__forceinline uint32_t CMPEG2Decoder::Show_Bits(uint32_t N)
+{
+    if (N <= BitsLeft) {
+        return (CurrentBfr << (32 - BitsLeft)) >> (32 - N);;
+    }
+    else
+    {
+        N -= BitsLeft;
+        return (((CurrentBfr << (32 - BitsLeft)) >> (32 - BitsLeft)) << N) + (NextBfr >> (32 - N));;
+    }
+}
+
+__forceinline uint32_t CMPEG2Decoder::Get_Bits(uint32_t N)
+{
+    if (N < BitsLeft)
+    {
+        Val = (CurrentBfr << (32 - BitsLeft)) >> (32 - N);
+        BitsLeft -= N;
+        return Val;
+    }
+    else
+        return Get_Bits_All(N);
+}
+
+
+__forceinline void CMPEG2Decoder::Flush_Buffer(uint32_t N)
+{
+    if (N < BitsLeft)
+        BitsLeft -= N;
+    else
+        Flush_Buffer_All(N);
+}
+
+
+__forceinline void CMPEG2Decoder::Fill_Next()
+{
+    // This mechanism is not yet working.
+#if 0
+    if (Rdptr >= buffer_invalid)
+    {
+        Fault_Flag = OUT_OF_BITS;
+        return;
+    }
+#endif
+
+    if (SystemStream_Flag && Rdptr > Rdmax - 4)
+    {
+        if (Rdptr >= Rdmax)
+            Next_Packet();
+        NextBfr = Get_Byte() << 24;
+
+        if (Rdptr >= Rdmax)
+            Next_Packet();
+        NextBfr += Get_Byte() << 16;
+
+        if (Rdptr >= Rdmax)
+            Next_Packet();
+        NextBfr += Get_Byte() << 8;
+
+        if (Rdptr >= Rdmax)
+            Next_Packet();
+        NextBfr += Get_Byte();
+    }
+    else if (Rdptr <= Rdbfr + BUFFER_SIZE - 4)
+    {
+        NextBfr = (*Rdptr << 24) + (*(Rdptr+1) << 16) + (*(Rdptr+2) << 8) + *(Rdptr+3);
+        Rdptr += 4;
+    }
+    else
+    {
+        if (Rdptr >= Rdbfr+BUFFER_SIZE)
+            Fill_Buffer();
+        NextBfr = *Rdptr++ << 24;
+
+        if (Rdptr >= Rdbfr+BUFFER_SIZE)
+            Fill_Buffer();
+        NextBfr += *Rdptr++ << 16;
+
+        if (Rdptr >= Rdbfr+BUFFER_SIZE)
+            Fill_Buffer();
+        NextBfr += *Rdptr++ << 8;
+
+        if (Rdptr >= Rdbfr+BUFFER_SIZE)
+            Fill_Buffer();
+        NextBfr += *Rdptr++;
+    }
+}
+
+
+__forceinline void CMPEG2Decoder::Fill_Buffer()
+{
+    Read = _read(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
+
+    if (Read < BUFFER_SIZE)
+        Next_File();
+
+    Rdptr = Rdbfr;
+
+    if (SystemStream_Flag)
+        Rdmax -= BUFFER_SIZE;
+}
+
+__forceinline uint32_t CMPEG2Decoder::Get_Byte()
+{
+    // This mechanism is not yet working.
+#if 0
+    if (Rdptr >= buffer_invalid)
+    {
+        Fault_Flag = OUT_OF_BITS;
+        return Rdptr[-1];
+    }
+#endif
+
+    while (Rdptr >= (Rdbfr + BUFFER_SIZE))
+    {
+        Read = _read(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
+
+        if (Read < BUFFER_SIZE)
+            Next_File();
+
+        Rdptr -= BUFFER_SIZE;
+        Rdmax -= BUFFER_SIZE;
+    }
+
+    return *Rdptr++;
+}
+
+__forceinline uint32_t CMPEG2Decoder::Get_Short()
+{
+    uint32_t i = Get_Byte();
+    return (i<<8) + Get_Byte();
+}
+
+__forceinline void CMPEG2Decoder::Next_Start_Code()
+{
+    uint32_t show;
+
+    // This is contrary to the spec but is more resilient to some
+    // stream corruption scenarios.
+    BitsLeft = ((BitsLeft + 7) / 8) * 8;
+
+    while (1)
+    {
+        show = Show_Bits(24);
+        if (Fault_Flag == OUT_OF_BITS)
+            return;
+        if (show == 0x000001)
+            return;
+        Flush_Buffer(8);
+    }
+}
 
 #endif
 

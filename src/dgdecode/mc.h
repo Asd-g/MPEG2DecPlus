@@ -31,6 +31,6 @@ typedef MCFunc* MCFuncPtr;
 
 // Form prediction (motion compensation) function pointer array (GetPic.c) - Vlad59 04-20-2002
 extern MCFuncPtr ppppf_motion[2][2][4];
-void Choose_Prediction(bool fastMC);
+void Choose_Prediction(void);
 
 #endif // MPEG2DEC_MC_H

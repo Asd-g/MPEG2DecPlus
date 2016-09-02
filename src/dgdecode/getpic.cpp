@@ -50,7 +50,7 @@ void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
         pf_backward = pf_current;
     }
 
-    Update_Picture_Buffers();
+    update_picture_buffers();
 
     picture_data();
 
@@ -69,7 +69,7 @@ void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
 }
 
 /* reuse old picture buffers as soon as they are no longer needed */
-void CMPEG2Decoder::Update_Picture_Buffers()
+void CMPEG2Decoder::update_picture_buffers()
 {
     int cc;              /* color component index */
     uint8_t *tmp;  /* temporary swap pointer */
@@ -110,7 +110,7 @@ void CMPEG2Decoder::Update_Picture_Buffers()
 
 /* decode all macroblocks of the current picture */
 /* stages described in ISO/IEC 13818-2 section 7 */
-void CMPEG2Decoder::picture_data()
+inline void CMPEG2Decoder::picture_data()
 {
     int MBAmax;
     uint32_t code;
@@ -125,7 +125,7 @@ void CMPEG2Decoder::picture_data()
     {
         if (Fault_Flag == OUT_OF_BITS)
             break;
-        next_start_code();
+        Next_Start_Code();
         code = Show_Bits(32);
         if (code < SLICE_START_CODE_MIN || code > SLICE_START_CODE_MAX)
             break;
@@ -136,7 +136,7 @@ void CMPEG2Decoder::picture_data()
 
 /* decode all macroblocks of the current picture */
 /* ISO/IEC 13818-2 section 6.3.16 */
-void CMPEG2Decoder::slice(int MBAmax, uint32_t code)
+inline void CMPEG2Decoder::slice(int MBAmax, uint32_t code)
 {
     /* decode slice header (may change quantizer_scale) */
     int slice_vert_pos_ext = slice_header();
@@ -271,7 +271,7 @@ void CMPEG2Decoder::macroblock_modes(int *pmacroblock_type, int *pmotion_type,
    - ISO/IEC 13818-2 section 6.1.3: Macroblock
 */
 
-void CMPEG2Decoder::Add_Block(int count, int bx, int by, int dct_type, int addflag)
+void CMPEG2Decoder::add_block(int count, int bx, int by, int dct_type, int addflag)
 {
     alignas(16) static const uint64_t mmmask_128C[2] = {
         0x8080808080808080, 0x8080808080808080
@@ -405,7 +405,7 @@ void CMPEG2Decoder::Add_Block(int count, int bx, int by, int dct_type, int addfl
 
 
 /* set scratch pad macroblock to zero */
-void CMPEG2Decoder::Clear_Block(int count)
+void CMPEG2Decoder::clear_block(int count)
 {
     const __m128i zero = _mm_setzero_si128();
     for (int comp = 0; comp < count; ++comp) {
@@ -446,7 +446,7 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
     }
     idctFunction(block[block_count - 1]);
 
-    Add_Block(block_count, bx, by, dct_type, (macroblock_type & MACROBLOCK_INTRA)==0);
+    add_block(block_count, bx, by, dct_type, (macroblock_type & MACROBLOCK_INTRA)==0);
 
 }
 
@@ -454,7 +454,7 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
 void CMPEG2Decoder::skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], int *motion_type,
                                int motion_vertical_field_select[2][2], int *macroblock_type)
 {
-    Clear_Block(block_count);
+    clear_block(block_count);
 
     /* reset intra_dc predictors */
     /* ISO/IEC 13818-2 section 7.2.1: DC coefficients in intra blocks */
@@ -577,7 +577,7 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
         return; // go to next slice
     }
 
-    Clear_Block(block_count);
+    clear_block(block_count);
 
     /* decode blocks */
     for (comp=0; comp < block_count; comp++)
@@ -589,14 +589,14 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
                 if (mpeg_type == IS_MPEG2)
                     Decode_MPEG2_Intra_Block(comp, dc_dct_pred);
                 else
-                    Decode_MPEG1_Intra_Block(comp, dc_dct_pred);
+                    decode_mpeg1_intra_block(comp, dc_dct_pred);
             }
             else
             {
                 if (mpeg_type == IS_MPEG2)
                     Decode_MPEG2_Non_Intra_Block(comp);
                 else
-                    Decode_MPEG1_Non_Intra_Block(comp);
+                    decode_mpeg1_non_intra_block(comp);
             }
             if (Fault_Flag)
             {
@@ -643,7 +643,7 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
 }
 
 /* decode one intra coded MPEG-1 block */
-void CMPEG2Decoder::Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[])
+void CMPEG2Decoder::decode_mpeg1_intra_block(int comp, int dc_dct_pred[])
 {
     long code, val = 0, i, j, sign;
     const DCTtab *tab;
@@ -743,7 +743,7 @@ void CMPEG2Decoder::Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[])
 }
 
 /* decode one non-intra coded MPEG-1 block */
-void CMPEG2Decoder::Decode_MPEG1_Non_Intra_Block(int comp)
+void CMPEG2Decoder::decode_mpeg1_non_intra_block(int comp)
 {
     int32_t code, val=0, i, j, sign;
     const DCTtab *tab;

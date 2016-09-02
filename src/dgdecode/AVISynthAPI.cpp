@@ -26,8 +26,9 @@
  *
  */
 
-#include <string.h>
+#include <cstring>
 #include <cstdlib>
+#include <string>
 #include <malloc.h>
 #include <avs/minmax.h>
 #include "AvisynthAPI.h"
@@ -40,6 +41,32 @@
 #define VERSION "MPEG2DecPlus 0.1.1"
 
 
+static const char* get_error_msg(int status)
+{
+    const char* msg[] = {
+        "Invalid D2V file, it's empty!",
+
+        "DGIndex/MPEG2DecPlus mismatch. You are picking up\n"
+        "a version of MPEG2DecPlus, possibly from your plugins directory,\n"
+        "that does not match the version of DGIndex used to make the D2V\n"
+        "file. Search your hard disk for all copies of MPEG2DecPlus.dll\n"
+        "and delete or rename all of them except for the one that\n"
+        "has the same version number as the DGIndex.exe that was used\n"
+        "to make the D2V file.",
+
+        "Could not open one of the input files.",
+
+        "Could not find a sequence header in the input stream.",
+
+        "The input file is not a D2V project file.",
+
+        "Force Film mode not supported for frame repeats.",
+    };
+
+    return msg[status - 1];
+}
+
+
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
                          int moderate_h, int moderate_v, bool showQ,
                          bool fastMC, const char* _cpu2, int _info,
@@ -47,8 +74,6 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
                          IScriptEnvironment* env) :
     bufY(nullptr), bufU(nullptr), bufV(nullptr)
 {
-    int status;
-
     //if (iPP != -1 && iPP != 0 && iPP != 1)
     //    env->ThrowError("MPEG2Source: iPP must be set to -1, 0, or 1!");
 
@@ -58,73 +83,48 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
     if (_upConv != 0 && _upConv != 1 && _upConv != 2)
         env->ThrowError("MPEG2Source: upConv must be set to 0, 1, or 2!");
 
-    ovr_idct = idct;
-    m_decoder.iPP = iPP;
+    if (idct > 7)
+        env->ThrowError("MPEG2Source: iDCT invalid (1:MMX,2:SSEMMX,3:SSE2,4:FPU,5:REF,6:Skal's,7:Simple)");
+
+    FILE *f = fopen(d2v, "r");
+    if (f == nullptr)
+        env->ThrowError("MPEG2Source: unable to load D2V file \"%s\" ", d2v);
+
     m_decoder.iCC = iCC;
     m_decoder.info = _info;
     m_decoder.showQ = showQ;
-    m_decoder.fastMC = fastMC;
     m_decoder.upConv = _upConv;
     m_decoder.i420 = _i420;
-    m_decoder.moderate_h = moderate_h;
-    m_decoder.moderate_v = moderate_v;
-    m_decoder.maxquant = m_decoder.minquant = m_decoder.avgquant = 0;
+//    m_decoder.iPP = iPP;
+//    m_decoder.moderate_h = moderate_h;
+//    m_decoder.moderate_v = moderate_v;
 
-    if (ovr_idct > 7)
-    {
-        env->ThrowError("MPEG2Source : iDCT invalid (1:MMX,2:SSEMMX,3:SSE2,4:FPU,5:REF,6:Skal's,7:Simple)");
+    auto free_buf = [](void* p, IScriptEnvironment* e) {
+        static_cast<IScriptEnvironment2*>(e)->Free(p);
+        p = nullptr;
+    };
+
+    int status = m_decoder.Open(f, d2v);
+    if (status != 0) {
+        if (f) fclose(f);
+        f = nullptr;
+        env->ThrowError("MPEG2Source: %s", get_error_msg(status));
     }
 
-    const char *path = d2v;
-
-    FILE *f;
-    if ((f = fopen(path,"r"))==NULL)
-        env->ThrowError("MPEG2Source : unable to load D2V file \"%s\" ",path);
-
-    fclose(f);
-
-    status = m_decoder.Open(path);
-    if (status != 0 && m_decoder.VF_File)
-    {
-        fclose(m_decoder.VF_File);
-        m_decoder.VF_File = NULL;
+    int chroma_format = m_decoder.getChromaFormat();
+    if (chroma_format != 1 && chroma_format != 2) {
+        env->ThrowError("MPEG2Source:  currently unsupported input color format (4:4:4)");
     }
-    if (status == 1)
-        env->ThrowError("MPEG2Source: Invalid D2V file, it's empty!");
-    else if (status == 2)
-        env->ThrowError("MPEG2Source: DGIndex/MPEG2DecPlus mismatch. You are picking up\n"
-                        "a version of MPEG2DecPlus, possibly from your plugins directory,\n"
-                        "that does not match the version of DGIndex used to make the D2V\n"
-                        "file. Search your hard disk for all copies of MPEG2DecPlus.dll\n"
-                        "and delete or rename all of them except for the one that\n"
-                        "has the same version number as the DGIndex.exe that was used\n"
-                        "to make the D2V file.");
-    else if (status == 3)
-        env->ThrowError("MPEG2Source: Could not open one of the input files.");
-    else if (status == 4)
-        env->ThrowError("MPEG2Source: Could not find a sequence header in the input stream.");
-    else if (status == 5)
-        env->ThrowError("MPEG2Source: The input file is not a D2V project file.");
-    else if (status == 6)
-        env->ThrowError("MPEG2Source: Force Film mode not supported for frame repeats.");
 
     memset(&vi, 0, sizeof(vi));
     vi.width = m_decoder.Clip_Width;
     vi.height = m_decoder.Clip_Height;
-    if (m_decoder.chroma_format == 1 && _upConv == 0)
-    {
-        if (m_decoder.i420 == true)
-            vi.pixel_type = VideoInfo::CS_I420;
-        else
-            vi.pixel_type = VideoInfo::CS_YV12;
-    }
-    else if (m_decoder.chroma_format == 1 && _upConv == 1) vi.pixel_type = VideoInfo::CS_YV16;
-    else if (m_decoder.chroma_format == 1 && _upConv == 2) vi.pixel_type = VideoInfo::CS_YV24;
-    else if (m_decoder.chroma_format == 2 && _upConv != 2) vi.pixel_type = VideoInfo::CS_YV16;
-    else if (m_decoder.chroma_format == 2 && _upConv == 2) vi.pixel_type = VideoInfo::CS_YV24;
-    else env->ThrowError("MPEG2Source:  currently unsupported input color format (4:4:4)");
-    vi.fps_numerator = m_decoder.VF_FrameRate_Num;
-    vi.fps_denominator = m_decoder.VF_FrameRate_Den;
+    if (_upConv == 2) vi.pixel_type = VideoInfo::CS_YV24;
+    else if (chroma_format == 2 || _upConv == 1) vi.pixel_type = VideoInfo::CS_YV16;
+    else if (m_decoder.i420 == true) vi.pixel_type = VideoInfo::CS_I420;
+    else vi.pixel_type = VideoInfo::CS_YV12;
+
+    vi.SetFPS(m_decoder.VF_FrameRate_Num, m_decoder.VF_FrameRate_Den);
     vi.num_frames = m_decoder.VF_FrameLimit;
     vi.SetFieldBased(false);
 #if 0
@@ -149,33 +149,49 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
         if (cpu2[4]=='x' || cpu2[4] == 'X') { _PP_MODE |= PP_DERING_Y; }
         if (cpu2[5]=='x' || cpu2[5] == 'X') { _PP_MODE |= PP_DERING_C; }
     }
+
+    m_decoder.pp_mode = _PP_MODE;
 #endif
-    if (ovr_idct > 0)
-    {
-        dprintf("Overiding iDCT With: %d", ovr_idct);
-        override(ovr_idct);
+
+    if (idct > 0) {
+        dprintf("Overiding iDCT With: %d", idct);
+        m_decoder.setIDCT(idct);
     }
 
-    //m_decoder.pp_mode = _PP_MODE;
-
     if (_upConv == 2) {
-        size_t ypitch = (vi.width + 31) & ~31;
-        size_t uvpitch = (m_decoder.Chroma_Width + 15) & ~15;
-        bufY = (uint8_t*)_aligned_malloc(ypitch * (vi.height + 1), 32);
-        bufU = (uint8_t*)_aligned_malloc(uvpitch * (vi.height + 1), 32);
-        bufV =  (uint8_t*)_aligned_malloc(uvpitch * (vi.height + 1), 32);
-        if (bufY == NULL || bufU == NULL || bufV == NULL)
+        auto e2 = static_cast<IScriptEnvironment2*>(env);
+        size_t ysize = ((vi.width + 31) & ~31) * (vi.height + 1);
+        size_t uvsize = ((m_decoder.getChromaWidth() + 15) & ~15) * (vi.height + 1);
+        void* ptr = e2->Allocate(ysize + 2 * uvsize, 32, AVS_NORMAL_ALLOC);
+        if (!ptr) {
             env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
+        }
+        env->AtExit(free_buf, ptr);
+        bufY = reinterpret_cast<uint8_t*>(ptr);
+        bufU = bufY + ysize;
+        bufV = bufU + uvsize;
+    }
+
+    luminanceFlag = (m_decoder.lumGamma != 0 || m_decoder.lumOffset != 0);
+    if (luminanceFlag) {
+        int lg = m_decoder.lumGamma;
+        int lo = m_decoder.lumOffset;
+        for (int i = 0; i < 256; ++i) {
+            double value = 255.0 * pow(i / 255.0, pow(2.0, -lg / 128.0)) + lo + 0.5;
+
+            if (value < 0)
+                luminanceTable[i] = 0;
+            else if (value > 255.0)
+                luminanceTable[i] = 255;
+            else
+                luminanceTable[i] = static_cast<uint8_t>(value);
+        }
     }
 }
 
 MPEG2Source::~MPEG2Source()
 {
     m_decoder.Close();
-    _aligned_free(bufY);
-    _aligned_free(bufU);
-    _aligned_free(bufV);
-    bufY = bufU = bufV = nullptr;
 }
 
 
@@ -185,33 +201,10 @@ bool __stdcall MPEG2Source::GetParity(int)
 }
 
 
-void MPEG2Source::override(int ovr_idct)
-{
-    if (ovr_idct > IDCT_AUTO)
-        m_decoder.IDCT_Flag = ovr_idct;
-
-    if (m_decoder.IDCT_Flag == IDCT_REF) {
-        m_decoder.prefetchTables = prefetch_ref;
-        m_decoder.idctFunction = idct_ref_sse3;
-    } else if (m_decoder.IDCT_Flag == IDCT_LLM_FLOAT) {
-        if (has_avx2()) {
-            m_decoder.idctFunction = idct_llm_float_avx2;
-            m_decoder.prefetchTables = prefetch_llm_float_avx2;
-        } else {
-            m_decoder.idctFunction = idct_llm_float_sse2;
-            m_decoder.prefetchTables = prefetch_llm_float_sse2;
-        }
-    } else {
-        m_decoder.prefetchTables = prefetch_ap922;
-        m_decoder.idctFunction = idct_ap922_sse2;
-    }
-}
-
-
-constexpr uint32_t MAGIC_NUMBER = 0xdeadbeef;
-
 bool PutHintingData(uint8_t *video, uint32_t hint)
 {
+    constexpr uint32_t MAGIC_NUMBER = 0xdeadbeef;
+
     for (int i = 0; i < 32; ++i)
     {
         *video &= ~1;
@@ -226,51 +219,120 @@ bool PutHintingData(uint8_t *video, uint32_t hint)
 }
 
 
-bool GetHintingData(uint8_t* video, uint32_t* hint)
+void MPEG2Source::luminanceFilter(uint8_t* luma, const int width, const int height, const int pitch)
 {
-    uint32_t magic_number = 0;
-
-    for (int i = 0; i < 32; i++)
-    {
-        magic_number |= ((*video++ & 1) << i);
-    }
-    if (magic_number != MAGIC_NUMBER)
-    {
-        return true; // error!
-    }
-    else
-    {
-        *hint = 0;
-        for (int i = 0; i < 32; i++)
-        {
-            *hint |= ((*video++ & 1) << i);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            luma[x] = luminanceTable[luma[x]];
         }
+        luma += pitch;
     }
-    return false;
+}
+
+
+void MPEG2Source::showInfo(int n, PVideoFrame& frame, IScriptEnvironment* env)
+{
+    uint32_t raw = max(m_decoder.FrameList[n].bottom, m_decoder.FrameList[n].top);
+    if (raw < m_decoder.BadStartingFrames)
+        raw = m_decoder.BadStartingFrames;
+
+    uint32_t gop = 0;
+    do {
+        if (raw >= m_decoder.GOPList[gop].number)
+            if (raw < m_decoder.GOPList[gop+1].number)
+                break;
+    } while (++gop < m_decoder.GOPList.size() - 1);
+
+    const auto& rgop = m_decoder.GOPList[gop];
+    const auto& fraw = m_decoder.FrameList[raw];
+    const auto& fn = m_decoder.FrameList[n];
+
+    int pct = fraw.pct == I_TYPE ? 'I' : fraw.pct == B_TYPE ? 'B' : 'P';
+
+    const char* matrix[8] = {
+        "Forbidden",
+        "ITU-R BT.709",
+        "Unspecified Video",
+        "Reserved",
+        "FCC",
+        "ITU-R BT.470-2 System B, G",
+        "SMPTE 170M",
+        "SMPTE 240M (1987)",
+    };
+
+    if (m_decoder.info == 1) {
+        char msg1[1024];
+        sprintf(msg1,"%s\n"
+            "---------------------------------------\n"
+            "Source:        %s\n"
+            "Frame Rate:    %3.6f fps (%u/%u) %s\n"
+            "Field Order:   %s\n"
+            "Picture Size:  %d x %d\n"
+            "Aspect Ratio:  %s\n"
+            "Progr Seq:     %s\n"
+            "GOP Number:    %u (%u)  GOP Pos = %I64d\n"
+            "Closed GOP:    %s\n"
+            "Display Frame: %d\n"
+            "Encoded Frame: %d (top) %d (bottom)\n"
+            "Frame Type:    %c (%d)\n"
+            "Progr Frame:   %s\n"
+            "Colorimetry:   %s (%d)\n"
+            "Quants:        %d/%d/%d (avg/min/max)\n",
+            VERSION,
+            m_decoder.Infilename[rgop.file].c_str(),
+            double(m_decoder.VF_FrameRate_Num) / double(m_decoder.VF_FrameRate_Den),
+            m_decoder.VF_FrameRate_Num,
+            m_decoder.VF_FrameRate_Den,
+            (m_decoder.VF_FrameRate == 25000 || m_decoder.VF_FrameRate == 50000) ? "(PAL)" :
+            m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "",
+            m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First",
+            m_decoder.getLumaWidth(), m_decoder.getLumaHeight(),
+            m_decoder.Aspect_Ratio,
+            rgop.progressive ? "True" : "False",
+            gop, rgop.number, rgop.position,
+            rgop.closed ? "True" : "False",
+            n,
+            fn.top, fn.bottom,
+            pct, raw,
+            fraw.pf ? "True" : "False",
+            matrix[rgop.matrix], rgop.matrix,
+            m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
+        env->ApplyMessage(&frame, vi, msg1, 150, 0xdfffbf, 0x0, 0x0);
+
+    } else if (m_decoder.info == 2) {
+        dprintf("MPEG2DecPlus: %s\n", VERSION);
+        dprintf("MPEG2DecPlus: Source:            %s\n", m_decoder.Infilename[rgop.file]);
+        dprintf("MPEG2DecPlus: Frame Rate:        %3.6f fps (%u/%u) %s\n",
+            double(m_decoder.VF_FrameRate_Num) / double(m_decoder.VF_FrameRate_Den),
+            m_decoder.VF_FrameRate_Num, m_decoder.VF_FrameRate_Den,
+            (m_decoder.VF_FrameRate == 25000 || m_decoder.VF_FrameRate == 50000) ? "(PAL)" : m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "");
+        dprintf("MPEG2DecPlus: Field Order:       %s\n", m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First");
+        dprintf("MPEG2DecPlus: Picture Size:      %d x %d\n", m_decoder.getLumaWidth(), m_decoder.getLumaHeight());
+        dprintf("MPEG2DecPlus: Aspect Ratio:      %s\n", m_decoder.Aspect_Ratio);
+        dprintf("MPEG2DecPlus: Progressive Seq:   %s\n", rgop.progressive ? "True" : "False");
+        dprintf("MPEG2DecPlus: GOP Number:        %d (%d)  GOP Pos = %I64d\n", gop, rgop.number, rgop.position);
+        dprintf("MPEG2DecPlus: Closed GOP:        %s\n", rgop.closed ? "True" : "False");
+        dprintf("MPEG2DecPlus: Display Frame:     %d\n", n);
+        dprintf("MPEG2DecPlus: Encoded Frame:     %d (top) %d (bottom)\n", fn.top, fn.bottom);
+        dprintf("MPEG2DecPlus: Frame Type:        %c (%d)\n", pct, raw);
+        dprintf("MPEG2DecPlus: Progressive Frame: %s\n", fraw.pf ? "True" : "False");
+        dprintf("MPEG2DecPlus: Colorimetry:       %s (%d)\n", matrix[rgop.matrix], rgop.matrix);
+        dprintf("MPEG2DecPlus: Quants:            %d/%d/%d (avg/min/max)\n", m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
+
+    } else if (m_decoder.info == 3) {
+        constexpr uint32_t PROGRESSIVE = 0x00000001;
+        constexpr int COLORIMETRY_SHIFT = 2;
+
+        uint32_t hint = 0;
+        if (fraw.pf == 1) hint |= PROGRESSIVE;
+        hint |= ((rgop.matrix & 7) << COLORIMETRY_SHIFT);
+        PutHintingData(frame->GetWritePtr(PLANAR_Y), hint);
+    }
 }
 
 
 PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 {
-    int gop, pct;
-    char Matrix_s[40];
-    unsigned int raw;
-    unsigned int hint;
-
-    if (m_decoder.info != 0 || m_decoder.upConv == 2)
-    {
-        raw = max(m_decoder.FrameList[n].bottom, m_decoder.FrameList[n].top);
-        if (raw < (int)m_decoder.BadStartingFrames) raw = m_decoder.BadStartingFrames;
-
-        for (gop = 0; gop < (int) m_decoder.VF_GOPLimit - 1; gop++)
-        {
-            if (raw >= (int)m_decoder.GOPList[gop]->number && raw < (int)m_decoder.GOPList[gop+1]->number)
-            {
-                break;
-            }
-        }
-    }
-
     PVideoFrame frame = env->NewVideoFrame(vi);
     YV12PICT out = {};
 
@@ -285,21 +347,22 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
         out.yheight = frame->GetHeight(PLANAR_Y);
         out.uvheight = frame->GetHeight(PLANAR_V);
     } else { // YV24 output
+        int cw = m_decoder.getChromaWidth();
         out.y = bufY;
         out.u = bufU;
         out.v = bufV;
         out.ypitch = (vi.width + 31) & ~31;
-        out.uvpitch = (m_decoder.Chroma_Width + 15) & ~15;
+        out.uvpitch = (cw + 15) & ~15;
         out.ywidth = vi.width;
-        out.uvwidth = m_decoder.Chroma_Width;
+        out.uvwidth = cw;
         out.yheight = vi.height;
         out.uvheight = vi.height;
     }
 
     m_decoder.Decode(n, &out);
 
-    if ( m_decoder.Luminance_Flag )
-        m_decoder.LuminanceFilter(out.y, out.ywidth, out.yheight, out.ypitch);
+    if (luminanceFlag )
+        luminanceFilter(out.y, out.ywidth, out.yheight, out.ypitch);
 
     if (m_decoder.upConv == 2) { // convert 4:2:2 (planar) to 4:4:4 (planar)
         env->BitBlt(frame->GetWritePtr(PLANAR_Y), frame->GetPitch(PLANAR_Y),
@@ -311,109 +374,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
     }
 
     if (m_decoder.info != 0)
-    {
-        pct = m_decoder.FrameList[raw].pct == I_TYPE ? 'I' : m_decoder.FrameList[raw].pct == B_TYPE ? 'B' : 'P';
-
-        switch (m_decoder.GOPList[gop]->matrix)
-        {
-        case 0:
-            strcpy(Matrix_s, "Forbidden");
-            break;
-        case 1:
-            strcpy(Matrix_s, "ITU-R BT.709");
-            break;
-        case 2:
-            strcpy(Matrix_s, "Unspecified Video");
-            break;
-        case 3:
-            strcpy(Matrix_s, "Reserved");
-            break;
-        case 4:
-            strcpy(Matrix_s, "FCC");
-            break;
-        case 5:
-            strcpy(Matrix_s, "ITU-R BT.470-2 System B, G");
-            break;
-        case 6:
-            strcpy(Matrix_s, "SMPTE 170M");
-            break;
-        case 7:
-            strcpy(Matrix_s, "SMPTE 240M (1987)");
-            break;
-        default:
-            strcpy(Matrix_s, "Reserved");
-            break;
-        }
-    }
-
-    if (m_decoder.info == 1) {
-        char msg1[1024];
-        sprintf(msg1,"%s\n"
-                     "---------------------------------------\n"
-                     "Source:        %s\n"
-                     "Frame Rate:    %3.6f fps (%u/%u) %s\n"
-                     "Field Order:   %s\n"
-                     "Picture Size:  %d x %d\n"
-                     "Aspect Ratio:  %s\n"
-                     "Progr Seq:     %s\n"
-                     "GOP Number:    %d (%d)  GOP Pos = %I64d\n"
-                     "Closed GOP:    %s\n"
-                     "Display Frame: %d\n"
-                     "Encoded Frame: %d (top) %d (bottom)\n"
-                     "Frame Type:    %c (%d)\n"
-                     "Progr Frame:   %s\n"
-                     "Colorimetry:   %s (%d)\n"
-                     "Quants:        %d/%d/%d (avg/min/max)\n",
-        VERSION,
-        m_decoder.Infilename[m_decoder.GOPList[gop]->file],
-        double(m_decoder.VF_FrameRate_Num) / double(m_decoder.VF_FrameRate_Den),
-            m_decoder.VF_FrameRate_Num,
-            m_decoder.VF_FrameRate_Den,
-            (m_decoder.VF_FrameRate == 25000 || m_decoder.VF_FrameRate == 50000) ? "(PAL)" :
-            m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "",
-        m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First",
-        m_decoder.Coded_Picture_Width, m_decoder.Coded_Picture_Height,
-        m_decoder.Aspect_Ratio,
-        m_decoder.GOPList[gop]->progressive ? "True" : "False",
-        gop, m_decoder.GOPList[gop]->number, m_decoder.GOPList[gop]->position,
-        m_decoder.GOPList[gop]->closed ? "True" : "False",
-        n,
-        m_decoder.FrameList[n].top, m_decoder.FrameList[n].bottom,
-        pct, raw,
-        m_decoder.FrameList[raw].pf ? "True" : "False",
-        Matrix_s, m_decoder.GOPList[gop]->matrix,
-        m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
-        env->ApplyMessage(&frame, vi, msg1, 150, 0xdfffbf, 0x0, 0x0);
-
-    } else if (m_decoder.info == 2) {
-        dprintf("MPEG2DecPlus: %s\n", VERSION);
-        dprintf("MPEG2DecPlus: Source:            %s\n", m_decoder.Infilename[m_decoder.GOPList[gop]->file]);
-        dprintf("MPEG2DecPlus: Frame Rate:        %3.6f fps (%u/%u) %s\n",
-            double(m_decoder.VF_FrameRate_Num) / double(m_decoder.VF_FrameRate_Den),
-            m_decoder.VF_FrameRate_Num, m_decoder.VF_FrameRate_Den,
-            (m_decoder.VF_FrameRate == 25000 || m_decoder.VF_FrameRate == 50000) ? "(PAL)" : m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "");
-        dprintf("MPEG2DecPlus: Field Order:       %s\n", m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First");
-        dprintf("MPEG2DecPlus: Picture Size:      %d x %d\n", m_decoder.Coded_Picture_Width, m_decoder.Coded_Picture_Height);
-        dprintf("MPEG2DecPlus: Aspect Ratio:      %s\n", m_decoder.Aspect_Ratio);
-        dprintf("MPEG2DecPlus: Progressive Seq:   %s\n", m_decoder.GOPList[gop]->progressive ? "True" : "False");
-        dprintf("MPEG2DecPlus: GOP Number:        %d (%d)  GOP Pos = %I64d\n", gop, m_decoder.GOPList[gop]->number, m_decoder.GOPList[gop]->position);
-        dprintf("MPEG2DecPlus: Closed GOP:        %s\n", m_decoder.GOPList[gop]->closed ? "True" : "False");
-        dprintf("MPEG2DecPlus: Display Frame:     %d\n", n);
-        dprintf("MPEG2DecPlus: Encoded Frame:     %d (top) %d (bottom)\n", m_decoder.FrameList[n].top, m_decoder.FrameList[n].bottom);
-        dprintf("MPEG2DecPlus: Frame Type:        %c (%d)\n", pct, raw);
-        dprintf("MPEG2DecPlus: Progressive Frame: %s\n", m_decoder.FrameList[raw].pf ? "True" : "False");
-        dprintf("MPEG2DecPlus: Colorimetry:       %s (%d)\n", Matrix_s, m_decoder.GOPList[gop]->matrix);
-        dprintf("MPEG2DecPlus: Quants:            %d/%d/%d (avg/min/max)\n", m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
-
-    } else if (m_decoder.info == 3) {
-        constexpr uint32_t PROGRESSIVE = 0x00000001;
-        constexpr int COLORIMETRY_SHIFT = 2;
-
-        hint = 0;
-        if (m_decoder.FrameList[raw].pf == 1) hint |= PROGRESSIVE;
-        hint |= ((m_decoder.GOPList[gop]->matrix & 7) << COLORIMETRY_SHIFT);
-        PutHintingData(frame->GetWritePtr(PLANAR_Y), hint);
-    }
+        showInfo(n, frame, env);
 
     return frame;
 }

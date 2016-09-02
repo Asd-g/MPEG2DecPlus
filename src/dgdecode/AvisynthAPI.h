@@ -34,12 +34,14 @@
 
 class MPEG2Source: public IClip {
   VideoInfo vi;
-  int ovr_idct;
-  int _PP_MODE;
+  //int _PP_MODE;
   uint8_t *bufY, *bufU, *bufV; // for 4:2:2 input support
   CMPEG2Decoder m_decoder;
+  bool luminanceFlag;
+  uint8_t luminanceTable[256];
 
-  void override(int ovr_idct);
+  void showInfo(int n, PVideoFrame& frame, IScriptEnvironment* env);
+  void luminanceFilter(uint8_t* luma, const int width, const int height, const int pitch);
 
 public:
   MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env);
