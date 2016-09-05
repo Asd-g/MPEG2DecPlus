@@ -99,11 +99,6 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
 //    m_decoder.moderate_h = moderate_h;
 //    m_decoder.moderate_v = moderate_v;
 
-    auto free_buf = [](void* p, IScriptEnvironment* e) {
-        static_cast<IScriptEnvironment2*>(e)->Free(p);
-        p = nullptr;
-    };
-
     int status = m_decoder.Open(f, d2v);
     if (status != 0) {
         if (f) fclose(f);
@@ -159,10 +154,13 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
     }
 
     if (_upConv == 2) {
-        auto e2 = static_cast<IScriptEnvironment2*>(env);
+        auto free_buf = [](void* p, IScriptEnvironment* e) {
+            _aligned_free(p);
+            p = nullptr;
+        };
         size_t ysize = ((vi.width + 31) & ~31) * (vi.height + 1);
         size_t uvsize = ((m_decoder.getChromaWidth() + 15) & ~15) * (vi.height + 1);
-        void* ptr = e2->Allocate(ysize + 2 * uvsize, 32, AVS_NORMAL_ALLOC);
+        void* ptr = _aligned_malloc(ysize + 2 * uvsize, 32);
         if (!ptr) {
             env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
         }
@@ -333,7 +331,7 @@ void MPEG2Source::showInfo(int n, PVideoFrame& frame, IScriptEnvironment* env)
 
 PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 {
-    PVideoFrame frame = env->NewVideoFrame(vi);
+    PVideoFrame frame = env->NewVideoFrame(vi, 32);
     YV12PICT out = {};
 
     if (m_decoder.upConv != 2) { // YV12 or YV16 output
