@@ -241,13 +241,13 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
       //  int tpitch = (((Chroma_Width+15)>>4)<<4); // mod 16 chroma pitch needed to work with YV12PICTs
       //  u422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
       //  v422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
-        auxFrame1 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
-        auxFrame2 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
+        auxFrame1 = new YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
+        auxFrame2 = new YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
     }
     else
     {
-        auxFrame1 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format);
-        auxFrame2 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format);
+        auxFrame1 = new YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format);
+        auxFrame2 = new YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format);
     }
     saved_active = auxFrame1;
     saved_store = auxFrame2;
@@ -810,8 +810,9 @@ void CMPEG2Decoder::Close()
    // if (u422 != NULL) _aligned_free(u422);
    // if (v422 != NULL) _aligned_free(v422);
 
-    destroy_YV12PICT(auxFrame1);
-    destroy_YV12PICT(auxFrame2);
+    delete auxFrame1;
+    delete auxFrame2;
+    auxFrame1 = auxFrame2 = nullptr;
 
     _aligned_free(p_block[0]);
 }

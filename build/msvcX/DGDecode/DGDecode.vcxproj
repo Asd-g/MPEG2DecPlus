@@ -167,7 +167,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\dgdecode\alloc.cpp" />
+    <ClCompile Include="..\..\..\src\dgdecode\yv12pict.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\color_convert.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\deblock.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\getbit.cpp" />
@@ -198,6 +198,7 @@
     <ClInclude Include="..\..\..\src\dgdecode\mc.h" />
     <ClInclude Include="..\..\..\src\dgdecode\misc.h" />
     <ClInclude Include="..\..\..\src\dgdecode\MPEG2Decoder.h" />
+    <ClInclude Include="..\..\..\src\dgdecode\yv12pict.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -13,7 +13,8 @@
 #define NOMINMAX
 #include <windows.h>
 #include <winreg.h>
-#include <avisynth.h>
+
+#include "yv12pict.h"
 
 
 /* code definition */
@@ -129,19 +130,7 @@ struct FRAMELIST {
 };
 
 
-struct YV12PICT {
-    uint8_t *y, *u, *v;
-    int ypitch, uvpitch;
-    int ywidth, uvwidth;
-    int yheight, uvheight;
-    int pf;
-};
-
-extern "C" YV12PICT* create_YV12PICT(int height, int width, int chroma_format);
-extern "C" void destroy_YV12PICT(YV12PICT* pict);
-
 #define BUFFER_SIZE         2048
-//#define MAX_FILE_NUMBER     256
 
 
 class CMPEG2Decoder

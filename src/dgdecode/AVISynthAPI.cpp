@@ -332,30 +332,8 @@ bool __stdcall MPEG2Source::GetParity(int)
 PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 {
     PVideoFrame frame = env->NewVideoFrame(vi, 32);
-    YV12PICT out = {};
-
-    if (decoder.upConv != 2) { // YV12 or YV16 output
-        out.y = frame->GetWritePtr(PLANAR_Y);
-        out.u = frame->GetWritePtr(PLANAR_U);
-        out.v = frame->GetWritePtr(PLANAR_V);
-        out.ypitch = frame->GetPitch(PLANAR_Y);
-        out.uvpitch = frame->GetPitch(PLANAR_U);
-        out.ywidth = frame->GetRowSize(PLANAR_Y);
-        out.uvwidth = frame->GetRowSize(PLANAR_U);
-        out.yheight = frame->GetHeight(PLANAR_Y);
-        out.uvheight = frame->GetHeight(PLANAR_V);
-    } else { // YV24 output
-        int cw = decoder.getChromaWidth();
-        out.y = bufY;
-        out.u = bufU;
-        out.v = bufV;
-        out.ypitch = (vi.width + 31) & ~31;
-        out.uvpitch = (cw + 15) & ~15;
-        out.ywidth = vi.width;
-        out.uvwidth = cw;
-        out.yheight = vi.height;
-        out.uvheight = vi.height;
-    }
+    YV12PICT out = (decoder.upConv != 2) ? YV12PICT(frame) :
+        YV12PICT(bufY, bufU, bufV, vi.width, decoder.getChromaWidth(), vi.height);
 
     decoder.Decode(n, &out);
 
