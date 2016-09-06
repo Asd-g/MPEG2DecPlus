@@ -66,6 +66,7 @@ int CMPEG2Decoder::Get_Hdr()
 /* ISO/IEC 13818-2 section 6.2.2.6 */
 inline void CMPEG2Decoder::group_of_pictures_header()
 {
+#if 0
     Get_Bits(1); //drop_flag
     Get_Bits(5); //gop_hour
     Get_Bits(6); //gop_minute
@@ -74,6 +75,9 @@ inline void CMPEG2Decoder::group_of_pictures_header()
     Get_Bits(6); //gop_frame
     Get_Bits(1); //closed_gop
     Get_Bits(1); //broken_link
+#else
+    Flush_Buffer(27);
+#endif
     extension_and_user_data();
 }
 
@@ -84,7 +88,7 @@ inline void CMPEG2Decoder::picture_header()
 {
     temporal_reference  = Get_Bits(10);
     picture_coding_type = Get_Bits(3);
-    Get_Bits(16); //vbv_delay
+    Flush_Buffer(16);//Get_Bits(16); //vbv_delay
 
     if (picture_coding_type==P_TYPE || picture_coding_type==B_TYPE)
     {
@@ -124,12 +128,17 @@ void CMPEG2Decoder::Sequence_Header()
 
     horizontal_size = Get_Bits(12);
     vertical_size   = Get_Bits(12);
+#if 0
     Get_Bits(4); //aspect_ratio_information
     Get_Bits(4); //frame_rate_code
     Get_Bits(18); //bit_rate_value
     Flush_Buffer(1); // marker bit
     Get_Bits(10); //vbv_buffer_size
     Get_Bits(1); //constrained_parameters_flag
+#else
+    Flush_Buffer(32);
+    Flush_Buffer(6);
+#endif
 
     if (load_intra_quantizer_matrix = Get_Bits(1))
     {
@@ -246,11 +255,12 @@ void CMPEG2Decoder::extension_and_user_data()
 /* ISO/IEC 13818-2 section 6.2.2.3 */
 inline void CMPEG2Decoder::sequence_extension()
 {
-    Get_Bits(8); //profile_and_level_indication
+    Flush_Buffer(8); //Get_Bits(8); //profile_and_level_indication
     progressive_sequence          = Get_Bits(1);
     chroma_format                 = Get_Bits(2);
     int horizontal_size_extension = Get_Bits(2) << 12;
     int vertical_size_extension   = Get_Bits(2) << 12;
+#if 0
     Get_Bits(12); //bit_rate_extension
     Flush_Buffer(1);    // marker bit
     Get_Bits(8); //vbv_buffer_size_extension
@@ -258,6 +268,9 @@ inline void CMPEG2Decoder::sequence_extension()
 
     Get_Bits(2); //frame_rate_extension_n
     Get_Bits(5); //frame_rate_extension_d
+#else
+    Flush_Buffer(29);
+#endif
 
     horizontal_size = horizontal_size_extension | (horizontal_size & 0x0fff);
     vertical_size = vertical_size_extension | (vertical_size & 0x0fff);
@@ -266,19 +279,23 @@ inline void CMPEG2Decoder::sequence_extension()
 /* decode sequence display extension */
 inline void CMPEG2Decoder::sequence_display_extension()
 {
-    Get_Bits(3); //video_format
+    Flush_Buffer(3);// Get_Bits(3); //video_format
 
     matrix_coefficients = 1;
     if (Get_Bits(1)) //color_description
     {
-        Get_Bits(8); //color_primaries
-        Get_Bits(8); //transfer_characteristics
+        //Get_Bits(8); //color_primaries
+        //Get_Bits(8); //transfer_characteristics
+        Flush_Buffer(16);
         matrix_coefficients = Get_Bits(8);
     }
-
+#if 0
     Get_Bits(14); //display_horizontal_size
     Flush_Buffer(1); // marker bit
     Get_Bits(14); //display_vertical_size
+#else
+    Flush_Buffer(29);
+#endif
 }
 
 /* decode quant matrix entension */
@@ -421,6 +438,7 @@ inline int CMPEG2Decoder::extra_bit_information()
 /* (header added in November, 1994 to the IS document) */
 inline void CMPEG2Decoder::copyright_extension()
 {
+#if 0
     Get_Bits(1); //copyright_flag
     Get_Bits(8); //copyright_identifier
     Get_Bits(1); //original_or_copy
@@ -434,4 +452,9 @@ inline void CMPEG2Decoder::copyright_extension()
     Get_Bits(22); //copyright_number_2
     Flush_Buffer(1); // marker bit
     Get_Bits(22); //copyright_number_3
+#else
+    Flush_Buffer(32);
+    Flush_Buffer(32);
+    Flush_Buffer(20);
+#endif
 }

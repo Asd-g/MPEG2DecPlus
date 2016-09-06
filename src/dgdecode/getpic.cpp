@@ -37,7 +37,6 @@ const uint8_t cc_table[12] = {
     0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 2
 };
 
-int dcount = 0;
 
 void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
 {
