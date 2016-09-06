@@ -38,7 +38,6 @@ static const int ChromaFormat[4] = {
 };
 
 CMPEG2Decoder::CMPEG2Decoder() :
-    VF_FrameLimit(0),
     VF_FrameRate(0),
     VF_FrameRate_Num(0),
     VF_FrameRate_Den(0),
@@ -104,14 +103,12 @@ void CMPEG2Decoder::setIDCT(int idct)
 // Open function modified by Donald Graft as part of fix for dropped frames and random frame access.
 int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
 {
-    VF_File = d2vf;
-
     Choose_Prediction();
 
     char ID[80], PASS[80] = "DGIndexProjectFile16";
     uint32_t i, j;
 
-    if (fgets(ID, 79, VF_File)==NULL)
+    if (fgets(ID, 79, d2vf)==NULL)
         return 1;
     if (strstr(ID, "DGIndexProjectFile") == NULL)
         return 5;
@@ -119,13 +116,13 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
         return 2;
 
     int file_limit;
-    fscanf(VF_File, "%d\n", &file_limit);
+    fscanf(d2vf, "%d\n", &file_limit);
     Infile.reserve(file_limit);
     Infilename.reserve(file_limit);
     char filename[_MAX_PATH];
 
     while (file_limit-- > 0) {
-        fgets(filename, _MAX_PATH - 1, VF_File);
+        fgets(filename, _MAX_PATH - 1, d2vf);
         auto temp = std::string(filename);
         temp.pop_back(); // Strip newline.
 
@@ -156,17 +153,17 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
         }
     }
 
-    fscanf(VF_File, "\nStream_Type=%d\n", &SystemStream_Flag);
+    fscanf(d2vf, "\nStream_Type=%d\n", &SystemStream_Flag);
     if (SystemStream_Flag == 2)
     {
-        fscanf(VF_File, "MPEG2_Transport_PID=%x,%x,%x\n",
+        fscanf(d2vf, "MPEG2_Transport_PID=%x,%x,%x\n",
                &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID, &MPEG2_Transport_PCRPID);
-        fscanf(VF_File, "Transport_Packet_Size=%d\n", &TransportPacketSize);
+        fscanf(d2vf, "Transport_Packet_Size=%d\n", &TransportPacketSize);
     }
-    fscanf(VF_File, "MPEG_Type=%d\n", &mpeg_type);
+    fscanf(d2vf, "MPEG_Type=%d\n", &mpeg_type);
 
     int idct;
-    fscanf(VF_File, "iDCT_Algorithm=%d\n", &idct);
+    fscanf(d2vf, "iDCT_Algorithm=%d\n", &idct);
     setIDCT(idct);
 
 
@@ -221,14 +218,14 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
         auxframe[i] = (unsigned char*)_aligned_malloc(2*size+4096, 32);
     }
 
-    fscanf(VF_File, "YUVRGB_Scale=%d\n", &i);
+    fscanf(d2vf, "YUVRGB_Scale=%d\n", &i);
 
-    fscanf(VF_File, "Luminance_Filter=%d,%d\n", &lumGamma, &lumOffset);
+    fscanf(d2vf, "Luminance_Filter=%d,%d\n", &lumGamma, &lumOffset);
 
-    fscanf(VF_File, "Clipping=%d,%d,%d,%d\n",
+    fscanf(d2vf, "Clipping=%d,%d,%d,%d\n",
            &Clip_Left, &Clip_Right, &Clip_Top, &Clip_Bottom);
-    fscanf(VF_File, "Aspect_Ratio=%s\n", Aspect_Ratio);
-    fscanf(VF_File, "Picture_Size=%dx%d\n", &D2V_Width, &D2V_Height);
+    fscanf(d2vf, "Aspect_Ratio=%s\n", Aspect_Ratio);
+    fscanf(d2vf, "Picture_Size=%dx%d\n", &D2V_Width, &D2V_Height);
 
     Clip_Width = Coded_Picture_Width;
     Clip_Height = Coded_Picture_Height;
@@ -252,9 +249,9 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
     saved_active = auxFrame1;
     saved_store = auxFrame2;
 
-    fscanf(VF_File, "Field_Operation=%d\n", &FO_Flag);
-    fscanf(VF_File, "Frame_Rate=%d (%u/%u)\n", &(VF_FrameRate), &(VF_FrameRate_Num), &(VF_FrameRate_Den));
-    fscanf(VF_File, "Location=%d,%X,%d,%X\n", &i, &j, &i, &j);
+    fscanf(d2vf, "Field_Operation=%d\n", &FO_Flag);
+    fscanf(d2vf, "Frame_Rate=%d (%u/%u)\n", &(VF_FrameRate), &(VF_FrameRate_Num), &(VF_FrameRate_Den));
+    fscanf(d2vf, "Location=%d,%X,%d,%X\n", &i, &j, &i, &j);
 
     uint32_t type, tff, rff, film, ntsc, top, bottom, mapping;
     int repeat_on, repeat_off, repeat_init;
@@ -269,7 +266,7 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
     GOPList.reserve(200000);
 
     char buf[2048];
-    fgets(buf, 2047, VF_File);
+    fgets(buf, 2047, d2vf);
     char* buf_p = buf;
 
     while (true) {
@@ -436,7 +433,7 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
         while (*buf_p != '\n' && *buf_p != ' ') buf_p++;
         if (*buf_p == '\n')
         {
-            fgets(buf, 2047, VF_File);
+            fgets(buf, 2047, d2vf);
             buf_p = buf;
         }
         else buf_p++;
@@ -449,14 +446,13 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
         while (FrameList[mapping-1].top >= film)
             mapping--;
 
-        VF_FrameLimit = mapping;
+        FrameList.resize(mapping);
     } else {
         while ((FrameList[ntsc-1].top >= film) || (FrameList[ntsc-1].bottom >= film))
             ntsc--;
 
-        VF_FrameLimit = ntsc;
+        FrameList.resize(ntsc);
     }
-    FrameList.resize(VF_FrameLimit + 1);
     FrameList.shrink_to_fit();
 #if 0
     {
@@ -516,6 +512,8 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
             BadStartingFrames = i;
         }
     }
+    fclose(d2vf);
+    d2vf = nullptr;
     return 0;
 }
 
@@ -787,11 +785,6 @@ __except(EXCEPTION_EXECUTE_HANDLER)
 
 void CMPEG2Decoder::Close()
 {
-    if (VF_File) {
-        fclose(VF_File);
-        VF_File = NULL;
-    }
-
     while (Infile.size() > 0) {
         _close(Infile.back());
         Infile.pop_back();

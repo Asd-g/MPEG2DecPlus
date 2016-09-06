@@ -340,11 +340,9 @@ public:
     int Field_Order;
     bool HaveRFFs;
 
-    FILE* VF_File;
     int       VF_FrameRate;
     uint32_t  VF_FrameRate_Num;
     uint32_t  VF_FrameRate_Den;
-    uint32_t  VF_FrameLimit;
 
     int horizontal_size, vertical_size, mb_width, mb_height;
     //int iPP;

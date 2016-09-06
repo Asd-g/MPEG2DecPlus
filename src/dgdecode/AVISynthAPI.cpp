@@ -250,7 +250,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
     else vi.pixel_type = VideoInfo::CS_YV12;
 
     vi.SetFPS(decoder.VF_FrameRate_Num, decoder.VF_FrameRate_Den);
-    vi.num_frames = decoder.VF_FrameLimit;
+    vi.num_frames = static_cast<int>(decoder.FrameList.size());
     vi.SetFieldBased(false);
 #if 0
     switch (cpu) {
