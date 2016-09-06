@@ -31,7 +31,8 @@
 
 
 // Write 2-digits numbers in a 16x16 zone.
-__inline void MBnum(uint8_t* dst, int stride, int number)
+static void write_quants(uint8_t* dst, int stride, int mb_width, int mb_height,
+                         const int* qp)
 {
     const uint8_t rien[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     const uint8_t nums[10][8] = {
@@ -67,29 +68,50 @@ __inline void MBnum(uint8_t* dst, int stride, int number)
             }
         }
     };
-    const uint8_t* num;
 
-    dst += 3*stride;
-    int c = (number/100)%10;
-    num = nums[c]; // x00
-    if (c==0) num = rien;
-    write(num, dst, stride);
+    for (int y = 0; y < mb_height; ++y) {
+        for (int x = 0; x < mb_width; ++x) {
+            int number = qp[x + y * mb_width];
+            uint8_t* dstp = dst + x * 16 + 3 * stride;
 
-    dst += 5;
-    int d = (number/10)%10;
-    num = nums[d]; // 0x0
-    if (c==0 && d==0) num = rien;
-    write(num, dst, stride);
+            int c = (number / 100) % 10;
+            const uint8_t* num = nums[c]; // x00
+            if (c == 0) num = rien;
+            write(num, dstp, stride);
 
-    dst += 5;
-    num = nums[number%10]; // 00x
-    write(num, dst, stride);
+            dstp += 5;
+            int d = (number / 10) % 10;
+            num = nums[d]; // 0x0
+            if (c==0 && d==0) num = rien;
+            write(num, dstp, stride);
+
+            dstp += 5;
+            num = nums[number % 10]; // 00x
+            write(num, dstp, stride);
+        }
+        dst += 16 * stride;
+    }
 }
+
+
+static void set_qparams(const int* qp, size_t mb_size, int& minquant,
+                        int& maxquant, int& avgquant)
+{
+    int minq = qp[0], maxq = qp[0], sum = qp[0];
+    for (size_t i = 1; i < mb_size; ++i) {
+        int q = qp[i];
+        if (q < minq) minq = q;
+        if (q > maxq) maxq = q;
+        sum += q;
+    }
+    minquant = minq;
+    maxquant = maxq;
+    avgquant = static_cast<int>(static_cast<float>(sum) / mb_size + 0.5f);
+}
+
 
 void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
 {
-    int *qp;
-
     dst->pf = pf;
 #if 0
     if (pp_mode != 0)
@@ -132,15 +154,11 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
 #endif
     {
         fast_copy(src[0], Coded_Picture_Width, dst->y, dst->ypitch, Coded_Picture_Width, Coded_Picture_Height);
-        if (upConv > 0 && chroma_format == 1)
-        {
-            if (iCC == 1 || (iCC == -1 && pf == 0))
-            {
+        if (upConv > 0 && chroma_format == 1) {
+            if (iCC == 1 || (iCC == -1 && pf == 0)) {
                 conv420to422I(src[1], dst->u, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
                 conv420to422I(src[2], dst->v, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
-            }
-            else
-            {
+            } else {
                 conv420to422P(src[1], dst->u, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
                 conv420to422P(src[2], dst->v, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
             }
@@ -150,47 +168,14 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
         }
     }
 
-    // Re-order quant data for display order.
-    if (info == 1 || info == 2 || showQ)
-    {
-        if (picture_coding_type == B_TYPE)
-            qp = auxQP;
-        else
-            qp = backwardQP;
-    } else {
-        return;
-    }
-
-    if (info == 1 || info == 2)
-    {
-        int x, y, temp;
-        int quant;
-
-        minquant = maxquant = qp[0];
-        avgquant = 0;
-        for(y=0; y<mb_height; ++y)
-        {
-            temp = y*mb_width;
-            for(x=0; x<mb_width; ++x)
-            {
-                quant = qp[x+temp];
-                if (quant > maxquant) maxquant = quant;
-                if (quant < minquant) minquant = quant;
-                avgquant += quant;
-            }
+    if (info == 1 || info == 2 || showQ) {
+        // Re-order quant data for display order.
+        const int* qp = (picture_coding_type == B_TYPE) ? auxQP : backwardQP;
+        if (info == 1 || info == 2) {
+            set_qparams(qp, mb_width * mb_height, minquant, maxquant, avgquant);
         }
-        avgquant = (int)(((float)avgquant/(float)(mb_height*mb_width)) + 0.5f);
-    }
-
-    if (showQ)
-    {
-        int x, y;
-        for(y=0; y<this->mb_height; y++)
-        {
-            for(x=0;x<this->mb_width; x++)
-            {
-                MBnum(&dst->y[x*16+y*16*dst->ypitch],dst->ypitch,qp[x+y*this->mb_width]);
-            }
+        if (showQ) {
+            write_quants(dst->y, dst->ypitch, mb_width, mb_height, qp);
         }
     }
 }
