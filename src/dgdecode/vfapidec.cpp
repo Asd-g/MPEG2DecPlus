@@ -72,7 +72,6 @@ CMPEG2Decoder::CMPEG2Decoder() :
     //u422(nullptr),
     //v422(nullptr)
 {
-    memset(Rdbfr, 0, sizeof(Rdbfr));
     memset(intra_quantizer_matrix, 0, sizeof(intra_quantizer_matrix));
     memset(non_intra_quantizer_matrix, 0, sizeof(non_intra_quantizer_matrix));
     memset(chroma_intra_quantizer_matrix, 0, sizeof(chroma_intra_quantizer_matrix));
@@ -103,6 +102,9 @@ void CMPEG2Decoder::setIDCT(int idct)
 // Open function modified by Donald Graft as part of fix for dropped frames and random frame access.
 int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
 {
+    ReadBuffer.resize(BUFFER_SIZE, 0);
+    Rdbfr = ReadBuffer.data();
+
     Choose_Prediction();
 
     char ID[80], PASS[80] = "DGIndexProjectFile16";

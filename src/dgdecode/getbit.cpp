@@ -62,31 +62,6 @@ void CMPEG2Decoder::Initialize_Buffer()
 }
 
 
-uint32_t CMPEG2Decoder::Get_Bits_All(uint32_t N)
-{
-    N -= BitsLeft;
-    Val = (CurrentBfr << (32 - BitsLeft)) >> (32 - BitsLeft);
-
-    if (N != 0)
-        Val = (Val << N) | (NextBfr >> (32 - N));
-
-    CurrentBfr = NextBfr;
-    BitsLeft = 32 - N;
-    Fill_Next();
-
-    return Val;
-}
-
-
-void CMPEG2Decoder::Flush_Buffer_All(uint32_t N)
-{
-    CurrentBfr = NextBfr;
-    BitsLeft += 32 - N;
-    Fill_Next();
-}
-
-
-
 struct  transport_packet{
     // 1 byte
     uint8_t sync_byte; //         8   bslbf
@@ -147,10 +122,11 @@ void CMPEG2Decoder::Next_Transport_Packet()
 
         if (TransportPacketSize == 192)
         {
-            Get_Byte();
-            Get_Byte();
-            Get_Byte();
-            Get_Byte();
+            //Get_Byte();
+            //Get_Byte();
+            //Get_Byte();
+            //Get_Byte();
+            Rdptr += 4;
             Packet_Length -= 4;
         }
 
@@ -255,10 +231,11 @@ void CMPEG2Decoder::Next_Transport_Packet()
             if (tp.payload_unit_start_indicator)
             {
                 // YES, pull out PTS
-                Get_Short();
-                Get_Short();
-                Get_Short(); // MPEG2-PES total Packet_Length
-                Get_Byte(); // skip a byte
+                //Get_Short();
+                //Get_Short();
+                //Get_Short(); // MPEG2-PES total Packet_Length
+                //Get_Byte(); // skip a byte
+                Rdptr += 7;
                 code = Get_Byte();
                 Packet_Header_Length = Get_Byte();
                 Packet_Length = Packet_Length - 9; // compensate the bytes we extracted
@@ -267,9 +244,10 @@ void CMPEG2Decoder::Next_Transport_Packet()
                 if (code>=0x80 && Packet_Header_Length > 4 ) // Extension_flag ?
                 {
                     // Skip PES_PTS
+                    //Get_Short();
+                    //Get_Short();
+                    Rdptr += 4;
                     Get_Byte();
-                    Get_Short();
-                    Get_Short();
                     Packet_Length = Packet_Length - 5;
                     SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length-5 )
                 }
@@ -478,10 +456,6 @@ void CMPEG2Decoder::Next_File()
         File_Flag ++;
 
     } else {
-#if 0
-        // This mechanism is not yet working.
-        Fault_Flag = OUT_OF_BITS;
-#endif
         File_Flag = 0;
     }
     // Even if we ran out of files, we reread the first one, just so

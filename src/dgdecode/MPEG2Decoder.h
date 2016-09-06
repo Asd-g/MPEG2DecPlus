@@ -130,7 +130,7 @@ struct FRAMELIST {
 };
 
 
-#define BUFFER_SIZE         2048
+constexpr size_t BUFFER_SIZE = 128 * 1024; // 128KiB
 
 
 class CMPEG2Decoder
@@ -143,8 +143,6 @@ class CMPEG2Decoder
     void Next_Transport_Packet(void);
     void Next_PVA_Packet(void);
     void Next_Packet(void);
-    void Flush_Buffer_All(uint32_t N);
-    uint32_t Get_Bits_All(uint32_t N);
     void Next_File(void);
 
     uint32_t Show_Bits(uint32_t N);
@@ -155,7 +153,8 @@ class CMPEG2Decoder
     uint32_t Get_Short(void);
     void Next_Start_Code(void);
 
-    uint8_t Rdbfr[BUFFER_SIZE], *Rdptr, *Rdmax;
+    std::vector<uint8_t> ReadBuffer;
+    uint8_t *Rdbfr, *Rdptr, *Rdmax;
     uint32_t CurrentBfr, NextBfr, BitsLeft, Val, Read;
     uint8_t *buffer_invalid;
 
@@ -371,87 +370,94 @@ __forceinline uint32_t CMPEG2Decoder::Show_Bits(uint32_t N)
 {
     if (N <= BitsLeft) {
         return (CurrentBfr << (32 - BitsLeft)) >> (32 - N);;
-    }
-    else
-    {
+    } else {
         N -= BitsLeft;
-        return (((CurrentBfr << (32 - BitsLeft)) >> (32 - BitsLeft)) << N) + (NextBfr >> (32 - N));;
+        int shift = 32 - BitsLeft;
+        //return (((CurrentBfr << shift) >> shift) << N) + (NextBfr >> (32 - N));;
+        return ((CurrentBfr << shift) >> (shift - N)) | (NextBfr >> (32 - N));
     }
 }
 
 __forceinline uint32_t CMPEG2Decoder::Get_Bits(uint32_t N)
 {
-    if (N < BitsLeft)
-    {
+    if (N < BitsLeft) {
         Val = (CurrentBfr << (32 - BitsLeft)) >> (32 - N);
         BitsLeft -= N;
         return Val;
+    } else {
+        N -= BitsLeft;
+        int shift = 32 - BitsLeft;
+        Val = (CurrentBfr << shift) >> shift;
+        if (N != 0)
+            Val = (Val << N) | (NextBfr >> (32 - N));
+        CurrentBfr = NextBfr;
+        BitsLeft = 32 - N;
+        Fill_Next();
+        return Val;
     }
-    else
-        return Get_Bits_All(N);
 }
 
 
 __forceinline void CMPEG2Decoder::Flush_Buffer(uint32_t N)
 {
-    if (N < BitsLeft)
+    if (N < BitsLeft) {
         BitsLeft -= N;
-    else
-        Flush_Buffer_All(N);
+    } else {
+        CurrentBfr = NextBfr;
+        BitsLeft += 32 - N;
+        Fill_Next();
+    }
 }
 
 
 __forceinline void CMPEG2Decoder::Fill_Next()
 {
-    // This mechanism is not yet working.
-#if 0
-    if (Rdptr >= buffer_invalid)
-    {
-        Fault_Flag = OUT_OF_BITS;
-        return;
-    }
-#endif
-
-    if (SystemStream_Flag && Rdptr > Rdmax - 4)
-    {
+    if (SystemStream_Flag && Rdptr > Rdmax - 4) {
         if (Rdptr >= Rdmax)
             Next_Packet();
         NextBfr = Get_Byte() << 24;
 
         if (Rdptr >= Rdmax)
             Next_Packet();
-        NextBfr += Get_Byte() << 16;
+        NextBfr |= Get_Byte() << 16;
 
         if (Rdptr >= Rdmax)
             Next_Packet();
-        NextBfr += Get_Byte() << 8;
+        NextBfr |= Get_Byte() << 8;
 
         if (Rdptr >= Rdmax)
             Next_Packet();
-        NextBfr += Get_Byte();
-    }
-    else if (Rdptr <= Rdbfr + BUFFER_SIZE - 4)
-    {
-        NextBfr = (*Rdptr << 24) + (*(Rdptr+1) << 16) + (*(Rdptr+2) << 8) + *(Rdptr+3);
+        NextBfr |= Get_Byte();
+    } else if (Rdptr < Rdbfr + BUFFER_SIZE - 3) {
+        //NextBfr = (*Rdptr << 24) + (*(Rdptr+1) << 16) + (*(Rdptr+2) << 8) + *(Rdptr+3);
+        NextBfr = _byteswap_ulong(*reinterpret_cast<uint32_t*>(Rdptr));
         Rdptr += 4;
-    }
-    else
-    {
-        if (Rdptr >= Rdbfr+BUFFER_SIZE)
+    } else {
+        switch (Rdbfr + BUFFER_SIZE - Rdptr) {
+        case 1:
+            NextBfr = *Rdptr++ << 24;
             Fill_Buffer();
-        NextBfr = *Rdptr++ << 24;
-
-        if (Rdptr >= Rdbfr+BUFFER_SIZE)
+            NextBfr |= (Rdptr[0] << 16) | (Rdptr[1] << 8) | Rdptr[2];
+            Rdptr += 3;
+            break;
+        case 2:
+            NextBfr = (Rdptr[0] << 24) | (Rdptr[1] << 16);
+            Rdptr += 2;
             Fill_Buffer();
-        NextBfr += *Rdptr++ << 16;
-
-        if (Rdptr >= Rdbfr+BUFFER_SIZE)
+            NextBfr |= (Rdptr[0] << 8) | Rdptr[1];
+            Rdptr += 2;
+            break;
+        case 3:
+            NextBfr = (Rdptr[0] << 24) | (Rdptr[1] << 16) | (Rdptr[2] << 8);
+            Rdptr += 3;
             Fill_Buffer();
-        NextBfr += *Rdptr++ << 8;
-
-        if (Rdptr >= Rdbfr+BUFFER_SIZE)
+            NextBfr |= *Rdptr++;
+            break;
+        default:
             Fill_Buffer();
-        NextBfr += *Rdptr++;
+            NextBfr = _byteswap_ulong(*reinterpret_cast<uint32_t*>(Rdptr));
+            Rdptr += 4;
+        }
     }
 }
 
@@ -480,8 +486,7 @@ __forceinline uint32_t CMPEG2Decoder::Get_Byte()
     }
 #endif
 
-    while (Rdptr >= (Rdbfr + BUFFER_SIZE))
-    {
+    while (Rdptr >= (Rdbfr + BUFFER_SIZE)) {
         Read = _read(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
 
         if (Read < BUFFER_SIZE)
