@@ -27,13 +27,7 @@
     <ClCompile Include="..\..\..\src\dgdecode\getpic.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\motion.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\vfapidec.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp">
@@ -70,6 +64,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\yv12pict.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\dgdecode\MPEG2Decoder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

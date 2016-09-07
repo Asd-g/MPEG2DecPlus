@@ -185,9 +185,8 @@
     <ClCompile Include="..\..\..\src\dgdecode\LumaYUV.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\mc.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\misc.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\motion.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\store.cpp" />
-    <ClCompile Include="..\..\..\src\dgdecode\vfapidec.cpp" />
+    <ClCompile Include="..\..\..\src\dgdecode\MPEG2Decoder.cpp" />
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp" />
   </ItemGroup>
   <ItemGroup>

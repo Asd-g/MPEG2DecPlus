@@ -9,7 +9,7 @@
 ###必要なもの:
     - Windows Vista SP2 以降の Windows OS
     - SSE3が使えるCPU(Intel Pentium4(prescott) または AMD Athlon64x2 以降)
-    - Avisynth+ r2172以降
+    - Avisynth+ r2172以降 またはAvisynth 2.60以降
     - Microsoft VisualC++ Redistributable Package 2015.
 
  ###使い方:
