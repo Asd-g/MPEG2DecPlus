@@ -30,11 +30,6 @@
 #include "mc.h"
 
 
-alignas(16) static const uint8_t one_x16[] = {
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-};
-
-
 static __forceinline __m128i load(const uint8_t* p)
 {
     return _mm_load_si128(reinterpret_cast<const __m128i*>(p));
@@ -191,7 +186,7 @@ get_correcter(const __m128i& r0, const __m128i& r1, const __m128i& r2, const __m
 
 static void MC_put_xy8_sse2(uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
 {
-    const __m128i one = load(one_x16);
+    static const __m128i one = _mm_set1_epi8(1);
     const uint8_t* ro = ref + offs;
 
     do {
@@ -216,7 +211,7 @@ static void MC_put_xy8_sse2(uint8_t* dest, const uint8_t* ref, int stride, int o
 
 static void MC_put_xy16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
 {
-    const __m128i one = load(one_x16);
+    static const __m128i one = _mm_set1_epi8(1);
     const uint8_t* ro = ref + offs;
 
     do {
@@ -241,7 +236,7 @@ static void MC_put_xy16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int 
 
 static void MC_avg_xy8_sse2(uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
 {
-    const __m128i one = load(one_x16);
+    static const __m128i one = _mm_set1_epi8(1);
     const uint8_t* ro = ref + offs;
 
     do {
@@ -266,7 +261,7 @@ static void MC_avg_xy8_sse2(uint8_t* dest, const uint8_t* ref, int stride, int o
 
 static void MC_avg_xy16_sse2(uint8_t* dest, const uint8_t* ref, int stride, int offs, int height)
 {
-    const __m128i one = load(one_x16);
+    static const __m128i one = _mm_set1_epi8(1);
     const uint8_t* ro = ref + offs;
 
     do {

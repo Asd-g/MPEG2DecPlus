@@ -175,33 +175,33 @@ class CMPEG2Decoder
 
     // getpic.cpp
     void Decode_Picture(YV12PICT& dst);
-    inline void update_picture_buffers(void);
-    inline void picture_data(void);
-    inline void slice(int MBAmax, uint32_t code);
-    inline void macroblock_modes(int& pmacroblock_type, int& pmotion_type,
+    void update_picture_buffers(void);
+    void picture_data(void);
+    void slice(int MBAmax, uint32_t code);
+    void macroblock_modes(int& pmacroblock_type, int& pmotion_type,
         int& pmotion_vector_count, int& pmv_format, int& pdmv, int& pmvscale, int& pdct_type);
-    inline void clear_block(int count);
-    inline void add_block(int count, int bx, int by, int dct_type, int addflag);
-    inline void motion_compensation(int MBA, int macroblock_type, int motion_type,
+    void clear_block(int count);
+    void add_block(int count, int bx, int by, int dct_type, int addflag);
+    void motion_compensation(int MBA, int macroblock_type, int motion_type,
         int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2], int dct_type);
-    inline void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2],
+    void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2],
         int& motion_type, int motion_vertical_field_select[2][2], int& macroblock_type);
-    inline void decode_macroblock(int& macroblock_type, int& motion_type, int& dct_type,
+    void decode_macroblock(int& macroblock_type, int& motion_type, int& dct_type,
         int PMV[2][2][2], int dc_dct_pred[3], int motion_vertical_field_select[2][2], int dmvector[2]);
-    inline void decode_mpeg1_intra_block(int comp, int dc_dct_pred[]);
-    inline void decode_mpeg1_non_intra_block(int comp);
-    inline void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[]);
-    inline void Decode_MPEG2_Non_Intra_Block(int comp);
+    void decode_mpeg1_intra_block(int comp, int dc_dct_pred[]);
+    void decode_mpeg1_non_intra_block(int comp);
+    void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[]);
+    void Decode_MPEG2_Non_Intra_Block(int comp);
 
-    inline int Get_macroblock_type(void);
-    inline int Get_I_macroblock_type(void);
-    inline int Get_P_macroblock_type(void);
-    inline int Get_B_macroblock_type(void);
-    inline int Get_D_macroblock_type(void);
-    inline int Get_coded_block_pattern(void);
-    inline int Get_macroblock_address_increment(void);
-    inline int Get_Luma_DC_dct_diff(void);
-    inline int Get_Chroma_DC_dct_diff(void);
+    int Get_macroblock_type(void);
+    int Get_I_macroblock_type(void);
+    int Get_P_macroblock_type(void);
+    int Get_B_macroblock_type(void);
+    int Get_D_macroblock_type(void);
+    int Get_coded_block_pattern(void);
+    int Get_macroblock_address_increment(void);
+    int Get_Luma_DC_dct_diff(void);
+    int Get_Chroma_DC_dct_diff(void);
 
     void form_predictions(int bx, int by, int macroblock_type, int motion_type,
         int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2]);
@@ -215,12 +215,12 @@ class CMPEG2Decoder
         int h_r_size, int v_r_size, int dmv, int mvscale);
     void Dual_Prime_Arithmetic(int DMV[][2], int *dmvector, int mvx, int mvy);
 
-    inline void motion_vector(int *PMV, int *dmvector, int h_r_size, int v_r_size,
+    void motion_vector(int *PMV, int *dmvector, int h_r_size, int v_r_size,
         int dmv, int mvscale, int full_pel_vector);
-    inline void decode_motion_vector(int *pred, int r_size, int motion_code,
+    void decode_motion_vector(int *pred, int r_size, int motion_code,
         int motion_residualesidual, int full_pel_vector);
-    inline int Get_motion_code(void);
-    inline int Get_dmvector(void);
+    int Get_motion_code(void);
+    int Get_dmvector(void);
 
     // store.cpp
     void assembleFrame(uint8_t *src[], int pf, YV12PICT& dst);
@@ -312,7 +312,6 @@ class CMPEG2Decoder
     void copy_all(YV12PICT& src, YV12PICT& dst);
     void copy_top(YV12PICT& src, YV12PICT& dst);
     void copy_bottom(YV12PICT& src, YV12PICT& dst);
-    //inline void CopyTopBot(YV12PICT *odd, YV12PICT *even, YV12PICT *dst);
 
     int *QP, *backwardQP, *auxQP;
     uint32_t  prev_frame;
@@ -320,6 +319,7 @@ class CMPEG2Decoder
     std::vector<char> DirectAccess;
 
     void create_file_lists(FILE* d2vf, const char* path, char* buf);
+    void setIDCT(int idct);
     void create_gop_and_frame_lists(FILE* d2vf, char* buf);
     void set_clip_properties();
     void allocate_buffers();
@@ -369,7 +369,6 @@ public:
     int getChromaWidth() { return Chroma_Width; }
     int getLumaWidth() { return Coded_Picture_Width; }
     int getLumaHeight() { return Coded_Picture_Height; }
-    void setIDCT(int idct);
 };
 
 
