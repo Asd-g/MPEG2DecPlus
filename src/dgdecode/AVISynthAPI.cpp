@@ -38,33 +38,7 @@
 #include "idct.h"
 
 
-#define VERSION "MPEG2DecPlus 0.1.1"
-
-
-static const char* get_error_msg(int status)
-{
-    const char* msg[] = {
-        "Invalid D2V file, it's empty!",
-
-        "DGIndex/MPEG2DecPlus mismatch. You are picking up\n"
-        "a version of MPEG2DecPlus, possibly from your plugins directory,\n"
-        "that does not match the version of DGIndex used to make the D2V\n"
-        "file. Search your hard disk for all copies of MPEG2DecPlus.dll\n"
-        "and delete or rename all of them except for the one that\n"
-        "has the same version number as the DGIndex.exe that was used\n"
-        "to make the D2V file.",
-
-        "Could not open one of the input files.",
-
-        "Could not find a sequence header in the input stream.",
-
-        "The input file is not a D2V project file.",
-
-        "Force Film mode not supported for frame repeats.",
-    };
-
-    return msg[status - 1];
-}
+#define VERSION "MPEG2DecPlus 0.2.0"
 
 
 bool PutHintingData(uint8_t *video, uint32_t hint)
@@ -202,7 +176,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
                          bool fastMC, const char* _cpu2, int _info,
                          int _upConv, bool _i420, int iCC,
                          IScriptEnvironment* env) :
-    bufY(nullptr), bufU(nullptr), bufV(nullptr)
+    decoder(nullptr), bufY(nullptr), bufU(nullptr), bufV(nullptr)
 {
     //if (iPP != -1 && iPP != 0 && iPP != 1)
     //    env->ThrowError("MPEG2Source: iPP must be set to -1, 0, or 1!");
@@ -220,68 +194,29 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
     if (f == nullptr)
         env->ThrowError("MPEG2Source: unable to load D2V file \"%s\" ", d2v);
 
-    decoder.iCC = iCC;
-    decoder.info = _info;
-    decoder.showQ = showQ;
-    decoder.upConv = _upConv;
-    decoder.i420 = _i420;
-//    m_decoder.iPP = iPP;
-//    m_decoder.moderate_h = moderate_h;
-//    m_decoder.moderate_v = moderate_v;
-
-    int status = decoder.Open(f, d2v);
-    if (status != 0) {
+    try {
+        decoder = new CMPEG2Decoder(f, d2v, idct, iCC, _upConv, _info, showQ, _i420);
+    } catch (std::runtime_error& e) {
         if (f) fclose(f);
-        f = nullptr;
-        env->ThrowError("MPEG2Source: %s", get_error_msg(status));
+        env->ThrowError("MPEG2Source: %s", e.what());
     }
 
-    int chroma_format = decoder.getChromaFormat();
-    if (chroma_format != 1 && chroma_format != 2) {
-        env->ThrowError("MPEG2Source:  currently unsupported input color format (4:4:4)");
-    }
+    env->AtExit([](void* p, IScriptEnvironment*) { delete p; p = nullptr; }, decoder);
+    auto& d = *decoder;
+
+    int chroma_format = d.getChromaFormat();
 
     memset(&vi, 0, sizeof(vi));
-    vi.width = decoder.Clip_Width;
-    vi.height = decoder.Clip_Height;
+    vi.width = d.Clip_Width;
+    vi.height = d.Clip_Height;
     if (_upConv == 2) vi.pixel_type = VideoInfo::CS_YV24;
     else if (chroma_format == 2 || _upConv == 1) vi.pixel_type = VideoInfo::CS_YV16;
-    else if (decoder.i420 == true) vi.pixel_type = VideoInfo::CS_I420;
+    else if (d.i420 == true) vi.pixel_type = VideoInfo::CS_I420;
     else vi.pixel_type = VideoInfo::CS_YV12;
 
-    vi.SetFPS(decoder.VF_FrameRate_Num, decoder.VF_FrameRate_Den);
-    vi.num_frames = static_cast<int>(decoder.FrameList.size());
+    vi.SetFPS(d.VF_FrameRate_Num, d.VF_FrameRate_Den);
+    vi.num_frames = static_cast<int>(d.FrameList.size());
     vi.SetFieldBased(false);
-#if 0
-    switch (cpu) {
-        case 0 : _PP_MODE = 0; break;
-        case 1 : _PP_MODE = PP_DEBLOCK_Y_H; break;
-        case 2 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V; break;
-        case 3 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V | PP_DEBLOCK_C_H; break;
-        case 4 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V | PP_DEBLOCK_C_H | PP_DEBLOCK_C_V; break;
-        case 5 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V | PP_DEBLOCK_C_H | PP_DEBLOCK_C_V | PP_DERING_Y; break;
-        case 6 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V | PP_DEBLOCK_C_H | PP_DEBLOCK_C_V | PP_DERING_Y | PP_DERING_C; break;
-        default : env->ThrowError("MPEG2Source : cpu level invalid (0 to 6)");
-    }
-
-    const char* cpu2 = _cpu2;
-    if (strlen(cpu2)==6) {
-        _PP_MODE = 0;
-        if (cpu2[0]=='x' || cpu2[0] == 'X') { _PP_MODE |= PP_DEBLOCK_Y_H; }
-        if (cpu2[1]=='x' || cpu2[1] == 'X') { _PP_MODE |= PP_DEBLOCK_Y_V; }
-        if (cpu2[2]=='x' || cpu2[2] == 'X') { _PP_MODE |= PP_DEBLOCK_C_H; }
-        if (cpu2[3]=='x' || cpu2[3] == 'X') { _PP_MODE |= PP_DEBLOCK_C_V; }
-        if (cpu2[4]=='x' || cpu2[4] == 'X') { _PP_MODE |= PP_DERING_Y; }
-        if (cpu2[5]=='x' || cpu2[5] == 'X') { _PP_MODE |= PP_DERING_C; }
-    }
-
-    decoder.pp_mode = _PP_MODE;
-#endif
-
-    if (idct > 0) {
-        dprintf("Overiding iDCT With: %d", idct);
-        decoder.setIDCT(idct);
-    }
 
     if (_upConv == 2) {
         auto free_buf = [](void* p, IScriptEnvironment* e) {
@@ -289,7 +224,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
             p = nullptr;
         };
         size_t ysize = ((vi.width + 31) & ~31) * (vi.height + 1);
-        size_t uvsize = ((decoder.getChromaWidth() + 15) & ~15) * (vi.height + 1);
+        size_t uvsize = ((d.getChromaWidth() + 15) & ~15) * (vi.height + 1);
         void* ptr = _aligned_malloc(ysize + 2 * uvsize, 32);
         if (!ptr) {
             env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
@@ -300,10 +235,10 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
         bufV = bufU + uvsize;
     }
 
-    luminanceFlag = (decoder.lumGamma != 0 || decoder.lumOffset != 0);
+    luminanceFlag = (d.lumGamma != 0 || d.lumOffset != 0);
     if (luminanceFlag) {
-        int lg = decoder.lumGamma;
-        int lo = decoder.lumOffset;
+        int lg = d.lumGamma;
+        int lo = d.lumOffset;
         for (int i = 0; i < 256; ++i) {
             double value = 255.0 * pow(i / 255.0, pow(2.0, -lg / 128.0)) + lo + 0.5;
 
@@ -317,30 +252,26 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
     }
 }
 
-MPEG2Source::~MPEG2Source()
-{
-    decoder.Close();
-}
-
 
 bool __stdcall MPEG2Source::GetParity(int)
 {
-    return decoder.Field_Order == 1;
+    return decoder->Field_Order == 1;
 }
 
 
 PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 {
+    auto& d = *decoder;
     PVideoFrame frame = env->NewVideoFrame(vi, 32);
-    YV12PICT out = (decoder.upConv != 2) ? YV12PICT(frame) :
-        YV12PICT(bufY, bufU, bufV, vi.width, decoder.getChromaWidth(), vi.height);
+    YV12PICT out = (d.upConv != 2) ? YV12PICT(frame) :
+        YV12PICT(bufY, bufU, bufV, vi.width, d.getChromaWidth(), vi.height);
 
-    decoder.Decode(n, out);
+    d.Decode(n, out);
 
     if (luminanceFlag )
         luminance_filter(out.y, out.ywidth, out.yheight, out.ypitch, luminanceTable);
 
-    if (decoder.upConv == 2) { // convert 4:2:2 (planar) to 4:4:4 (planar)
+    if (d.upConv == 2) { // convert 4:2:2 (planar) to 4:4:4 (planar)
         env->BitBlt(frame->GetWritePtr(PLANAR_Y), frame->GetPitch(PLANAR_Y),
                     bufY, out.ypitch, vi.width, vi.height);
         conv422to444(out.u, frame->GetWritePtr(PLANAR_U), out.uvpitch,
@@ -349,8 +280,8 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
                      frame->GetPitch(PLANAR_V), vi.width, vi.height);
     }
 
-    if (decoder.info != 0)
-        show_info(n, decoder, frame, vi, env);
+    if (d.info != 0)
+        show_info(n, d, frame, vi, env);
 
     return frame;
 }
@@ -446,34 +377,31 @@ AVSValue __cdecl MPEG2Source::create(AVSValue args, void*, IScriptEnvironment* e
                                         iCC,
                                         env );
     // Only bother invoking crop if we have to.
-    if (dec->decoder.Clip_Top    ||
-        dec->decoder.Clip_Bottom ||
-        dec->decoder.Clip_Left   ||
-        dec->decoder.Clip_Right ||
+    auto& d = *dec->decoder;
+    if (d.Clip_Top    || d.Clip_Bottom || d.Clip_Left   || d.Clip_Right ||
         // This is cheap but it works. The intent is to allow the
         // display size to be different from the encoded size, while
         // not requiring massive revisions to the code. So we detect the
         // difference and crop it off.
-        dec->decoder.vertical_size != dec->decoder.Clip_Height ||
-        dec->decoder.horizontal_size != dec->decoder.Clip_Width ||
-        dec->decoder.vertical_size == 1088)
+        d.vertical_size != d.Clip_Height || d.horizontal_size != d.Clip_Width ||
+        d.vertical_size == 1088)
     {
         int vertical;
         // Special case for 1088 to 1080 as directed by DGIndex.
-        if (dec->decoder.vertical_size == 1088 && dec->decoder.D2V_Height == 1080)
+        if (d.vertical_size == 1088 && d.D2V_Height == 1080)
             vertical = 1080;
         else
-            vertical = dec->decoder.vertical_size;
-        AVSValue CropArgs[5] =
-        {
+            vertical = d.vertical_size;
+        AVSValue CropArgs[] = {
             dec,
-            dec->decoder.Clip_Left,
-            dec->decoder.Clip_Top,
-            -(dec->decoder.Clip_Right + (dec->decoder.Clip_Width - dec->decoder.horizontal_size)),
-            -(dec->decoder.Clip_Bottom + (dec->decoder.Clip_Height - vertical))
+            d.Clip_Left,
+            d.Clip_Top,
+            -(d.Clip_Right + (d.Clip_Width - d.horizontal_size)),
+            -(d.Clip_Bottom + (d.Clip_Height - vertical)),
+            true
         };
 
-        return env->Invoke("crop", AVSValue(CropArgs,5));
+        return env->Invoke("crop", AVSValue(CropArgs, 6));
     }
 
     return dec;

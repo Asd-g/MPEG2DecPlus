@@ -319,10 +319,17 @@ class CMPEG2Decoder
 
     std::vector<char> DirectAccess;
 
+    void create_file_lists(FILE* d2vf, const char* path, char* buf);
+    void create_gop_and_frame_lists(FILE* d2vf, char* buf);
+    void set_clip_properties();
+    void allocate_buffers();
+    void search_bad_starting();
+    void destroy();
+
 public:
-    CMPEG2Decoder();
-    int Open(FILE* file, const char* path);
-    void Close();
+    CMPEG2Decoder(FILE* file, const char* path, int _idct, int icc, int upconv,
+                  int info, bool showq, bool _i420);
+    ~CMPEG2Decoder() { destroy(); }
     void Decode(uint32_t frame, YV12PICT& dst);
 
     std::vector<std::string> Infilename;

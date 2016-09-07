@@ -25,6 +25,7 @@
 */
 
 #include <algorithm>
+#include <stdexcept>
 #include <malloc.h>
 #include "MPEG2Decoder.h"
 #include "mc.h"
@@ -37,12 +38,20 @@ static const int ChromaFormat[4] = {
     0, 6, 8, 12
 };
 
-CMPEG2Decoder::CMPEG2Decoder() :
+
+static void validate(bool cond, const char* msg)
+{
+    if (cond) throw std::runtime_error(msg);
+}
+
+// Open function modified by Donald Graft as part of fix for dropped frames and random frame access.
+// change function to constructor - chikuzen.
+CMPEG2Decoder::CMPEG2Decoder(FILE* d2vf, const char* path, int _idct, int icc,
+                             int upconv, int _info, bool showq, bool _i420) :
     VF_FrameRate(0),
     VF_FrameRate_Num(0),
     VF_FrameRate_Den(0),
     prev_frame(0xfffffffe),
-    Rdptr(nullptr),
     Rdmax(nullptr),
     CurrentBfr(0),
     NextBfr(0),
@@ -60,22 +69,79 @@ CMPEG2Decoder::CMPEG2Decoder() :
     q_scale_type(0),
     alternate_scan(0),
     quantizer_scale(0),
-    upConv(0),
-    iCC(-1),
-    i420(false),
-    maxquant(0),
-    minquant(0),
-    avgquant(0)
-    //iPP(-1),
-    //moderate_h(20),
-    //moderate_v(40),
-    //u422(nullptr),
-    //v422(nullptr)
+    auxFrame1(nullptr),
+    auxFrame2(nullptr),
+    upConv(upconv),
+    showQ(showq),
+    info(_info),
+    iCC(icc),
+    i420(_i420)
 {
     memset(intra_quantizer_matrix, 0, sizeof(intra_quantizer_matrix));
     memset(non_intra_quantizer_matrix, 0, sizeof(non_intra_quantizer_matrix));
     memset(chroma_intra_quantizer_matrix, 0, sizeof(chroma_intra_quantizer_matrix));
     memset(chroma_non_intra_quantizer_matrix, 0, sizeof(chroma_non_intra_quantizer_matrix));
+
+    ReadBuffer.resize(BUFFER_SIZE, 0);
+    Rdbfr = ReadBuffer.data();
+
+    Choose_Prediction();
+
+    char buf[2048];
+    uint32_t i, j;
+
+    validate(fgets(buf, 2047, d2vf) == nullptr, "Invalid D2V file, it's empty!");
+
+    validate(strstr(buf, "DGIndexProjectFile") == nullptr,
+             "The input file is not a D2V project file.");
+
+    validate(strncmp(buf, "DGIndexProjectFile16", 20) != 0,
+             "DGIndex/MPEG2DecPlus mismatch. You are picking up\n"
+             "a version of MPEG2DecPlus, possibly from your plugins directory,\n"
+             "that does not match the version of DGIndex used to make the D2V\n"
+             "file. Search your hard disk for all copies of MPEG2DecPlus.dll\n"
+             "and delete or rename all of them except for the one that\n"
+             "has the same version number as the DGIndex.exe that was used\n"
+             "to make the D2V file.");
+
+    create_file_lists(d2vf, path, buf);
+
+    fscanf(d2vf, "\nStream_Type=%d\n", &SystemStream_Flag);
+    if (SystemStream_Flag == 2) {
+        fscanf(d2vf, "MPEG2_Transport_PID=%x,%x,%x\n",
+               &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID, &MPEG2_Transport_PCRPID);
+        fscanf(d2vf, "Transport_Packet_Size=%d\n", &TransportPacketSize);
+    }
+    fscanf(d2vf, "MPEG_Type=%d\n", &mpeg_type);
+
+    int idct;
+    fscanf(d2vf, "iDCT_Algorithm=%d\n", &idct);
+    if (_idct > 0) {
+        idct = _idct;
+    }
+    setIDCT(idct);
+
+    fscanf(d2vf, "YUVRGB_Scale=%d\n", &i);
+
+    fscanf(d2vf, "Luminance_Filter=%d,%d\n", &lumGamma, &lumOffset);
+
+    fscanf(d2vf, "Clipping=%d,%d,%d,%d\n",
+        &Clip_Left, &Clip_Right, &Clip_Top, &Clip_Bottom);
+    fscanf(d2vf, "Aspect_Ratio=%s\n", Aspect_Ratio);
+    fscanf(d2vf, "Picture_Size=%dx%d\n", &D2V_Width, &D2V_Height);
+    fscanf(d2vf, "Field_Operation=%d\n", &FO_Flag);
+    fscanf(d2vf, "Frame_Rate=%d (%u/%u)\n", &(VF_FrameRate), &(VF_FrameRate_Num), &(VF_FrameRate_Den));
+    fscanf(d2vf, "Location=%d,%X,%d,%X\n", &i, &j, &i, &j);
+
+    create_gop_and_frame_lists(d2vf, buf);
+    fclose(d2vf);
+    d2vf = nullptr;
+
+    set_clip_properties();
+
+    allocate_buffers();
+
+    search_bad_starting();
 }
 
 
@@ -99,178 +165,94 @@ void CMPEG2Decoder::setIDCT(int idct)
 }
 
 
-// Open function modified by Donald Graft as part of fix for dropped frames and random frame access.
-int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
+void CMPEG2Decoder::set_clip_properties()
 {
-    ReadBuffer.resize(BUFFER_SIZE, 0);
-    Rdbfr = ReadBuffer.data();
+    File_Flag = 0;
+    _lseeki64(Infile[0], 0, SEEK_SET);
+    Initialize_Buffer();
 
-    Choose_Prediction();
+    do {
+        validate(Fault_Flag == OUT_OF_BITS,
+                 "Could not find a sequence header in the input stream.");
+        Next_Start_Code();
+    } while (Get_Bits(32) != SEQUENCE_HEADER_CODE);
 
-    char ID[80], PASS[80] = "DGIndexProjectFile16";
-    uint32_t i, j;
+    Sequence_Header();
+    validate(chroma_format == CHROMA444,
+             "currently unsupported input color format (4:4:4)");
 
-    if (fgets(ID, 79, d2vf)==NULL)
-        return 1;
-    if (strstr(ID, "DGIndexProjectFile") == NULL)
-        return 5;
-    if (strncmp(ID, PASS, 20))
-        return 2;
+    mb_width = (horizontal_size + 15) / 16;
+    mb_height = progressive_sequence ? (vertical_size + 15) / 16 : 2 * ((vertical_size + 31) / 32);
 
+    Coded_Picture_Width = 16 * mb_width;
+    Coded_Picture_Height = 16 * mb_height;
+
+    Chroma_Width = (chroma_format == CHROMA444) ? Coded_Picture_Width : Coded_Picture_Width >> 1;
+    Chroma_Height = (chroma_format != CHROMA420) ? Coded_Picture_Height : Coded_Picture_Height >> 1;
+
+    block_count = ChromaFormat[chroma_format];
+
+    Clip_Width = Coded_Picture_Width;
+    Clip_Height = Coded_Picture_Height;
+}
+
+
+void CMPEG2Decoder::create_file_lists(FILE* d2vf, const char* path, char* buf)
+{
     int file_limit;
     fscanf(d2vf, "%d\n", &file_limit);
     Infile.reserve(file_limit);
     Infilename.reserve(file_limit);
-    char filename[_MAX_PATH];
 
     while (file_limit-- > 0) {
-        fgets(filename, _MAX_PATH - 1, d2vf);
-        auto temp = std::string(filename);
+        fgets(buf, 2047, d2vf);
+        auto temp = std::string(buf);
         temp.pop_back(); // Strip newline.
 
         if (PathIsRelativeA(temp.c_str())) {
             std::string d2v_stem;
 
             if (PathIsRelativeA(path)) {
-                GetCurrentDirectory(_MAX_PATH, filename);
-                d2v_stem += filename;
+                GetCurrentDirectoryA(_MAX_PATH, buf);
+                d2v_stem += buf;
                 if (d2v_stem.back() != '\\') d2v_stem.push_back('\\');
             }
             d2v_stem += path;
 
             while (d2v_stem.back() != '\\') d2v_stem.pop_back();
             d2v_stem += temp;
-            PathCanonicalizeA(filename, d2v_stem.c_str());
-            int in = _open(filename, _O_RDONLY | _O_BINARY);
-            if (in == -1)
-                return 3;
+            PathCanonicalizeA(buf, d2v_stem.c_str());
+            int in = _open(buf, _O_RDONLY | _O_BINARY);
+            validate(in == -1, "Could not open one of the input files.");
             Infile.emplace_back(in);
-            Infilename.emplace_back(filename);
+            Infilename.emplace_back(buf);
         } else {
             int in = _open(temp.c_str(), _O_RDONLY | _O_BINARY);
-            if (in == -1)
-                return 3;
+            validate(in == -1, "Could not open one of the input files.");
             Infile.emplace_back(in);
             Infilename.emplace_back(temp);
         }
     }
-
-    fscanf(d2vf, "\nStream_Type=%d\n", &SystemStream_Flag);
-    if (SystemStream_Flag == 2)
-    {
-        fscanf(d2vf, "MPEG2_Transport_PID=%x,%x,%x\n",
-               &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID, &MPEG2_Transport_PCRPID);
-        fscanf(d2vf, "Transport_Packet_Size=%d\n", &TransportPacketSize);
-    }
-    fscanf(d2vf, "MPEG_Type=%d\n", &mpeg_type);
-
-    int idct;
-    fscanf(d2vf, "iDCT_Algorithm=%d\n", &idct);
-    setIDCT(idct);
+}
 
 
-    File_Flag = 0;
-    _lseeki64(Infile[0], 0, SEEK_SET);
-    Initialize_Buffer();
-
-    uint32_t code;
-    do
-    {
-        if (Fault_Flag == OUT_OF_BITS) return 4;
-        Next_Start_Code();
-        code = Get_Bits(32);
-    }
-    while (code!=SEQUENCE_HEADER_CODE);
-
-    Sequence_Header();
-
-    mb_width = (horizontal_size+15)/16;
-    mb_height = progressive_sequence ? (vertical_size+15)/16 : 2*((vertical_size+31)/32);
-
-    QP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
-    backwardQP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
-    auxQP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
-
-    Coded_Picture_Width = 16 * mb_width;
-    Coded_Picture_Height = 16 * mb_height;
-
-    Chroma_Width = (chroma_format==CHROMA444) ? Coded_Picture_Width : Coded_Picture_Width>>1;
-    Chroma_Height = (chroma_format!=CHROMA420) ? Coded_Picture_Height : Coded_Picture_Height>>1;
-
-    block_count = ChromaFormat[chroma_format];
-
-    size_t blsize = sizeof(int16_t) * 64 + 64;
-    void* ptr = _aligned_malloc(blsize * 8, 64);
-    for (i = 0; i < 8; ++i) {
-        size_t px = reinterpret_cast<size_t>(ptr) + i * blsize;
-        p_block[i] = reinterpret_cast<int16_t*>(px);
-        block[i]   = reinterpret_cast<int16_t*>(px + 64);
-    }
-
-    size_t size;
-    for (i=0; i<3; i++)
-    {
-        if (i==0)
-            size = Coded_Picture_Width * Coded_Picture_Height;
-        else
-            size = Chroma_Width * Chroma_Height;
-
-        backward_reference_frame[i] = (unsigned char*)_aligned_malloc(2*size+4096, 32);  //>>> cheap safety bump
-        forward_reference_frame[i] = (unsigned char*)_aligned_malloc(2*size+4096, 32);
-        auxframe[i] = (unsigned char*)_aligned_malloc(2*size+4096, 32);
-    }
-
-    fscanf(d2vf, "YUVRGB_Scale=%d\n", &i);
-
-    fscanf(d2vf, "Luminance_Filter=%d,%d\n", &lumGamma, &lumOffset);
-
-    fscanf(d2vf, "Clipping=%d,%d,%d,%d\n",
-           &Clip_Left, &Clip_Right, &Clip_Top, &Clip_Bottom);
-    fscanf(d2vf, "Aspect_Ratio=%s\n", Aspect_Ratio);
-    fscanf(d2vf, "Picture_Size=%dx%d\n", &D2V_Width, &D2V_Height);
-
-    Clip_Width = Coded_Picture_Width;
-    Clip_Height = Coded_Picture_Height;
-
-    if (upConv > 0 && chroma_format == 1)
-    {
-        // these are labeled u422 and v422, but I'm only using them as a temporary
-        // storage place for YV12 chroma before upsampling to 4:2:2 so that's why its
-        // /4 and not /2  --  (tritical - 1/05/2005)
-      //  int tpitch = (((Chroma_Width+15)>>4)<<4); // mod 16 chroma pitch needed to work with YV12PICTs
-      //  u422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
-      //  v422 = (unsigned char*)_aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
-        auxFrame1 = new YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
-        auxFrame2 = new YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
-    }
-    else
-    {
-        auxFrame1 = new YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format);
-        auxFrame2 = new YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format);
-    }
-    saved_active = auxFrame1;
-    saved_store = auxFrame2;
-
-    fscanf(d2vf, "Field_Operation=%d\n", &FO_Flag);
-    fscanf(d2vf, "Frame_Rate=%d (%u/%u)\n", &(VF_FrameRate), &(VF_FrameRate_Num), &(VF_FrameRate_Den));
-    fscanf(d2vf, "Location=%d,%X,%d,%X\n", &i, &j, &i, &j);
-
+void CMPEG2Decoder::create_gop_and_frame_lists(FILE* d2vf, char* buf)
+{
     uint32_t type, tff, rff, film, ntsc, top, bottom, mapping;
     int repeat_on, repeat_off, repeat_init;
     ntsc = film = top = bottom = mapping = repeat_on = repeat_off = repeat_init = 0;
     HaveRFFs = false;
-
+    
     // These start with sizes of 1000000 (the old fixed default).  If it
     // turns out that that is too small, the memory spaces are enlarged
     // 500000 at a time using realloc.  -- tritical May 16, 2005
     DirectAccess.reserve(1000000);
     FrameList.resize(1000000);
     GOPList.reserve(200000);
-
-    char buf[2048];
+    
     fgets(buf, 2047, d2vf);
     char* buf_p = buf;
-
+    
     while (true) {
         sscanf(buf_p, "%x", &type);
         if (type == 0xff)
@@ -290,7 +272,7 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
             while (*buf_p++ != ' ');
             while (*buf_p++ != ' ');
             GOPList.emplace_back(film, matrix, file, position, ic, type);
-
+    
             sscanf(buf_p, "%x", &type);
         }
         tff = (type & 0x2) >> 1;
@@ -299,14 +281,14 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
         else
             rff = type & 0x1;
         if (FO_Flag != FO_FILM && FO_Flag != FO_RAW && rff) HaveRFFs = true;
-
+    
         if (!film) {
             if (tff)
                 Field_Order = 1;
             else
                 Field_Order = 0;
         }
-
+    
         size_t listsize = FrameList.size() - 2;
         if (mapping >= listsize || ntsc >= listsize || film >= listsize) {
             FrameList.resize(listsize + 500002);
@@ -329,7 +311,7 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
                     FrameList[mapping].top = FrameList[mapping].bottom = film;
                     mapping ++;
                 }
-
+    
                 if (repeat_on-repeat_off == 5)
                 {
                     repeat_on = repeat_off = 0;
@@ -354,7 +336,6 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
                 {
                     repeat_on = repeat_off = 0;
                     repeat_init = 1;
-
                     FrameList[mapping].top = FrameList[mapping].bottom = film;
                     mapping ++;
                 }
@@ -412,7 +393,7 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
                         FrameList[ntsc].bottom = film;
                         bottom = 1;
                     }
-
+    
                     if (top && bottom)
                     {
                         top = bottom = 0;
@@ -440,34 +421,105 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
         }
         else buf_p++;
     }
-// dprintf("gop = %d, film = %d, ntsc = %d\n", gop, film, ntsc);
+
     GOPList.shrink_to_fit();
     DirectAccess.shrink_to_fit();
 
     if (FO_Flag==FO_FILM) {
         while (FrameList[mapping-1].top >= film)
-            mapping--;
-
+            --mapping;
         FrameList.resize(mapping);
     } else {
         while ((FrameList[ntsc-1].top >= film) || (FrameList[ntsc-1].bottom >= film))
-            ntsc--;
-
+            --ntsc;
         FrameList.resize(ntsc);
     }
     FrameList.shrink_to_fit();
-#if 0
-    {
-        unsigned int i;
-        char buf[80];
-        for (i = 0; i < ntsc; i++)
-        {
-            sprintf(buf, "DGDecode: %d: top = %d, bot = %d\n", i, FrameList[i].top, FrameList[i].bottom);
-            OutputDebugString(buf);
+}
+
+
+void CMPEG2Decoder::destroy()
+{
+    while (Infile.size() > 0) {
+        _close(Infile.back());
+        Infile.pop_back();
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        _aligned_free(backward_reference_frame[i]);
+        _aligned_free(forward_reference_frame[i]);
+        _aligned_free(auxframe[i]);
+        backward_reference_frame[i] = forward_reference_frame[i] = auxframe[i] = nullptr;
+    }
+
+    _aligned_free(QP);
+    _aligned_free(backwardQP);
+    _aligned_free(auxQP);
+    QP = backwardQP = auxQP = nullptr;
+
+    if (auxFrame1) delete auxFrame1;
+    if (auxFrame2) delete auxFrame2;
+    auxFrame1 = auxFrame2 = nullptr;
+
+    _aligned_free(p_block[0]);
+    p_block[0] = nullptr;
+}
+
+
+void CMPEG2Decoder::allocate_buffers()
+{
+    QP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
+    backwardQP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
+    auxQP = (int*)_aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
+    if (!QP || !backwardQP || !auxQP) {
+        destroy();
+        throw std::runtime_error("failed to allocate QP buffers.");
+    }
+
+    size_t blsize = sizeof(int16_t) * 64 + 64;
+    void* ptr = _aligned_malloc(blsize * 8, 64);
+    if (!ptr) {
+        destroy();
+        throw std::runtime_error("failed to allocate macroblock buffers");
+    }
+    for (int i = 0; i < 8; ++i) {
+        size_t px = reinterpret_cast<size_t>(ptr) + i * blsize;
+        p_block[i] = reinterpret_cast<int16_t*>(px);
+        block[i] = reinterpret_cast<int16_t*>(px + 64);
+    }
+
+    size_t size;
+    for (int i = 0; i < 3; i++) {
+        if (i == 0)
+            size = Coded_Picture_Width * Coded_Picture_Height;
+        else
+            size = Chroma_Width * Chroma_Height;
+
+        backward_reference_frame[i] = (unsigned char*)_aligned_malloc(2 * size + 4096, 32);  //>>> cheap safety bump
+        forward_reference_frame[i] = (unsigned char*)_aligned_malloc(2 * size + 4096, 32);
+        auxframe[i] = (unsigned char*)_aligned_malloc(2 * size + 4096, 32);
+        if (!backward_reference_frame[i] || !forward_reference_frame[i] || !auxframe[i]) {
+            destroy();
+            throw std::runtime_error("failed to allocate reference frame buffers.");
         }
     }
-#endif
 
+    int cf = chroma_format;
+    if (upConv > 0 && chroma_format == 1) ++cf;
+    try {
+        auxFrame1 = new YV12PICT(Coded_Picture_Height, Coded_Picture_Width, cf);
+        auxFrame2 = new YV12PICT(Coded_Picture_Height, Coded_Picture_Width, cf);
+    } catch (std::runtime_error& e) {
+        destroy();
+        throw e;
+    }
+    saved_active = auxFrame1;
+    saved_store = auxFrame2;
+}
+
+
+void CMPEG2Decoder::search_bad_starting()
+{
     // Count the number of nondecodable frames at the start of the clip
     // (due to an open GOP). This will be used to avoid displaying these
     // bad frames.
@@ -477,23 +529,19 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
 
     closed_gop = -1;
     BadStartingFrames = 0;
-    for (int HadI = 0;;)
-    {
+    for (int HadI = 0;;) {
         Get_Hdr();
         if (picture_coding_type == I_TYPE)
             HadI = 1;
-        if (picture_structure != FRAME_PICTURE)
-        {
+        if (picture_structure != FRAME_PICTURE) {
             Get_Hdr();
         }
         if (HadI)
             break;
     }
-    if (GOPList[0].closed != 1)
-    {
+    if (GOPList[0].closed != 1) {
         // Leading B frames are non-decodable.
-        while (true)
-        {
+        while (true) {
             Get_Hdr();
             if (picture_coding_type != B_TYPE) break;
             BadStartingFrames++;
@@ -501,22 +549,17 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
                 Get_Hdr();
         }
         // Frames pulled down from non-decodable frames are non-decodable.
-        if (BadStartingFrames)
-        {
-            i = 0;
-            while (true)
-            {
-                if ((FrameList[i].top > BadStartingFrames - 1) &&
-                    (FrameList[i].bottom > BadStartingFrames - 1))
+        if (BadStartingFrames) {
+            int i;
+            for (i = 0;; ++i) {
+                if (FrameList[i].top > BadStartingFrames - 1
+                    && FrameList[i].bottom > BadStartingFrames - 1) {
                     break;
-                i++;
+                }
             }
             BadStartingFrames = i;
         }
     }
-    fclose(d2vf);
-    d2vf = nullptr;
-    return 0;
 }
 
 // Decode function rewritten by Donald Graft as part of fix for dropped frames and random frame access.
@@ -524,50 +567,40 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
 
 void CMPEG2Decoder::Decode(uint32_t frame, YV12PICT& dst)
 {
-    unsigned int i, f, gop, count, HadI, requested_frame;
-    YV12PICT *tmp;
-
-__try
-{
+__try {
     Fault_Flag = 0;
     Second_Field = 0;
 
-//  dprintf("DGDecode: %d: top = %d, bot = %d\n", frame, FrameList[frame]->top, FrameList[frame]->bottom);
-
     // Skip initial non-decodable frames.
-    if (frame < BadStartingFrames) frame = BadStartingFrames;
-    requested_frame = frame;
+    frame = std::max(frame, BadStartingFrames);
+
+    uint32_t requested_frame = frame;
 
     // Decide whether to use random access or linear play to reach the
     // requested frame. If the seek is just a few frames forward, it will
     // be faster to play linearly to get there. This greatly speeds things up
     // when a decimation like SelectEven() follows this filter.
-    if (frame && frame > BadStartingFrames && frame > prev_frame && frame < prev_frame + SEEK_THRESHOLD)
-    {
+    if (frame && frame > BadStartingFrames && frame > prev_frame
+        && frame < prev_frame + SEEK_THRESHOLD) {
         // Use linear play.
-        for (frame = prev_frame + 1; frame <= requested_frame; frame++)
-        {
+        for (frame = prev_frame + 1; frame <= requested_frame; ++frame) {
 
             // If doing force film, we have to skip or repeat a frame as needed.
             // This handles skipping. Repeating is handled below.
-            if ((FO_Flag==FO_FILM) &&
-                (FrameList[frame].bottom == FrameList[frame-1].bottom + 2) &&
-                (FrameList[frame].top == FrameList[frame-1].top + 2))
-            {
-                if (!Get_Hdr())
-                {
+            if ((FO_Flag==FO_FILM)
+                && (FrameList[frame].bottom == FrameList[frame-1].bottom + 2)
+                && (FrameList[frame].top == FrameList[frame-1].top + 2)) {
+                if (!Get_Hdr()) {
                     // Flush the final frame.
                     assembleFrame(backward_reference_frame, pf_backward, dst);
                     return;
                 }
                 Decode_Picture(dst);
-                if (Fault_Flag == OUT_OF_BITS)
-                {
+                if (Fault_Flag == OUT_OF_BITS) {
                     assembleFrame(backward_reference_frame, pf_backward, dst);
                     return;
                 }
-                if (picture_structure != FRAME_PICTURE)
-                {
+                if (picture_structure != FRAME_PICTURE) {
                     Get_Hdr();
                     Decode_Picture(dst);
                 }
@@ -576,21 +609,17 @@ __try
             /* When RFFs are present or we are doing FORCE FILM, we may have already decoded
                the frame that we need. So decode the next frame only when we need to. */
             if (std::max(FrameList[frame].top, FrameList[frame].bottom) >
-                std::max(FrameList[frame-1].top, FrameList[frame-1].bottom))
-            {
-                if (!Get_Hdr())
-                {
+                std::max(FrameList[frame-1].top, FrameList[frame-1].bottom)) {
+                if (!Get_Hdr()) {
                     assembleFrame(backward_reference_frame, pf_backward, dst);
                     return;
                 }
                 Decode_Picture(dst);
-                if (Fault_Flag == OUT_OF_BITS)
-                {
+                if (Fault_Flag == OUT_OF_BITS) {
                     assembleFrame(backward_reference_frame, pf_backward, dst);
                     return;
                 }
-                if (picture_structure != FRAME_PICTURE)
-                {
+                if (picture_structure != FRAME_PICTURE) {
                     Get_Hdr();
                     Decode_Picture(dst);
                 }
@@ -598,31 +627,24 @@ __try
                    be able to pull down from it when we decode the next frame.
                    If we are doing FORCE FILM, then we may need to repeat the
                    frame, so we'll save it for that purpose. */
-                if (FO_Flag == FO_FILM || HaveRFFs == true)
-                {
+                if (FO_Flag == FO_FILM || HaveRFFs) {
                     // Save the current frame without overwriting the last
                     // stored frame.
-                    tmp = saved_active;
+                    YV12PICT* tmp = saved_active;
                     saved_active = saved_store;
                     saved_store = tmp;
                     copy_all(dst, *saved_store);
                 }
-            }
-            else
-            {
+            } else {
                 // We already decoded the needed frame. Retrieve it.
                 copy_all(*saved_store, dst);
             }
 
             // Perform pulldown if required.
-            if (HaveRFFs == true)
-            {
-                if (FrameList[frame].top > FrameList[frame].bottom)
-                {
+            if (HaveRFFs) {
+                if (FrameList[frame].top > FrameList[frame].bottom) {
                     copy_bottom(*saved_active, dst);
-                }
-                else if (FrameList[frame].top < FrameList[frame].bottom)
-                {
+                } else if (FrameList[frame].top < FrameList[frame].bottom) {
                     copy_top(*saved_active, dst);
                 }
             }
@@ -630,16 +652,15 @@ __try
         prev_frame = requested_frame;
         return;
     }
-    else prev_frame = requested_frame;
 
+    prev_frame = requested_frame;
     // Have to do random access.
-    f = std::max(FrameList[frame].top, FrameList[frame].bottom);
+    uint32_t f = std::max(FrameList[frame].top, FrameList[frame].bottom);
 
     // Determine the GOP that the requested frame is in.
-    for (gop = 0; gop < GOPList.size() -1; gop++)
-    {
-        if (f >= GOPList[gop].number && f < GOPList[gop+1].number)
-        {
+    uint32_t gop;
+    for (gop = 0; gop < GOPList.size() - 1; ++gop) {
+        if (f >= GOPList[gop].number && f < GOPList[gop + 1].number) {
             break;
         }
     }
@@ -652,9 +673,8 @@ __try
     // down for this frame. This can be improved by actually testing if the
     // previous frame will be pulled down.
     // Obviously we can't decrement gop if it is 0.
-    if (gop)
-    {
-        if (DirectAccess[f] == 0 || (f && DirectAccess[f-1] == 0))
+    if (gop) {
+        if (DirectAccess[f] == 0 || (f && DirectAccess[f - 1] == 0))
             gop--;
         // This covers the special case where a field of the previous GOP is
         // pulled down into the current GOP.
@@ -663,7 +683,7 @@ __try
     }
 
     // Calculate how many frames to decode.
-    count = f - GOPList[gop].number;
+    uint32_t count = f - GOPList[gop].number;
 
     // Seek in the stream to the GOP to start decoding with.
     File_Flag = GOPList[gop].file;
@@ -681,29 +701,24 @@ __try
     // We store that number in the D2V file and DGDecode uses that as the
     // number of I frames to skip before settling on the required one.
     // So, in fact, we are indexing position plus number of I frames to skip.
-    for (i = 0; i <= GOPList[gop].I_count; i++)
-    {
-        HadI = 0;
-        while (true)
-        {
-            if (!Get_Hdr())
-            {
+    for (uint32_t i = 0; i <= GOPList[gop].I_count; ++i) {
+        bool HadI = false;
+        while (true) {
+            if (!Get_Hdr()) {
                 // Something is really messed up.
                 return;
             }
             Decode_Picture(dst);
             if (picture_coding_type == I_TYPE)
-                HadI = 1;
-            if (picture_structure != FRAME_PICTURE)
-            {
+                HadI = true;
+            if (picture_structure != FRAME_PICTURE) {
                 Get_Hdr();
                 Decode_Picture(dst);
                 if (picture_coding_type == I_TYPE)
-                    HadI = 1;
+                    HadI = true;
                 // The reason for this next test is quite technical. For details
                 // refer to the file CodeNote1.txt.
-                if (Second_Field == 1)
-                {
+                if (Second_Field == 1) {
                     Get_Hdr();
                     Decode_Picture(dst);
                 }
@@ -712,105 +727,63 @@ __try
         }
     }
     Second_Field = 0;
-    if (HaveRFFs == true && count == 0)
-    {
+    if (HaveRFFs == true && count == 0) {
         copy_all(dst, *saved_active);
     }
-    if (!Get_Hdr())
-    {
+    if (!Get_Hdr()) {
         // Flush the final frame.
         assembleFrame(backward_reference_frame, pf_backward, dst);
         return;
     }
     Decode_Picture(dst);
-    if (Fault_Flag == OUT_OF_BITS)
-    {
+    if (Fault_Flag == OUT_OF_BITS) {
         assembleFrame(backward_reference_frame, pf_backward, dst);
         return;
     }
-    if (picture_structure != FRAME_PICTURE)
-    {
+    if (picture_structure != FRAME_PICTURE) {
         Get_Hdr();
         Decode_Picture(dst);
     }
-    if (HaveRFFs == true && count == 1)
-    {
+    if (HaveRFFs && count == 1) {
         copy_all(dst, *saved_active);
     }
-    for (i = 0; i < count; i++)
-    {
-        if (!Get_Hdr())
-        {
+    for (uint32_t i = 0; i < count; ++i) {
+        if (!Get_Hdr()) {
             // Flush the final frame.
             assembleFrame(backward_reference_frame, pf_backward, dst);
             return;
         }
         Decode_Picture(dst);
-        if (Fault_Flag == OUT_OF_BITS)
-        {
+        if (Fault_Flag == OUT_OF_BITS) {
             assembleFrame(backward_reference_frame, pf_backward, dst);
             return;
         }
-        if (picture_structure != FRAME_PICTURE)
-        {
+        if (picture_structure != FRAME_PICTURE) {
             Get_Hdr();
             Decode_Picture(dst);
         }
-        if ((HaveRFFs == true) && (count > 1) && (i == count - 2))
-        {
+        if ((HaveRFFs == true) && (count > 1) && (i == count - 2)) {
             copy_all(dst, *saved_active);
         }
     }
 
-    if (HaveRFFs == true)
-    {
+    if (HaveRFFs) {
         // Save for transition to non-random mode.
         copy_all(dst, *saved_store);
 
         // Pull down a field if needed.
-        if (FrameList[frame].top > FrameList[frame].bottom)
-        {
+        if (FrameList[frame].top > FrameList[frame].bottom) {
             copy_bottom(*saved_active, dst);
-        }
-        else if (FrameList[frame].top < FrameList[frame].bottom)
-        {
+        } else if (FrameList[frame].top < FrameList[frame].bottom) {
             copy_top(*saved_active, dst);
         }
     }
     return;
-}
-__except(EXCEPTION_EXECUTE_HANDLER)
-{
+} __except(EXCEPTION_EXECUTE_HANDLER) {
     return;
 }
 }
 
-void CMPEG2Decoder::Close()
-{
-    while (Infile.size() > 0) {
-        _close(Infile.back());
-        Infile.pop_back();
-    }
-
-    for (int i = 0; i < 3; ++i) {
-        _aligned_free(backward_reference_frame[i]);
-        _aligned_free(forward_reference_frame[i]);
-        _aligned_free(auxframe[i]);
-    }
-
-    _aligned_free(QP);
-    _aligned_free(backwardQP);
-    _aligned_free(auxQP);
-
-   // if (u422 != NULL) _aligned_free(u422);
-   // if (v422 != NULL) _aligned_free(v422);
-
-    delete auxFrame1;
-    delete auxFrame2;
-    auxFrame1 = auxFrame2 = nullptr;
-
-    _aligned_free(p_block[0]);
-}
 
 __forceinline void CMPEG2Decoder::copy_all(YV12PICT& src, YV12PICT& dst)
 {

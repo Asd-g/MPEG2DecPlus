@@ -36,13 +36,13 @@ class MPEG2Source: public IClip {
     VideoInfo vi;
     //int _PP_MODE;
     uint8_t *bufY, *bufU, *bufV; // for 4:2:2 input support
-    CMPEG2Decoder decoder;
+    CMPEG2Decoder* decoder;
     bool luminanceFlag;
     uint8_t luminanceTable[256];
 
 public:
   MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env);
-  ~MPEG2Source();
+  ~MPEG2Source() {}
   PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
   bool __stdcall GetParity(int n);
   void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env) {};
