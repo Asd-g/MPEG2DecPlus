@@ -174,19 +174,19 @@ class CMPEG2Decoder
     void extension_and_user_data(void);
 
     // getpic.cpp
-    void Decode_Picture(YV12PICT *dst);
+    void Decode_Picture(YV12PICT& dst);
     inline void update_picture_buffers(void);
     inline void picture_data(void);
     inline void slice(int MBAmax, uint32_t code);
-    inline void macroblock_modes(int *pmacroblock_type, int *pmotion_type,
-        int *pmotion_vector_count, int *pmv_format, int *pdmv, int *pmvscale, int *pdct_type);
+    inline void macroblock_modes(int& pmacroblock_type, int& pmotion_type,
+        int& pmotion_vector_count, int& pmv_format, int& pdmv, int& pmvscale, int& pdct_type);
     inline void clear_block(int count);
     inline void add_block(int count, int bx, int by, int dct_type, int addflag);
     inline void motion_compensation(int MBA, int macroblock_type, int motion_type,
         int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2], int dct_type);
     inline void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2],
-        int *motion_type, int motion_vertical_field_select[2][2], int *macroblock_type);
-    inline void decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
+        int& motion_type, int motion_vertical_field_select[2][2], int& macroblock_type);
+    inline void decode_macroblock(int& macroblock_type, int& motion_type, int& dct_type,
         int PMV[2][2][2], int dc_dct_pred[3], int motion_vertical_field_select[2][2], int dmvector[2]);
     inline void decode_mpeg1_intra_block(int comp, int dc_dct_pred[]);
     inline void decode_mpeg1_non_intra_block(int comp);
@@ -223,7 +223,7 @@ class CMPEG2Decoder
     inline int Get_dmvector(void);
 
     // store.cpp
-    void assembleFrame(uint8_t *src[], int pf, YV12PICT *dst);
+    void assembleFrame(uint8_t *src[], int pf, YV12PICT& dst);
 
     // decoder operation control flags
     int Fault_Flag;
@@ -309,9 +309,9 @@ class CMPEG2Decoder
     int repeat_first_field;
     int intra_vlc_format;
 
-    void copy_all(YV12PICT *src, YV12PICT *dst);
-    void copy_top(YV12PICT *src, YV12PICT *dst);
-    void copy_bottom(YV12PICT *src, YV12PICT *dst);
+    void copy_all(YV12PICT& src, YV12PICT& dst);
+    void copy_top(YV12PICT& src, YV12PICT& dst);
+    void copy_bottom(YV12PICT& src, YV12PICT& dst);
     //inline void CopyTopBot(YV12PICT *odd, YV12PICT *even, YV12PICT *dst);
 
     int *QP, *backwardQP, *auxQP;
@@ -323,7 +323,7 @@ public:
     CMPEG2Decoder();
     int Open(FILE* file, const char* path);
     void Close();
-    void Decode(uint32_t frame, YV12PICT *dst);
+    void Decode(uint32_t frame, YV12PICT& dst);
 
     std::vector<std::string> Infilename;
     uint32_t BadStartingFrames;
@@ -475,23 +475,13 @@ __forceinline void CMPEG2Decoder::Fill_Buffer()
         Rdmax -= BUFFER_SIZE;
 }
 
+
 __forceinline uint32_t CMPEG2Decoder::Get_Byte()
 {
-    // This mechanism is not yet working.
-#if 0
-    if (Rdptr >= buffer_invalid)
-    {
-        Fault_Flag = OUT_OF_BITS;
-        return Rdptr[-1];
-    }
-#endif
-
     while (Rdptr >= (Rdbfr + BUFFER_SIZE)) {
         Read = _read(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
-
         if (Read < BUFFER_SIZE)
             Next_File();
-
         Rdptr -= BUFFER_SIZE;
         Rdmax -= BUFFER_SIZE;
     }
@@ -505,23 +495,21 @@ __forceinline uint32_t CMPEG2Decoder::Get_Short()
     return (i<<8) + Get_Byte();
 }
 
+
 __forceinline void CMPEG2Decoder::Next_Start_Code()
 {
-    uint32_t show;
-
     // This is contrary to the spec but is more resilient to some
     // stream corruption scenarios.
-    BitsLeft = ((BitsLeft + 7) / 8) * 8;
+    BitsLeft = (BitsLeft + 7) & ~7;
 
-    while (1)
-    {
-        show = Show_Bits(24);
+    do {
+        uint32_t show = Show_Bits(24);
         if (Fault_Flag == OUT_OF_BITS)
             return;
         if (show == 0x000001)
             return;
         Flush_Buffer(8);
-    }
+    } while (true);
 }
 
 #endif

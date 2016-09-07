@@ -522,7 +522,7 @@ int CMPEG2Decoder::Open(FILE* d2vf, const char *path)
 // Decode function rewritten by Donald Graft as part of fix for dropped frames and random frame access.
 #define SEEK_THRESHOLD 7
 
-void CMPEG2Decoder::Decode(uint32_t frame, YV12PICT *dst)
+void CMPEG2Decoder::Decode(uint32_t frame, YV12PICT& dst)
 {
     unsigned int i, f, gop, count, HadI, requested_frame;
     YV12PICT *tmp;
@@ -605,13 +605,13 @@ __try
                     tmp = saved_active;
                     saved_active = saved_store;
                     saved_store = tmp;
-                    copy_all(dst, saved_store);
+                    copy_all(dst, *saved_store);
                 }
             }
             else
             {
                 // We already decoded the needed frame. Retrieve it.
-                copy_all(saved_store, dst);
+                copy_all(*saved_store, dst);
             }
 
             // Perform pulldown if required.
@@ -619,11 +619,11 @@ __try
             {
                 if (FrameList[frame].top > FrameList[frame].bottom)
                 {
-                    copy_bottom(saved_active, dst);
+                    copy_bottom(*saved_active, dst);
                 }
                 else if (FrameList[frame].top < FrameList[frame].bottom)
                 {
-                    copy_top(saved_active, dst);
+                    copy_top(*saved_active, dst);
                 }
             }
         }
@@ -714,7 +714,7 @@ __try
     Second_Field = 0;
     if (HaveRFFs == true && count == 0)
     {
-        copy_all(dst, saved_active);
+        copy_all(dst, *saved_active);
     }
     if (!Get_Hdr())
     {
@@ -735,7 +735,7 @@ __try
     }
     if (HaveRFFs == true && count == 1)
     {
-        copy_all(dst, saved_active);
+        copy_all(dst, *saved_active);
     }
     for (i = 0; i < count; i++)
     {
@@ -758,23 +758,23 @@ __try
         }
         if ((HaveRFFs == true) && (count > 1) && (i == count - 2))
         {
-            copy_all(dst, saved_active);
+            copy_all(dst, *saved_active);
         }
     }
 
     if (HaveRFFs == true)
     {
         // Save for transition to non-random mode.
-        copy_all(dst, saved_store);
+        copy_all(dst, *saved_store);
 
         // Pull down a field if needed.
         if (FrameList[frame].top > FrameList[frame].bottom)
         {
-            copy_bottom(saved_active, dst);
+            copy_bottom(*saved_active, dst);
         }
         else if (FrameList[frame].top < FrameList[frame].bottom)
         {
-            copy_top(saved_active, dst);
+            copy_top(*saved_active, dst);
         }
     }
     return;
@@ -812,28 +812,28 @@ void CMPEG2Decoder::Close()
     _aligned_free(p_block[0]);
 }
 
-__forceinline void CMPEG2Decoder::copy_all(YV12PICT *src, YV12PICT *dst)
+__forceinline void CMPEG2Decoder::copy_all(YV12PICT& src, YV12PICT& dst)
 {
-    int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
-    fast_copy(src->y,src->ypitch,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height);
-    fast_copy(src->u,src->uvpitch,dst->u,dst->uvpitch,dst->uvwidth,tChroma_Height);
-    fast_copy(src->v,src->uvpitch,dst->v,dst->uvpitch,dst->uvwidth,tChroma_Height);
+    int t = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
+    fast_copy(src.y, src.ypitch, dst.y, dst.ypitch, dst.ywidth,Coded_Picture_Height);
+    fast_copy(src.u, src.uvpitch, dst.u, dst.uvpitch, dst.uvwidth, t);
+    fast_copy(src.v, src.uvpitch, dst.v, dst.uvpitch, dst.uvwidth, t);
 }
 
-__forceinline void CMPEG2Decoder::copy_top(YV12PICT *src, YV12PICT *dst)
+__forceinline void CMPEG2Decoder::copy_top(YV12PICT& src, YV12PICT& dst)
 {
-    int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
-    fast_copy(src->y,src->ypitch*2,dst->y,dst->ypitch*2,dst->ywidth,Coded_Picture_Height>>1);
-    fast_copy(src->u,src->uvpitch*2,dst->u,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1);
-    fast_copy(src->v,src->uvpitch*2,dst->v,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1);
+    int t = (upConv > 0 && chroma_format == 1) ? Chroma_Height : Chroma_Height / 2;
+    fast_copy(src.y, src.ypitch * 2, dst.y, dst.ypitch * 2, dst.ywidth, Coded_Picture_Height / 2);
+    fast_copy(src.u, src.uvpitch * 2, dst.u, dst.uvpitch * 2, dst.uvwidth, t);
+    fast_copy(src.v, src.uvpitch * 2, dst.v, dst.uvpitch * 2, dst.uvwidth, t);
 }
 
-__forceinline void CMPEG2Decoder::copy_bottom(YV12PICT *src, YV12PICT *dst)
+__forceinline void CMPEG2Decoder::copy_bottom(YV12PICT& src, YV12PICT& dst)
 {
-    int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
-    fast_copy(src->y+src->ypitch,src->ypitch*2,dst->y+dst->ypitch,dst->ypitch*2,dst->ywidth,Coded_Picture_Height>>1);
-    fast_copy(src->u+src->uvpitch,src->uvpitch*2,dst->u+dst->uvpitch,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1);
-    fast_copy(src->v+src->uvpitch,src->uvpitch*2,dst->v+dst->uvpitch,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1);
+    int t = (upConv > 0 && chroma_format == 1) ? Chroma_Height : Chroma_Height / 2;
+    fast_copy(src.y + src.ypitch, src.ypitch * 2, dst.y + dst.ypitch, dst.ypitch * 2, dst.ywidth, Coded_Picture_Height / 2);
+    fast_copy(src.u + src.uvpitch, src.uvpitch * 2, dst.u + dst.uvpitch, dst.uvpitch * 2, dst.uvwidth, t);
+    fast_copy(src.v + src.uvpitch, src.uvpitch * 2, dst.v + dst.uvpitch, dst.uvpitch * 2, dst.uvwidth, t);
 }
 
 #if 0

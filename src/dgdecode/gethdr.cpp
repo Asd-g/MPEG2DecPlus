@@ -64,7 +64,7 @@ int CMPEG2Decoder::Get_Hdr()
 
 /* decode group of pictures header */
 /* ISO/IEC 13818-2 section 6.2.2.6 */
-inline void CMPEG2Decoder::group_of_pictures_header()
+__forceinline void CMPEG2Decoder::group_of_pictures_header()
 {
 #if 0
     Get_Bits(1); //drop_flag
@@ -253,7 +253,7 @@ void CMPEG2Decoder::extension_and_user_data()
 
 /* decode sequence extension */
 /* ISO/IEC 13818-2 section 6.2.2.3 */
-inline void CMPEG2Decoder::sequence_extension()
+__forceinline void CMPEG2Decoder::sequence_extension()
 {
     Flush_Buffer(8); //Get_Bits(8); //profile_and_level_indication
     progressive_sequence          = Get_Bits(1);
@@ -277,7 +277,7 @@ inline void CMPEG2Decoder::sequence_extension()
 }
 
 /* decode sequence display extension */
-inline void CMPEG2Decoder::sequence_display_extension()
+__forceinline void CMPEG2Decoder::sequence_display_extension()
 {
     Flush_Buffer(3);// Get_Bits(3); //video_format
 
@@ -418,7 +418,7 @@ void CMPEG2Decoder::picture_coding_extension()
 
 /* decode extra bit information */
 /* ISO/IEC 13818-2 section 6.2.3.4. */
-inline int CMPEG2Decoder::extra_bit_information()
+__forceinline int CMPEG2Decoder::extra_bit_information()
 {
     int byte_count = 0;
 
@@ -436,7 +436,7 @@ inline int CMPEG2Decoder::extra_bit_information()
 /* Copyright extension */
 /* ISO/IEC 13818-2 section 6.2.3.6. */
 /* (header added in November, 1994 to the IS document) */
-inline void CMPEG2Decoder::copyright_extension()
+__forceinline void CMPEG2Decoder::copyright_extension()
 {
 #if 0
     Get_Bits(1); //copyright_flag

@@ -358,63 +358,49 @@ void CMPEG2Decoder::Next_Packet()
 
     uint32_t code, Packet_Length, Packet_Header_Length;
     static int stream_type;
-    for (;;)
-    {
+    while (true) {
         code = Get_Short();
         code = (code<<16) + Get_Short();
 
         // remove system layer byte stuffing
-        while ((code & 0xffffff00) != 0x00000100)
-        {
+        while ((code & 0xffffff00) != 0x00000100) {
             if (Fault_Flag == OUT_OF_BITS)
                 return;
-            code = (code<<8) + Get_Byte();
+            code = (code << 8) | Get_Byte();
         }
 
-        if (code == PACK_START_CODE)
-        {
-            if ((Get_Byte() & 0xf0) == 0x20)
-            {
+        if (code == PACK_START_CODE) {
+            if ((Get_Byte() & 0xf0) == 0x20) {
                 Rdptr += 7; // MPEG1 program stream
                 stream_type = MPEG1_PROGRAM_STREAM;
-            }
-            else
-            {
+            } else {
                 Rdptr += 8; // MPEG2 program stream
                 stream_type = MPEG2_PROGRAM_STREAM;
             }
-        }
-        else if ((code & 0xfffffff0) == VIDEO_ELEMENTARY_STREAM)
-        {
+        } else if ((code & 0xfffffff0) == VIDEO_ELEMENTARY_STREAM) {
             Packet_Length = Get_Short();
             Rdmax = Rdptr + Packet_Length;
 
-            if (stream_type == MPEG1_PROGRAM_STREAM)
-            {
+            if (stream_type == MPEG1_PROGRAM_STREAM) {
                 // MPEG1 program stream.
                 Packet_Header_Length = 0;
                 // Stuffing bytes.
-                do
-                {
+                do {
                     code = Get_Byte();
                     Packet_Header_Length += 1;
                 } while (code == 0xff);
-                if ((code & 0xc0) == 0x40)
-                {
+                if ((code & 0xc0) == 0x40) {
                     // STD bytes.
                     Get_Byte();
                     code = Get_Byte();
                     Packet_Header_Length += 2;
                 }
-                if ((code & 0xf0) == 0x20)
-                {
+                if ((code & 0xf0) == 0x20) {
                     // PTS bytes.
                     Get_Short();
                     Get_Short();
                     Packet_Header_Length += 4;
-                }
-                else if ((code & 0xf0) == 0x30)
-                {
+                } else if ((code & 0xf0) == 0x30) {
                     // PTS/DTS bytes.
                     Get_Short();
                     Get_Short();
@@ -424,21 +410,20 @@ void CMPEG2Decoder::Next_Packet()
                     Packet_Header_Length += 9;
                 }
                 return;
-            }
-            else
-            {
+            } else {
                 // MPEG2 program stream.
                 code = Get_Byte();
                 if ((code & 0xc0)==0x80)
                 {
-                    code = Get_Byte();
+                    //code = Get_Byte();
+                    ++Rdptr;
                     Packet_Header_Length = Get_Byte();
 
                     Rdptr += Packet_Header_Length;
                     return;
                 }
                 else
-                    Rdptr += Packet_Length-1;
+                    Rdptr += Packet_Length - 1;
             }
         }
         else if (code>=SYSTEM_START_CODE)

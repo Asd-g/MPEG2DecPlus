@@ -110,9 +110,9 @@ static void set_qparams(const int* qp, size_t mb_size, int& minquant,
 }
 
 
-void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
+void CMPEG2Decoder::assembleFrame(uint8_t* src[], int pf, YV12PICT& dst)
 {
-    dst->pf = pf;
+    dst.pf = pf;
 #if 0
     if (pp_mode != 0)
     {
@@ -153,18 +153,18 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
     else
 #endif
     {
-        fast_copy(src[0], Coded_Picture_Width, dst->y, dst->ypitch, Coded_Picture_Width, Coded_Picture_Height);
+        fast_copy(src[0], Coded_Picture_Width, dst.y, dst.ypitch, Coded_Picture_Width, Coded_Picture_Height);
         if (upConv > 0 && chroma_format == 1) {
             if (iCC == 1 || (iCC == -1 && pf == 0)) {
-                conv420to422I(src[1], dst->u, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
-                conv420to422I(src[2], dst->v, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
+                conv420to422I(src[1], dst.u, Chroma_Width, dst.uvpitch, Coded_Picture_Width, Coded_Picture_Height);
+                conv420to422I(src[2], dst.v, Chroma_Width, dst.uvpitch, Coded_Picture_Width, Coded_Picture_Height);
             } else {
-                conv420to422P(src[1], dst->u, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
-                conv420to422P(src[2], dst->v, Chroma_Width, dst->uvpitch, Coded_Picture_Width, Coded_Picture_Height);
+                conv420to422P(src[1], dst.u, Chroma_Width, dst.uvpitch, Coded_Picture_Width, Coded_Picture_Height);
+                conv420to422P(src[2], dst.v, Chroma_Width, dst.uvpitch, Coded_Picture_Width, Coded_Picture_Height);
             }
         } else {
-            fast_copy(src[1], Chroma_Width, dst->u, dst->uvpitch, Chroma_Width, Chroma_Height);
-            fast_copy(src[2], Chroma_Width, dst->v, dst->uvpitch, Chroma_Width, Chroma_Height);
+            fast_copy(src[1], Chroma_Width, dst.u, dst.uvpitch, Chroma_Width, Chroma_Height);
+            fast_copy(src[2], Chroma_Width, dst.v, dst.uvpitch, Chroma_Width, Chroma_Height);
         }
     }
 
@@ -175,7 +175,7 @@ void CMPEG2Decoder::assembleFrame(uint8_t *src[], int pf, YV12PICT *dst)
             set_qparams(qp, mb_width * mb_height, minquant, maxquant, avgquant);
         }
         if (showQ) {
-            write_quants(dst->y, dst->ypitch, mb_width, mb_height, qp);
+            write_quants(dst.y, dst.ypitch, mb_width, mb_height, qp);
         }
     }
 }

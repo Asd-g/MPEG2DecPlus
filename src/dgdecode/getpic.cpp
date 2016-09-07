@@ -38,7 +38,7 @@ const uint8_t cc_table[12] = {
 };
 
 
-void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
+void CMPEG2Decoder::Decode_Picture(YV12PICT& dst)
 {
     if (picture_structure == FRAME_PICTURE && Second_Field)
         Second_Field = 0;
@@ -111,21 +111,17 @@ void CMPEG2Decoder::update_picture_buffers()
 /* stages described in ISO/IEC 13818-2 section 7 */
 inline void CMPEG2Decoder::picture_data()
 {
-    int MBAmax;
-    uint32_t code;
-
     /* number of macroblocks per picture */
-    MBAmax = mb_width * mb_height;
+    int MBAmax = mb_width * mb_height;
 
     if (picture_structure != FRAME_PICTURE)
         MBAmax >>= 1;
 
-    for (;;)
-    {
+    for (;;) {
         if (Fault_Flag == OUT_OF_BITS)
             break;
         Next_Start_Code();
-        code = Show_Bits(32);
+        uint32_t code = Show_Bits(32);
         if (code < SLICE_START_CODE_MIN || code > SLICE_START_CODE_MAX)
             break;
         Flush_Buffer(32);
@@ -189,11 +185,11 @@ inline void CMPEG2Decoder::slice(int MBAmax, uint32_t code)
             }
         }
         if (MBAinc == 1) {
-            decode_macroblock(&macroblock_type, &motion_type, &dct_type, PMV,
+            decode_macroblock(macroblock_type, motion_type, dct_type, PMV,
                               dc_dct_pred, motion_vertical_field_select, dmvector);
         } else {
             /* ISO/IEC 13818-2 section 7.6.6 */
-            skipped_macroblock(dc_dct_pred, PMV, &motion_type, motion_vertical_field_select, &macroblock_type);
+            skipped_macroblock(dc_dct_pred, PMV, motion_type, motion_vertical_field_select, macroblock_type);
         }
 
         if (Fault_Flag) {
@@ -213,53 +209,47 @@ inline void CMPEG2Decoder::slice(int MBAmax, uint32_t code)
 }
 
 /* ISO/IEC 13818-2 section 6.3.17.1: Macroblock modes */
-void CMPEG2Decoder::macroblock_modes(int *pmacroblock_type, int *pmotion_type,
-                             int *pmotion_vector_count, int *pmv_format,
-                             int *pdmv, int *pmvscale, int *pdct_type)
+void CMPEG2Decoder::macroblock_modes(int& macroblock_type, int& motion_type,
+                             int& motion_vector_count, int& mv_format,
+                             int& dmv, int& mvscale, int& dct_type)
 {
     /* get macroblock_type */
-    int macroblock_type = Get_macroblock_type();
+    macroblock_type = Get_macroblock_type();
     if (Fault_Flag)
         return;
 
     /* get frame/field motion type */
-    int motion_type;
     if (macroblock_type & (MACROBLOCK_MOTION_FORWARD|MACROBLOCK_MOTION_BACKWARD)) {
-        if (picture_structure == FRAME_PICTURE)
-            motion_type = frame_pred_frame_dct ? MC_FRAME : Get_Bits(2);
+        if (picture_structure == FRAME_PICTURE && frame_pred_frame_dct)
+            motion_type = MC_FRAME;
         else
             motion_type = Get_Bits(2);
+    } else if (picture_structure == FRAME_PICTURE) {
+        motion_type = MC_FRAME;
     } else {
-        motion_type = (picture_structure == FRAME_PICTURE) ? MC_FRAME : MC_FIELD;
+        motion_type = MC_FIELD;
     }
 
     /* derive motion_vector_count, mv_format and dmv, (table 6-17, 6-18) */
-    int motion_vector_count, mv_format;
     if (picture_structure == FRAME_PICTURE) {
-        motion_vector_count = (motion_type==MC_FIELD) ? 2 : 1;
-        mv_format = (motion_type==MC_FRAME) ? MV_FRAME : MV_FIELD;
+        motion_vector_count = (motion_type == MC_FIELD) ? 2 : 1;
+        mv_format = (motion_type == MC_FRAME) ? MV_FRAME : MV_FIELD;
     } else {
         motion_vector_count = (motion_type == MC_16X8) ? 2 : 1;
         mv_format = MV_FIELD;
     }
 
-    *pdmv = (motion_type==MC_DMV); /* dual prime */
+    dmv = (motion_type == MC_DMV); /* dual prime */
 
     /*
        field mv predictions in frame pictures have to be scaled
        ISO/IEC 13818-2 section 7.6.3.1 Decoding the motion vectors
     */
-    *pmvscale = (mv_format==MV_FIELD && picture_structure==FRAME_PICTURE);
+    mvscale = (mv_format == MV_FIELD && picture_structure == FRAME_PICTURE);
 
     /* get dct_type (frame DCT / field DCT) */
-    *pdct_type = (picture_structure==FRAME_PICTURE) && (!frame_pred_frame_dct)
+    dct_type = (picture_structure==FRAME_PICTURE) && (!frame_pred_frame_dct)
                  && (macroblock_type & (MACROBLOCK_PATTERN|MACROBLOCK_INTRA)) ? Get_Bits(1) : 0;
-
-    /* return values */
-    *pmacroblock_type = macroblock_type;
-    *pmotion_type = motion_type;
-    *pmotion_vector_count = motion_vector_count;
-    *pmv_format = mv_format;
 }
 
 /* move/add 8x8-Block from block[comp] to backward_reference_frame */
@@ -450,8 +440,8 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
 }
 
 /* ISO/IEC 13818-2 section 7.6.6 */
-void CMPEG2Decoder::skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], int *motion_type,
-                               int motion_vertical_field_select[2][2], int *macroblock_type)
+void CMPEG2Decoder::skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], int& motion_type,
+                               int motion_vertical_field_select[2][2], int& macroblock_type)
 {
     clear_block(block_count);
 
@@ -466,10 +456,10 @@ void CMPEG2Decoder::skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], int
 
     /* derive motion_type */
     if (picture_structure == FRAME_PICTURE)
-        *motion_type = MC_FRAME;
+        motion_type = MC_FRAME;
     else
     {
-        *motion_type = MC_FIELD;
+        motion_type = MC_FIELD;
         motion_vertical_field_select[0][0] = motion_vertical_field_select[0][1] =
             (picture_structure == BOTTOM_FIELD);
     }
@@ -481,11 +471,11 @@ void CMPEG2Decoder::skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], int
     }
 
     /* clear MACROBLOCK_INTRA */
-    *macroblock_type &= ~MACROBLOCK_INTRA;
+    macroblock_type &= ~MACROBLOCK_INTRA;
 }
 
 /* ISO/IEC 13818-2 sections 7.2 through 7.5 */
-void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
+void CMPEG2Decoder::decode_macroblock(int& macroblock_type, int& motion_type, int& dct_type,
                              int PMV[2][2][2], int dc_dct_pred[3],
                              int motion_vertical_field_select[2][2], int dmvector[2])
 {
@@ -493,14 +483,14 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
     int dmv, mvscale, coded_block_pattern;
 
     /* ISO/IEC 13818-2 section 6.3.17.1: Macroblock modes */
-    macroblock_modes(macroblock_type, motion_type, &motion_vector_count, &mv_format,
-                     &dmv, &mvscale, dct_type);
+    macroblock_modes(macroblock_type, motion_type, motion_vector_count, mv_format,
+                     dmv, mvscale, dct_type);
     if (Fault_Flag)
     {
         return; // go to next slice
     }
 
-    if (*macroblock_type & MACROBLOCK_QUANT)
+    if (macroblock_type & MACROBLOCK_QUANT)
     {
         quantizer_scale_code = Get_Bits(5);
 
@@ -518,8 +508,8 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
 
     /* ISO/IEC 13818-2 section 6.3.17.2: Motion vectors */
     /* decode forward motion vectors */
-    if ((*macroblock_type & MACROBLOCK_MOTION_FORWARD)
-        || ((*macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors))
+    if ((macroblock_type & MACROBLOCK_MOTION_FORWARD)
+        || ((macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors))
     {
         if (mpeg_type == IS_MPEG2)
         {
@@ -537,7 +527,7 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
     }
 
     /* decode backward motion vectors */
-    if (*macroblock_type & MACROBLOCK_MOTION_BACKWARD)
+    if (macroblock_type & MACROBLOCK_MOTION_BACKWARD)
     {
         if (mpeg_type == IS_MPEG2)
         {
@@ -554,12 +544,12 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
         return; // go to next slice
     }
 
-    if ((*macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors)
+    if ((macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors)
         Flush_Buffer(1);    // marker bit
 
     /* macroblock_pattern */
     /* ISO/IEC 13818-2 section 6.3.17.4: Coded block pattern */
-    if (*macroblock_type & MACROBLOCK_PATTERN)
+    if (macroblock_type & MACROBLOCK_PATTERN)
     {
         coded_block_pattern = Get_coded_block_pattern();
 
@@ -569,7 +559,7 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
             coded_block_pattern = (coded_block_pattern<<6) | Get_Bits(6);
     }
     else
-        coded_block_pattern = (*macroblock_type & MACROBLOCK_INTRA) ? (1<<block_count)-1 : 0;
+        coded_block_pattern = (macroblock_type & MACROBLOCK_INTRA) ? (1<<block_count)-1 : 0;
 
     if (Fault_Flag)
     {
@@ -583,7 +573,7 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
     {
         if (coded_block_pattern & (1<<(block_count-1-comp)))
         {
-            if (*macroblock_type & MACROBLOCK_INTRA)
+            if (macroblock_type & MACROBLOCK_INTRA)
             {
                 if (mpeg_type == IS_MPEG2)
                     Decode_MPEG2_Intra_Block(comp, dc_dct_pred);
@@ -606,11 +596,11 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
 
     /* reset intra_dc predictors */
     /* ISO/IEC 13818-2 section 7.2.1: DC coefficients in intra blocks */
-    if (!(*macroblock_type & MACROBLOCK_INTRA))
+    if (!(macroblock_type & MACROBLOCK_INTRA))
         dc_dct_pred[0]=dc_dct_pred[1]=dc_dct_pred[2]=0;
 
     /* reset motion vector predictors */
-    if ((*macroblock_type & MACROBLOCK_INTRA) && !concealment_motion_vectors)
+    if ((macroblock_type & MACROBLOCK_INTRA) && !concealment_motion_vectors)
     {
         /* intra mb without concealment motion vectors */
         /* ISO/IEC 13818-2 section 7.6.3.4: Resetting motion vector predictors */
@@ -621,7 +611,7 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
     /* special "No_MC" macroblock_type case */
     /* ISO/IEC 13818-2 section 7.6.3.5: Prediction in P pictures */
     if ((picture_coding_type==P_TYPE)
-        && !(*macroblock_type & (MACROBLOCK_MOTION_FORWARD|MACROBLOCK_INTRA)))
+        && !(macroblock_type & (MACROBLOCK_MOTION_FORWARD|MACROBLOCK_INTRA)))
     {
         /* non-intra mb without forward mv in a P picture */
         /* ISO/IEC 13818-2 section 7.6.3.4: Resetting motion vector predictors */
@@ -630,10 +620,10 @@ void CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, in
         /* derive motion_type */
         /* ISO/IEC 13818-2 section 6.3.17.1: Macroblock modes, frame_motion_type */
         if (picture_structure==FRAME_PICTURE)
-            *motion_type = MC_FRAME;
+            motion_type = MC_FRAME;
         else
         {
-            *motion_type = MC_FIELD;
+            motion_type = MC_FIELD;
             motion_vertical_field_select[0][0] = (picture_structure==BOTTOM_FIELD);
         }
     }

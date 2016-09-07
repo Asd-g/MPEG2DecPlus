@@ -335,7 +335,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
     YV12PICT out = (decoder.upConv != 2) ? YV12PICT(frame) :
         YV12PICT(bufY, bufU, bufV, vi.width, decoder.getChromaWidth(), vi.height);
 
-    decoder.Decode(n, &out);
+    decoder.Decode(n, out);
 
     if (luminanceFlag )
         luminance_filter(out.y, out.ywidth, out.yheight, out.ypitch, luminanceTable);
