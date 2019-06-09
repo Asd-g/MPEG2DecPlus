@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <string>
 #include <algorithm>
+#include <stdexcept>
 #include <malloc.h>
 #include "AvisynthAPI.h"
 #include "postprocess.h"

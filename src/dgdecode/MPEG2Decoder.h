@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cmath>
+#include <string>
 #include <vector>
 #include <io.h>
 #include <fcntl.h>
