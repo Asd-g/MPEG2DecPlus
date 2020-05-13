@@ -92,18 +92,35 @@ main_proc_sse2(const uint8_t* srcp, uint8_t* dstp, const int spitch,
 LumaYUV::LumaYUV(PClip c, int16_t offset, int16_t gain, IScriptEnvironment* env) :
     GenericVideoFilter(c)
 {
-    numPlanes = vi.IsY8() ? 1 : vi.IsYUVA() ? 4 : 3;
+    has_at_least_v8 = true;
+    try { env->CheckVersion(8); } catch (const AvisynthError&) { has_at_least_v8 = false; }
 
-    auto e2 = static_cast<IScriptEnvironment2*>(env);
-    void* p = e2->Allocate(16 * sizeof(int16_t), 16, AVS_NORMAL_ALLOC);
-    if (!p) {
-        env->ThrowError("LumaYUV: failed to create masks.");
+    numPlanes = vi.IsY8() ? 1 : vi.IsYUVA() ? 4 : 3;
+    void* p;
+    if (has_at_least_v8)
+    {
+        p = env->Allocate(16 * sizeof(int16_t), 16, AVS_NORMAL_ALLOC);
+        if (!p) {
+            env->ThrowError("LumaYUV: failed to create masks.");
+        }
+        env->AtExit(
+            [](void* p, IScriptEnvironment* e) {
+                static_cast<IScriptEnvironment*>(e)->Free(p);
+                p = nullptr;
+            }, p);
     }
-    env->AtExit(
-        [](void* p, IScriptEnvironment* e) {
-            static_cast<IScriptEnvironment2*>(e)->Free(p);
-            p = nullptr;
-        }, p);
+    else
+    {
+        p = _aligned_malloc(16 * sizeof(int16_t), 16);
+        if (!p) {
+            env->ThrowError("LumaYUV: failed to create masks.");
+        }
+        env->AtExit(
+            [](void* p, IScriptEnvironment* e) {
+                _aligned_free(p);
+                p = nullptr;
+            }, p);
+    }
 
     offsetMask = reinterpret_cast<int16_t*>(p);
     gainMask = offsetMask + 8;
@@ -127,7 +144,8 @@ LumaYUV::LumaYUV(PClip c, int16_t offset, int16_t gain, IScriptEnvironment* env)
 PVideoFrame __stdcall LumaYUV::GetFrame(int n, IScriptEnvironment* env)
 {
     auto src = child->GetFrame(n, env);
-    auto dst = env->NewVideoFrame(vi);
+    PVideoFrame dst;
+    if (has_at_least_v8) dst = env->NewVideoFrameP(vi, &src); else dst = env->NewVideoFrame(vi);
 
     static const int planes[] = { PLANAR_U, PLANAR_V, PLANAR_A };
     for (int p = 0; p < numPlanes - 1; ++p) {

@@ -80,7 +80,7 @@ static void show_info(int n, CMPEG2Decoder& d, PVideoFrame& frame,
     uint32_t gop = 0;
     do {
         if (raw >= d.GOPList[gop].number)
-            if (raw < d.GOPList[gop+1].number)
+            if (raw < d.GOPList[static_cast<int64_t>(gop)+1].number)
                 break;
     } while (++gop < d.GOPList.size() - 1);
 
@@ -142,7 +142,7 @@ static void show_info(int n, CMPEG2Decoder& d, PVideoFrame& frame,
 
     } else if (d.info == 2) {
         dprintf("MPEG2DecPlus: %s\n", VERSION);
-        dprintf("MPEG2DecPlus: Source:            %s\n", d.Infilename[rgop.file]);
+        dprintf("MPEG2DecPlus: Source:            %s\n", d.Infilename[rgop.file].c_str());
         dprintf("MPEG2DecPlus: Frame Rate:        %3.6f fps (%u/%u) %s\n",
             double(d.VF_FrameRate_Num) / double(d.VF_FrameRate_Den),
             d.VF_FrameRate_Num, d.VF_FrameRate_Den,
@@ -224,8 +224,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP,
             _aligned_free(p);
             p = nullptr;
         };
-        size_t ysize = ((vi.width + 31) & ~31) * (vi.height + 1);
-        size_t uvsize = ((d.getChromaWidth() + 15) & ~15) * (vi.height + 1);
+        size_t ysize = ((static_cast<int64_t>(vi.width) + 31) & ~31) * (static_cast<int64_t>(vi.height) + 1);
+        size_t uvsize = ((static_cast<int64_t>(d.getChromaWidth()) + 15) & ~15) * (static_cast<int64_t>(vi.height) + 1);
         void* ptr = _aligned_malloc(ysize + 2 * uvsize, 32);
         if (!ptr) {
             env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
@@ -434,7 +434,7 @@ AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors)
 
     env->AddFunction("MPEG2Source", msargs, MPEG2Source::create, nullptr);
     env->AddFunction("LumaYUV","c[lumoff]i[lumgain]f", LumaYUV::create, nullptr);
-    env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i", Deblock::create, nullptr);
+    // env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i", Deblock::create, nullptr);
    // env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", BlindPP::create, nullptr);
 
     return VERSION;

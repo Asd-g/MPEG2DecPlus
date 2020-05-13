@@ -67,6 +67,7 @@ public:
 };
 #endif
 
+#if 0
 class Deblock : public GenericVideoFilter {
    int alpha, beta, c0;
    int numPlanes;
@@ -78,12 +79,13 @@ public:
     int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_NICE_FILTER : 0; }
     static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);
 };
-
+#endif
 
 class LumaYUV : public GenericVideoFilter {
     int16_t* offsetMask;
     int16_t* gainMask;
     int numPlanes;
+    bool has_at_least_v8;
     void(*mainProc)(
         const uint8_t* srcp, uint8_t* dstp, const int spitch, const int dpitch,
         const int width, const int height, const int16_t* offsets,

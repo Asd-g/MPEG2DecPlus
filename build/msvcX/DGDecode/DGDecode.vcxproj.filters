@@ -33,9 +33,6 @@
     <ClCompile Include="..\..\..\src\dgdecode\AVISynthAPI.cpp">
       <Filter>MPEG2DecPlus</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dgdecode\deblock.cpp">
-      <Filter>MPEG2DecPlus</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\dgdecode\color_convert.cpp">
       <Filter>MPEG2DecPlus</Filter>
     </ClCompile>
