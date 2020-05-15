@@ -10,7 +10,7 @@
     - Windows Vista SP2 以降の Windows OS
     - SSE3が使えるCPU(Intel Pentium4(prescott) または AMD Athlon64x2 以降)
     - Avisynth+ r2172以降 またはAvisynth 2.60以降
-    - Microsoft VisualC++ Redistributable Package 2015.
+    - Microsoft VisualC++ Redistributable Package 2019.
 
  ###使い方:
  ```
@@ -47,22 +47,6 @@
         true: 全フレームをinterlacedとして処理する。
         false: 全フレームをprogressiveとして処理する。
 
-```
-Deblock(clip c, int "quant", int "aOffset", int "bOffset")
-```
-H.264式デブロックフィルタ。manao氏のフィルタを取り込んだもの。
-
-    clip: Y8, YV12, YV16, YV411, YV24をサポート。
-
-    quant: 0～51(デフォルト25)
-        デブロックの強さ。
-
-    aOffset: 0 ～ 51-quant(デフォルト0)
-        ブロック検出の閾値。高いほどブロックと判定されやすくなる。
-
-    bOffset: 0 ～ 51-quant(デフォルト0)
-        デブロックの強さ及び検出率の補正値。
-        高いほどデブロックが強くかかり、ブロックと判定されやすくなる。
 
 ```
 LumaYUV(clip c, int "lumoff", int "lumgain")
