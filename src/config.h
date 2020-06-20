@@ -1,1 +1,0 @@
-#undef DGMPGDEC_GIT_VERSION

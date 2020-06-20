@@ -1,65 +1,54 @@
-# MPEG2DecPlus
-これはDGDecode.dllをAvisynth+用に改造するプロジェクトです。
+# D2VSource
 
-###やりたいこと:
-    - 改築を重ねた温泉旅館のようなコードをきれいにする。
-    - VFAPI用コード、YUY2用コード等、現在では必要ないコードの排除。
-    - アセンブラの排除による64bitへの対応、及びSSE2/AVX2でのintrinsicによる最適化。等
+This is a project (previously named as MPEG2DecPlus) to modify DGDecode.dll for AviSynth+.
 
-###必要なもの:
-    - Windows Vista SP2 以降の Windows OS
-    - SSE3が使えるCPU(Intel Pentium4(prescott) または AMD Athlon64x2 以降)
-    - Avisynth+ r2172以降 またはAvisynth 2.60以降
-    - Microsoft VisualC++ Redistributable Package 2019.
+# Usage
 
- ###使い方:
  ```
- MPEG2Source(string "d2v", int "cpu", int "idct", bool "iPP", int "moderate_h", int "moderate_v",
-             bool "showQ", bool "fastMC", string "cpu2", int "info", int "upConv", bool "i420", bool "iCC")
+ D2VSource(string "d2v", int "idct", bool "showQ", int "info", int "upConv", bool "i420", bool "iCC")
  ```
-    d2v: dv2ファイルのパス
 
-    cpu: 現在使用不可。設定しても何も起こらない。iPP, moderate_h, moderate_v, fastMC, cpu2も同様。
+## Parameters:
 
-    idct: 使用するiDCTアルゴリズム。
-        0: d2vの指定に従う。
-        1,2,3,6,7: AP922整数(SSE2MMXと同じもの)。
-        4: SSE2/AVX2 LLM(単精度浮動小数点、SSE2/AVX2の判定は自動)。
-        5: IEEE 1180 reference(倍精度浮動小数点)。
-
-    showQ: マクロブロックの量子化器を表示する。
-
-    info: デバッグ情報を出力する。
-        0: 表示しない。(デフォルト)
-        1: 動画フレームにオーバーレイで表示。
-        2: OutputDebugString()で出力。(内容はDebugView.exeで確認)
-        3: hintsをフレーム左上隅の64バイトに埋め込む。
-
-    upConv: フレームを出力するフォーマット。
-        0: YUV420なソースはYV12で出力、YUV422なソースはYV16で出力。
-        1: YV16で出力。
-        2: YV24で出力。
-
-    i420: trueであればYUV420をi420として出力する。現在ではどちらでもほぼ変わりはない。
-
-    iCC: upConvにおけるYUV420の取扱いの設定。
-        未設定: フレームフラグに従ってinterlaced/progressiveを切り替える。
-        true: 全フレームをinterlacedとして処理する。
-        false: 全フレームをprogressiveとして処理する。
-
-
-```
-LumaYUV(clip c, int "lumoff", int "lumgain")
-```
-入力クリップの輝度をlumoffとlumgainの値によって変更する。出力Y = (入力y * lumgain) + lumoff
-
-    clip: Y8, YV12, YV16, YV411, YV24をサポート。
-
-    lumoff: -255 ～ 255 (デフォルト0)
-
-    lumgain: 0.0 ～ 2.0 (デフォルト1.0)
-
-###ソースコード
-	https://github.com/chikuzen/MPEG2DecPlus/
-
-
+- d2v\
+    The path of the dv2 file.
+    
+- idct\
+    The iDCT algorithm to use.\
+    0: Follow the d2v specification.\
+    1,2,3,6,7: AP922 integer (same as SSE2/MMX).\
+    4: SSE2/AVX2 LLM (single precision floating point, SSE2/AVX2 determination is automatic).\
+    5: IEEE 1180 reference (double precision floating point).\
+    Default: -1.
+    
+- showQ\
+    It displays macroblock quantizers..\
+    Default: False.
+    
+- info\
+    It prints debug information.\
+    0: Do not display.\
+    1: Overlay on video frame.\
+    2: Output with OutputDebugString(). (The contents are confirmed by DebugView.exe).\
+    3: Embed hints in 64 bytes of the frame upper left corner.\
+    Default: 0.
+    
+- upConv\
+    The output format.\
+    0: No conversion. YUV420 output is YV12, YUV422 output is YV16.\
+    1: Output YV16.\
+    2: Output YV24.\
+    Default: 0.
+    
+- i420\
+    It determinates what is the output of YUV420.\
+    True: The output is i410.\
+    False: The output is YV12.\
+    Default: False.
+    
+- iCC\
+    It determinates how YUV420 is upscaled when upConv=true.\
+    True: Force field-based upsampling.\
+    False: Forse progressive upsampling.\
+    Default: Auto determination based on the frame flag.
+    
