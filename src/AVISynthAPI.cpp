@@ -244,6 +244,10 @@ MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
                 luminanceTable[i] = static_cast<uint8_t>(value);
         }
     }
+
+    has_at_least_v8 = true;
+    try { env->CheckVersion(8); }
+    catch (const AvisynthError&) { has_at_least_v8 = false; }
 }
 
 
@@ -276,6 +280,58 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 
     if (d.info != 0)
         show_info(n, d, frame, vi, env);
+
+    if (has_at_least_v8)
+    {
+        AVSMap* props = env->getFramePropsRW(frame);
+
+        /* Sample duration */
+        env->propSetInt(props, "_DurationNum", d.VF_FrameRate_Num, 0);
+        env->propSetInt(props, "_DurationDen", d.VF_FrameRate_Den, 0);
+        /* BFF or TFF */
+        uint32_t raw = std::max(d.FrameList[n].bottom, d.FrameList[n].top);
+        if (raw < d.BadStartingFrames)
+            raw = d.BadStartingFrames;
+
+        uint32_t gop = 0;
+        do {
+            if (raw >= d.GOPList[gop].number)
+                if (raw < d.GOPList[static_cast<int64_t>(gop) + 1].number)
+                    break;
+        } while (++gop < d.GOPList.size() - 1);
+
+        const auto& rgop = d.GOPList[gop];
+
+        int field_based = 0;
+        if (!rgop.progressive)
+            field_based = d.Field_Order == 1 ? 2 : 1;
+        env->propSetInt(props, "_FieldBased", field_based, 0);
+        /* AR */
+        env->propSetData(props, "_AspectRatio", d.Aspect_Ratio, *(d.Aspect_Ratio), 0);
+        /* GOP */
+        int64_t gop_number[2] = { gop, rgop.number };
+        env->propSetIntArray(props, "_GOPNumber", gop_number, 2);
+        env->propSetInt(props, "_GOPPosition", rgop.position, 0);
+
+        int closed_gop = rgop.closed ? 1 : 0;
+        env->propSetInt(props, "_GOPClosed", closed_gop, 0);
+        /* Encoded frame */
+        const auto& fn = d.FrameList[n];
+
+        env->propSetInt(props, "_EncodedFrameTop", fn.top, 0);
+        env->propSetInt(props, "_EncodedFrameBottom", fn.bottom, 0);
+        /* Picture type */
+        const auto& fraw = d.FrameList[raw];
+        const char* pct = fraw.pct == I_TYPE ? "I" : fraw.pct == B_TYPE ? "B" : "P";
+
+        env->propSetData(props, "_PictType", pct, 1, 0);
+        /* Matrix */
+        env->propSetInt(props, "_Matrix", rgop.matrix, 0);
+        /* Quants */
+        env->propSetInt(props, "_QuantsAverage", d.avgquant, 0);
+        env->propSetInt(props, "_QuantsMin", d.minquant, 0);
+        env->propSetInt(props, "_QuantsMax", d.maxquant, 0);
+    }
 
     return frame;
 }

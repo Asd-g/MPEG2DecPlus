@@ -39,6 +39,7 @@ class MPEG2Source: public IClip {
     CMPEG2Decoder* decoder;
     bool luminanceFlag;
     uint8_t luminanceTable[256];
+    bool has_at_least_v8;
 
 public:
   MPEG2Source(const char* d2v, int idct, bool showQ, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env);
