@@ -52,3 +52,6 @@ This is a project (previously named as MPEG2DecPlus) to modify DGDecode.dll for 
     False: Forse progressive upsampling.\
     Default: Auto determination based on the frame flag.
     
+## Exported variables:
+
+FFSAR_NUM, FFSAR_DEN, FFSAR.

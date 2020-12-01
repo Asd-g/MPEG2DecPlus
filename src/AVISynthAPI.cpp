@@ -32,12 +32,13 @@
 #include <algorithm>
 #include <stdexcept>
 #include <malloc.h>
+#include <sstream>
 
 #include "AVISynthAPI.h"
 #include "color_convert.h"
 #include "misc.h"
 
-#define VERSION "D2VSource 1.0.0"
+#define VERSION "D2VSource 1.2.0"
 
 bool PutHintingData(uint8_t *video, uint32_t hint)
 {
@@ -170,8 +171,8 @@ static void show_info(int n, CMPEG2Decoder& d, PVideoFrame& frame,
 
 
 MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
-                         int _info, int _upConv, bool _i420, int iCC,
-                         IScriptEnvironment* env) :
+    int _info, int _upConv, bool _i420, int iCC,
+    IScriptEnvironment* env) :
     bufY(nullptr), bufU(nullptr), bufV(nullptr), decoder(nullptr)
 {
     if (iCC != -1 && iCC != 0 && iCC != 1)
@@ -190,7 +191,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
 
     try {
         decoder = new CMPEG2Decoder(f, d2v, idct, iCC, _upConv, _info, showQ, _i420);
-    } catch (std::runtime_error& e) {
+    }
+    catch (std::runtime_error& e) {
         if (f) fclose(f);
         env->ThrowError("MPEG2Source: %s", e.what());
     }
@@ -248,6 +250,26 @@ MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
     has_at_least_v8 = true;
     try { env->CheckVersion(8); }
     catch (const AvisynthError&) { has_at_least_v8 = false; }
+
+    std::string ar = d.Aspect_Ratio;
+    std::vector<int> sar;
+    sar.reserve(2);
+    std::stringstream str(ar);
+    int n;
+    char ch;
+    while (str >> n)
+    {
+        if (str >> ch)
+            sar.push_back(n);
+        else
+            sar.push_back(n);
+    }
+    int num = sar[0];
+    int den = sar[1];
+    env->SetVar(env->Sprintf("%s", "FFSAR_NUM"), num);
+    env->SetVar(env->Sprintf("%s", "FFSAR_DEN"), den);
+    if (num > 0 && den > 0)
+        env->SetVar(env->Sprintf("%s", "FFSAR"), num / static_cast<double>(den));
 }
 
 
