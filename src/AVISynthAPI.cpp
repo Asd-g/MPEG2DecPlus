@@ -185,12 +185,20 @@ MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
         env->ThrowError("MPEG2Source: iDCT invalid (1:MMX,2:SSEMMX,3:SSE2,4:FPU,5:REF,6:Skal's,7:Simple)");
 
     FILE* f;
+#ifdef _WIN32
     fopen_s(&f, d2v, "r");
+#else
+    f = fopen(d2v, "r");
+#endif
     if (f == nullptr)
         env->ThrowError("MPEG2Source: unable to load D2V file \"%s\" ", d2v);
 
     try {
+#ifdef _WIN32
         decoder = new CMPEG2Decoder(f, d2v, idct, iCC, _upConv, _info, showQ, _i420);
+#else
+        decoder = new CMPEG2Decoder(f, d2v, idct, iCC, _upConv, _info, showQ, _i420, env->GetCPUFlags());
+#endif
     }
     catch (std::runtime_error& e) {
         if (f) fclose(f);
@@ -416,7 +424,11 @@ AVSValue __cdecl MPEG2Source::create(AVSValue args, void*, IScriptEnvironment* e
     bool i420 = false;
 
     FILE* def;
+#ifdef _WIN32
     fopen_s(&def, "MPEG2DecPlus.def", "r");
+#else
+    def = fopen("MPEG2DecPlus.def", "r");
+#endif
     if (def != nullptr) {
         set_user_default(def, d2v, idct, showQ, info, upConv, i420, iCC);
         fclose(def);
