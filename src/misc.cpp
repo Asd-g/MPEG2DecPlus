@@ -23,11 +23,15 @@
 
 
 #include <cstdio>
+#ifdef _WIN32
 #include <intrin.h>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-
+#else
+#include <avisynth.h>
+#include "win_import_min.h"
+#endif
 #include "misc.h"
 
 
@@ -38,7 +42,7 @@ size_t __cdecl dprintf(char* fmt, ...)
     va_list argp;
 
     va_start(argp, fmt);
-    vsprintf_s(printString, fmt, argp);
+    vsprintf_s(printString, 1024, fmt, argp);
     va_end(argp);
     OutputDebugString(printString);
     return strlen(printString);
@@ -63,6 +67,7 @@ fast_copy(const uint8_t* src, const int src_stride, uint8_t* dst,
 }
 
 
+#ifdef _WIN32
 enum {
     CPU_NO_X86_SIMD          = 0x000000,
     CPU_SSE2_SUPPORT         = 0x000001,
@@ -188,4 +193,5 @@ bool has_avx2() noexcept
     uint32_t flags = CPU_AVX2_SUPPORT | CPU_FMA3_SUPPORT;
     return (get_simd_support_info() & flags) == flags;
 }
+#endif
 

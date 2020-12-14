@@ -16,6 +16,9 @@ MPEG2Dec's colorspace convertions Copyright (C) Chia-chen Kuo - April 2001
 
 #include <cstring>
 #include <emmintrin.h>
+#ifndef _WIN32
+#include "win_import_min.h"
+#endif
 #include "color_convert.h"
 
 

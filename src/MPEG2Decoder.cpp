@@ -31,7 +31,9 @@
 #include "mc.h"
 #include "misc.h"
 #include "idct.h"
+#ifdef _WIN32
 #include "shlwapi.h"
+#endif
 
 
 static const int ChromaFormat[4] = {
@@ -47,7 +49,11 @@ static void validate(bool cond, const char* msg)
 // Open function modified by Donald Graft as part of fix for dropped frames and random frame access.
 // change function to constructor - chikuzen.
 CMPEG2Decoder::CMPEG2Decoder(FILE* d2vf, const char* path, int _idct, int icc,
+#ifdef _WIN32
                              int upconv, int _info, bool showq, bool _i420) :
+#else
+                             int upconv, int _info, bool showq, bool _i420, int _cpu_flags) :
+#endif
     Rdmax(nullptr), 
     CurrentBfr(0),    
     NextBfr(0),
@@ -75,6 +81,9 @@ CMPEG2Decoder::CMPEG2Decoder(FILE* d2vf, const char* path, int _idct, int icc,
     showQ(showq),
     upConv(upconv),
     i420(_i420),
+#ifndef _WIN32
+    cpu_flags(_cpu_flags),
+#endif
     info(_info)
 {
     memset(intra_quantizer_matrix, 0, sizeof(intra_quantizer_matrix));
@@ -151,7 +160,11 @@ void CMPEG2Decoder::setIDCT(int idct)
         prefetchTables = prefetch_ref;
         idctFunction = idct_ref_sse3;
     } else if (idct == IDCT_LLM_FLOAT) {
+#ifdef _WIN32
         if (has_avx2()) {
+#else
+        if (0 != (cpu_flags&(CPUF_AVX2|CPUF_FMA3))) {
+#endif
             prefetchTables = prefetch_llm_float_avx2;
             idctFunction = idct_llm_float_avx2;
         } else {
@@ -209,6 +222,7 @@ void CMPEG2Decoder::create_file_lists(FILE* d2vf, const char* path, char* buf)
         auto temp = std::string(buf);
         temp.pop_back(); // Strip newline.
 
+#ifdef _WIN32
         if (PathIsRelativeA(temp.c_str())) {
             std::string d2v_stem;
 
@@ -234,6 +248,38 @@ void CMPEG2Decoder::create_file_lists(FILE* d2vf, const char* path, char* buf)
             Infile.emplace_back(in);
             Infilename.emplace_back(temp);
         }
+#else
+        temp.pop_back(); // remove further unwanted char CR...
+        if (temp.find(":\\", 0) == std::string::npos) {
+            // path is relative, maybe I will open the file
+            long unsigned int pos = 0;
+            char current_dir[1024];
+            std::string d2v_stem;
+
+            while ((pos=temp.find("\\", pos)) != std::string::npos) {
+                temp.replace(pos, 1, "/");
+                pos++;
+            }
+
+            getcwd(current_dir, 1024);
+            d2v_stem = std::string(current_dir);
+            d2v_stem = d2v_stem + "/" + temp;
+            int in;
+            in = open(d2v_stem.c_str(), O_RDONLY);
+            validate(in == -1, "Could not open one of the input files.");
+            Infile.emplace_back(in);
+            Infilename.emplace_back(temp);
+        } else {
+            // path seems to be absolute
+            // as the path was generated in a windows FS, this will likely cause an error
+            // I will try, anyways
+            int in;
+            in = open(temp.c_str(), O_RDONLY);
+            validate(in == -1, "Could not open one of the input files.");
+            Infile.emplace_back(in);
+            Infilename.emplace_back(temp);
+        }
+#endif
     }
 }
 
@@ -569,7 +615,11 @@ void CMPEG2Decoder::search_bad_starting()
 
 void CMPEG2Decoder::Decode(uint32_t frame, YV12PICT& dst)
 {
+#ifdef _WIN32
 __try {
+#else
+try {
+#endif
     Fault_Flag = 0;
     Second_Field = 0;
 
@@ -781,7 +831,12 @@ __try {
         }
     }
     return;
+#ifdef _WIN32
 } __except(EXCEPTION_EXECUTE_HANDLER) {
+#else
+} catch (...) {
+    fprintf(stderr, "Exception caught\n");
+#endif
     return;
 }
 }

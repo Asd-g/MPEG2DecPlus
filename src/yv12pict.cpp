@@ -23,6 +23,9 @@
 
 #include <stdexcept>
 #include <malloc.h>
+#ifndef _WIN32
+#include "win_import_min.h"
+#endif
 #include "yv12pict.h"
 
 //#define ptr_t unsigned int

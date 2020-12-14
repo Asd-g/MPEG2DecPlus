@@ -28,7 +28,11 @@
 
 #include <cstdint>
 #include <avisynth.h>
+#ifdef _WIN32
 #include <avs/win.h>
+#else
+#include "win_import_min.h"
+#endif
 #include "MPEG2Decoder.h"
 
 

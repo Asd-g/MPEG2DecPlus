@@ -1,4 +1,7 @@
 #include <emmintrin.h>
+#ifndef _WIN32
+#include "win_import_min.h"
+#endif
 #include "idct.h"
 
 
