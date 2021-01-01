@@ -34,7 +34,7 @@
 #ifdef _WIN32
 #include "shlwapi.h"
 #endif
-
+#include <filesystem>
 
 static const int ChromaFormat[4] = {
     0, 6, 8, 12
@@ -249,8 +249,12 @@ void CMPEG2Decoder::create_file_lists(FILE* d2vf, const char* path, char* buf)
             Infilename.emplace_back(temp);
         }
 #else
-        temp.pop_back(); // remove further unwanted char CR...
-        if (temp.find(":\\", 0) == std::string::npos) {
+        if (temp.find('\r') != std::string::npos) {
+            temp.pop_back(); // remove further unwanted char CR...
+        }
+
+        std::filesystem::path p(temp);
+        if (p.is_relative()) {
             // path is relative, maybe I will open the file
             long unsigned int pos = 0;
             char current_dir[1024];
