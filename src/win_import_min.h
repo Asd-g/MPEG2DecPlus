@@ -19,7 +19,6 @@
 #define _read                        read
 #define _lseeki64                    lseek
 #define _close                       close
-#define OutputDebugString(x)         fprintf(stderr,x)
 
 /* gnu libc offers the equivalent 'aligned_alloc' BUT requested 'size'
    has to be a multiple of 'alignment' - in case it isn't, I'll set
