@@ -3,9 +3,6 @@
 #endif
 
 #include <immintrin.h>
-#ifndef _WIN32
-#include "win_import_min.h"
-#endif
 #include "idct.h"
 
 alignas(64) static const float llm_coefs[] = {

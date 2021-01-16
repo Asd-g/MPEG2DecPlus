@@ -2,16 +2,9 @@
 #ifndef WIN_IMPORT_MIN_H
 #define WIN_IMPORT_MIN_H
 
-#define __int64                      int64_t
-
 #define __fastcall                   __attribute__((fastcall))
 
 /* support from recent _mingw.h */
-
-#include <limits.h>
-
-#define MAX_PATH                     PATH_MAX
-#define _MAX_PATH                    PATH_MAX
 
 #ifdef __cplusplus
 #define __forceinline inline __attribute__((__always_inline__))

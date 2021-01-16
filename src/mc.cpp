@@ -27,10 +27,10 @@
 
 
 #include <emmintrin.h>
+#include "mc.h"
 #ifndef _WIN32
 #include "win_import_min.h"
 #endif
-#include "mc.h"
 
 
 static __forceinline __m128i loadl(const uint8_t* p)

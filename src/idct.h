@@ -2,6 +2,9 @@
 #define MPEG2DECPLUS_IDCT_H
 
 #include <cstdint>
+#ifndef _WIN32
+#include "win_import_min.h"
+#endif
 
 void __fastcall idct_ref_sse3(int16_t* block) noexcept;
 

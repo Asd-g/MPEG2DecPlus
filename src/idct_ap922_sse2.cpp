@@ -82,6 +82,7 @@ These examples contain code fragments for first stage iDCT 8x8
 
 #include <cstdint>
 #include <emmintrin.h>
+
 #ifndef _WIN32
 #include "win_import_min.h"
 #endif

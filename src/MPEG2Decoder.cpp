@@ -27,19 +27,17 @@
 #include <algorithm>
 #include <stdexcept>
 #include <malloc.h>
+#include <filesystem>
+
 #include "MPEG2Decoder.h"
 #include "mc.h"
 #include "misc.h"
 #include "idct.h"
-#ifdef _WIN32
-#include "shlwapi.h"
-#endif
-#include <filesystem>
 
-static const int ChromaFormat[4] = {
+
+static constexpr int ChromaFormat[4] = {
     0, 6, 8, 12
 };
-
 
 static void validate(bool cond, const char* msg)
 {
@@ -48,12 +46,7 @@ static void validate(bool cond, const char* msg)
 
 // Open function modified by Donald Graft as part of fix for dropped frames and random frame access.
 // change function to constructor - chikuzen.
-CMPEG2Decoder::CMPEG2Decoder(FILE* d2vf, const char* path, int _idct, int icc,
-#ifdef _WIN32
-                             int upconv, int _info, bool showq, bool _i420) :
-#else
-                             int upconv, int _info, bool showq, bool _i420, int _cpu_flags) :
-#endif
+CMPEG2Decoder::CMPEG2Decoder(FILE* d2vf, const char* path, int _idct, int icc, int upconv, int _info, bool showq, bool _i420, int _cpu_flags) :
     Rdmax(nullptr), 
     CurrentBfr(0),    
     NextBfr(0),
@@ -81,9 +74,7 @@ CMPEG2Decoder::CMPEG2Decoder(FILE* d2vf, const char* path, int _idct, int icc,
     showQ(showq),
     upConv(upconv),
     i420(_i420),
-#ifndef _WIN32
     cpu_flags(_cpu_flags),
-#endif
     info(_info)
 {
     memset(intra_quantizer_matrix, 0, sizeof(intra_quantizer_matrix));
@@ -160,11 +151,7 @@ void CMPEG2Decoder::setIDCT(int idct)
         prefetchTables = prefetch_ref;
         idctFunction = idct_ref_sse3;
     } else if (idct == IDCT_LLM_FLOAT) {
-#ifdef _WIN32
-        if (has_avx2()) {
-#else
-        if (0 != (cpu_flags&(CPUF_AVX2|CPUF_FMA3))) {
-#endif
+        if (!!(cpu_flags & CPUF_AVX2)) {
             prefetchTables = prefetch_llm_float_avx2;
             idctFunction = idct_llm_float_avx2;
         } else {
@@ -209,7 +196,6 @@ void CMPEG2Decoder::set_clip_properties()
     Clip_Height = Coded_Picture_Height;
 }
 
-
 void CMPEG2Decoder::create_file_lists(FILE* d2vf, const char* path, char* buf)
 {
     int file_limit;
@@ -222,71 +208,37 @@ void CMPEG2Decoder::create_file_lists(FILE* d2vf, const char* path, char* buf)
         auto temp = std::string(buf);
         temp.pop_back(); // Strip newline.
 
-#ifdef _WIN32
-        if (PathIsRelativeA(temp.c_str())) {
-            std::string d2v_stem;
-
-            if (PathIsRelativeA(path)) {
-                GetCurrentDirectoryA(_MAX_PATH, buf);
-                d2v_stem += buf;
-                if (d2v_stem.back() != '\\') d2v_stem.push_back('\\');
-            }
-            d2v_stem += path;
-
-            while (d2v_stem.back() != '\\') d2v_stem.pop_back();
-            d2v_stem += temp;
-            PathCanonicalizeA(buf, d2v_stem.c_str());
-            int in;
-            _sopen_s(&in, buf, _O_RDONLY | _O_BINARY, _SH_DENYWR, 0);
-            validate(in == -1, "Could not open one of the input files.");
-            Infile.emplace_back(in);
-            Infilename.emplace_back(buf);
-        } else {
-            int in;
-            _sopen_s(&in, temp.c_str(), _O_RDONLY | _O_BINARY, _SH_DENYWR, 0);
-            validate(in == -1, "Could not open one of the input files.");
-            Infile.emplace_back(in);
-            Infilename.emplace_back(temp);
-        }
-#else
         if (temp.find('\r') != std::string::npos) {
             temp.pop_back(); // remove further unwanted char CR...
         }
 
-        std::filesystem::path p(temp);
+        const std::filesystem::path p(temp);
+
         if (p.is_relative()) {
-            // path is relative, maybe I will open the file
-            long unsigned int pos = 0;
-            char current_dir[1024];
-            std::string d2v_stem;
-
-            while ((pos=temp.find("\\", pos)) != std::string::npos) {
-                temp.replace(pos, 1, "/");
-                pos++;
-            }
-
-            getcwd(current_dir, 1024);
-            d2v_stem = std::string(current_dir);
-            d2v_stem = d2v_stem + "/" + temp;
+            std::filesystem::path cur_dir = std::filesystem::path(path).parent_path().generic_string() + "/" + p.generic_string();
+            const std::string d2v_stem = std::filesystem::canonical(cur_dir).generic_string();
+#ifdef _WIN32
             int in;
-            in = open(d2v_stem.c_str(), O_RDONLY);
+            _sopen_s(&in, d2v_stem.c_str(), _O_RDONLY | _O_BINARY, _SH_DENYWR, 0);
+#else
+            int in = open(d2v_stem.c_str(), O_RDONLY);
+#endif
             validate(in == -1, "Could not open one of the input files.");
             Infile.emplace_back(in);
             Infilename.emplace_back(temp);
         } else {
-            // path seems to be absolute
-            // as the path was generated in a windows FS, this will likely cause an error
-            // I will try, anyways
+#ifdef _WIN32
             int in;
-            in = open(temp.c_str(), O_RDONLY);
+            _sopen_s(&in, temp.c_str(), _O_RDONLY | _O_BINARY, _SH_DENYWR, 0);
+#else
+            int in = open(temp.c_str(), O_RDONLY);
+#endif
             validate(in == -1, "Could not open one of the input files.");
             Infile.emplace_back(in);
             Infilename.emplace_back(temp);
         }
-#endif
     }
 }
-
 
 void CMPEG2Decoder::create_gop_and_frame_lists(FILE* d2vf, char* buf)
 {
@@ -619,191 +571,171 @@ void CMPEG2Decoder::search_bad_starting()
 
 void CMPEG2Decoder::Decode(uint32_t frame, YV12PICT& dst)
 {
-#ifdef _WIN32
-__try {
-#else
-try {
-#endif
-    Fault_Flag = 0;
-    Second_Field = 0;
+    try {
+        Fault_Flag = 0;
+        Second_Field = 0;
 
-    // Skip initial non-decodable frames.
-    frame = std::max(frame, BadStartingFrames);
+        // Skip initial non-decodable frames.
+        frame = std::max(frame, BadStartingFrames);
 
-    uint32_t requested_frame = frame;
+        uint32_t requested_frame = frame;
 
-    // Decide whether to use random access or linear play to reach the
-    // requested frame. If the seek is just a few frames forward, it will
-    // be faster to play linearly to get there. This greatly speeds things up
-    // when a decimation like SelectEven() follows this filter.
-    if (frame && frame > BadStartingFrames && frame > prev_frame
-        && frame < prev_frame + SEEK_THRESHOLD) {
-        // Use linear play.
-        for (frame = prev_frame + 1; frame <= requested_frame; ++frame) {
+        // Decide whether to use random access or linear play to reach the
+        // requested frame. If the seek is just a few frames forward, it will
+        // be faster to play linearly to get there. This greatly speeds things up
+        // when a decimation like SelectEven() follows this filter.
+        if (frame && frame > BadStartingFrames && frame > prev_frame
+            && frame < prev_frame + SEEK_THRESHOLD) {
+            // Use linear play.
+            for (frame = prev_frame + 1; frame <= requested_frame; ++frame) {
 
-            // If doing force film, we have to skip or repeat a frame as needed.
-            // This handles skipping. Repeating is handled below.
-            if ((FO_Flag==FO_FILM)
-                && (FrameList[frame].bottom == FrameList[frame-1].bottom + 2)
-                && (FrameList[frame].top == FrameList[frame-1].top + 2)) {
-                if (!Get_Hdr()) {
-                    // Flush the final frame.
-                    assembleFrame(backward_reference_frame, pf_backward, dst);
-                    return;
-                }
-                Decode_Picture(dst);
-                if (Fault_Flag == OUT_OF_BITS) {
-                    assembleFrame(backward_reference_frame, pf_backward, dst);
-                    return;
-                }
-                if (picture_structure != FRAME_PICTURE) {
-                    Get_Hdr();
+                // If doing force film, we have to skip or repeat a frame as needed.
+                // This handles skipping. Repeating is handled below.
+                if ((FO_Flag == FO_FILM)
+                    && (FrameList[frame].bottom == FrameList[frame - 1].bottom + 2)
+                    && (FrameList[frame].top == FrameList[frame - 1].top + 2)) {
+                    if (!Get_Hdr()) {
+                        // Flush the final frame.
+                        assembleFrame(backward_reference_frame, pf_backward, dst);
+                        return;
+                    }
                     Decode_Picture(dst);
+                    if (Fault_Flag == OUT_OF_BITS) {
+                        assembleFrame(backward_reference_frame, pf_backward, dst);
+                        return;
+                    }
+                    if (picture_structure != FRAME_PICTURE) {
+                        Get_Hdr();
+                        Decode_Picture(dst);
+                    }
                 }
-            }
 
-            /* When RFFs are present or we are doing FORCE FILM, we may have already decoded
-               the frame that we need. So decode the next frame only when we need to. */
-            if (std::max(FrameList[frame].top, FrameList[frame].bottom) >
-                std::max(FrameList[frame-1].top, FrameList[frame-1].bottom)) {
-                if (!Get_Hdr()) {
-                    assembleFrame(backward_reference_frame, pf_backward, dst);
-                    return;
-                }
-                Decode_Picture(dst);
-                if (Fault_Flag == OUT_OF_BITS) {
-                    assembleFrame(backward_reference_frame, pf_backward, dst);
-                    return;
-                }
-                if (picture_structure != FRAME_PICTURE) {
-                    Get_Hdr();
+                /* When RFFs are present or we are doing FORCE FILM, we may have already decoded
+                   the frame that we need. So decode the next frame only when we need to. */
+                if (std::max(FrameList[frame].top, FrameList[frame].bottom) >
+                    std::max(FrameList[frame - 1].top, FrameList[frame - 1].bottom)) {
+                    if (!Get_Hdr()) {
+                        assembleFrame(backward_reference_frame, pf_backward, dst);
+                        return;
+                    }
                     Decode_Picture(dst);
+                    if (Fault_Flag == OUT_OF_BITS) {
+                        assembleFrame(backward_reference_frame, pf_backward, dst);
+                        return;
+                    }
+                    if (picture_structure != FRAME_PICTURE) {
+                        Get_Hdr();
+                        Decode_Picture(dst);
+                    }
+                    /* If RFFs are present we have to save the decoded frame to
+                       be able to pull down from it when we decode the next frame.
+                       If we are doing FORCE FILM, then we may need to repeat the
+                       frame, so we'll save it for that purpose. */
+                    if (FO_Flag == FO_FILM || HaveRFFs) {
+                        // Save the current frame without overwriting the last
+                        // stored frame.
+                        YV12PICT* tmp = saved_active;
+                        saved_active = saved_store;
+                        saved_store = tmp;
+                        copy_all(dst, *saved_store);
+                    }
                 }
-                /* If RFFs are present we have to save the decoded frame to
-                   be able to pull down from it when we decode the next frame.
-                   If we are doing FORCE FILM, then we may need to repeat the
-                   frame, so we'll save it for that purpose. */
-                if (FO_Flag == FO_FILM || HaveRFFs) {
-                    // Save the current frame without overwriting the last
-                    // stored frame.
-                    YV12PICT* tmp = saved_active;
-                    saved_active = saved_store;
-                    saved_store = tmp;
-                    copy_all(dst, *saved_store);
+                else {
+                    // We already decoded the needed frame. Retrieve it.
+                    copy_all(*saved_store, dst);
                 }
-            } else {
-                // We already decoded the needed frame. Retrieve it.
-                copy_all(*saved_store, dst);
-            }
 
-            // Perform pulldown if required.
-            if (HaveRFFs) {
-                if (FrameList[frame].top > FrameList[frame].bottom) {
-                    copy_bottom(*saved_active, dst);
-                } else if (FrameList[frame].top < FrameList[frame].bottom) {
-                    copy_top(*saved_active, dst);
+                // Perform pulldown if required.
+                if (HaveRFFs) {
+                    if (FrameList[frame].top > FrameList[frame].bottom) {
+                        copy_bottom(*saved_active, dst);
+                    }
+                    else if (FrameList[frame].top < FrameList[frame].bottom) {
+                        copy_top(*saved_active, dst);
+                    }
                 }
             }
+            prev_frame = requested_frame;
+            return;
         }
+
         prev_frame = requested_frame;
-        return;
-    }
+        // Have to do random access.
+        uint32_t f = std::max(FrameList[frame].top, FrameList[frame].bottom);
 
-    prev_frame = requested_frame;
-    // Have to do random access.
-    uint32_t f = std::max(FrameList[frame].top, FrameList[frame].bottom);
-
-    // Determine the GOP that the requested frame is in.
-    uint32_t gop;
-    for (gop = 0; gop < GOPList.size() - 1; ++gop) {
-        if (f >= GOPList[gop].number && f < GOPList[gop + static_cast<int64_t>(1)].number) {
-            break;
-        }
-    }
-
-    // Back off by one GOP if required. This ensures enough frames will
-    // be decoded that the requested frame is guaranteed to be decodable.
-    // The direct flag is written by DGIndex, who knows which frames
-    // require the previous GOP to be decoded. We also test whether
-    // the previous encoded frame requires it, because that one might be pulled
-    // down for this frame. This can be improved by actually testing if the
-    // previous frame will be pulled down.
-    // Obviously we can't decrement gop if it is 0.
-    if (gop) {
-        if (DirectAccess[f] == 0 || (f && DirectAccess[f - 1] == 0))
-            gop--;
-        // This covers the special case where a field of the previous GOP is
-        // pulled down into the current GOP.
-        else if (f == GOPList[gop].number && FrameList[frame].top != FrameList[frame].bottom)
-            gop--;
-    }
-
-    // Calculate how many frames to decode.
-    uint32_t count = f - GOPList[gop].number;
-
-    // Seek in the stream to the GOP to start decoding with.
-    File_Flag = GOPList[gop].file;
-    _lseeki64(Infile[GOPList[gop].file],
-              GOPList[gop].position,
-              SEEK_SET);
-    Initialize_Buffer();
-
-    // Start decoding. Stop when the requested frame is decoded.
-    // First decode the required I picture of the D2V index line.
-    // An indexed unit (especially a pack) can contain multiple I frames.
-    // If we did nothing we would have multiple D2V lines with the same position
-    // and the navigation code in DGDecode would be confused. We detect this in DGIndex
-    // by seeing how many previous lines we have written with the same position.
-    // We store that number in the D2V file and DGDecode uses that as the
-    // number of I frames to skip before settling on the required one.
-    // So, in fact, we are indexing position plus number of I frames to skip.
-    for (uint32_t i = 0; i <= GOPList[gop].I_count; ++i) {
-        bool HadI = false;
-        while (true) {
-            if (!Get_Hdr()) {
-                // Something is really messed up.
-                return;
+        // Determine the GOP that the requested frame is in.
+        uint32_t gop;
+        for (gop = 0; gop < GOPList.size() - 1; ++gop) {
+            if (f >= GOPList[gop].number && f < GOPList[gop + static_cast<int64_t>(1)].number) {
+                break;
             }
-            Decode_Picture(dst);
-            if (picture_coding_type == I_TYPE)
-                HadI = true;
-            if (picture_structure != FRAME_PICTURE) {
-                Get_Hdr();
+        }
+
+        // Back off by one GOP if required. This ensures enough frames will
+        // be decoded that the requested frame is guaranteed to be decodable.
+        // The direct flag is written by DGIndex, who knows which frames
+        // require the previous GOP to be decoded. We also test whether
+        // the previous encoded frame requires it, because that one might be pulled
+        // down for this frame. This can be improved by actually testing if the
+        // previous frame will be pulled down.
+        // Obviously we can't decrement gop if it is 0.
+        if (gop) {
+            if (DirectAccess[f] == 0 || (f && DirectAccess[f - 1] == 0))
+                gop--;
+            // This covers the special case where a field of the previous GOP is
+            // pulled down into the current GOP.
+            else if (f == GOPList[gop].number && FrameList[frame].top != FrameList[frame].bottom)
+                gop--;
+        }
+
+        // Calculate how many frames to decode.
+        uint32_t count = f - GOPList[gop].number;
+
+        // Seek in the stream to the GOP to start decoding with.
+        File_Flag = GOPList[gop].file;
+        _lseeki64(Infile[GOPList[gop].file],
+            GOPList[gop].position,
+            SEEK_SET);
+        Initialize_Buffer();
+
+        // Start decoding. Stop when the requested frame is decoded.
+        // First decode the required I picture of the D2V index line.
+        // An indexed unit (especially a pack) can contain multiple I frames.
+        // If we did nothing we would have multiple D2V lines with the same position
+        // and the navigation code in DGDecode would be confused. We detect this in DGIndex
+        // by seeing how many previous lines we have written with the same position.
+        // We store that number in the D2V file and DGDecode uses that as the
+        // number of I frames to skip before settling on the required one.
+        // So, in fact, we are indexing position plus number of I frames to skip.
+        for (uint32_t i = 0; i <= GOPList[gop].I_count; ++i) {
+            bool HadI = false;
+            while (true) {
+                if (!Get_Hdr()) {
+                    // Something is really messed up.
+                    return;
+                }
                 Decode_Picture(dst);
                 if (picture_coding_type == I_TYPE)
                     HadI = true;
-                // The reason for this next test is quite technical. For details
-                // refer to the file CodeNote1.txt.
-                if (Second_Field == 1) {
+                if (picture_structure != FRAME_PICTURE) {
                     Get_Hdr();
                     Decode_Picture(dst);
+                    if (picture_coding_type == I_TYPE)
+                        HadI = true;
+                    // The reason for this next test is quite technical. For details
+                    // refer to the file CodeNote1.txt.
+                    if (Second_Field == 1) {
+                        Get_Hdr();
+                        Decode_Picture(dst);
+                    }
                 }
+                if (HadI) break;
             }
-            if (HadI) break;
         }
-    }
-    Second_Field = 0;
-    if (HaveRFFs == true && count == 0) {
-        copy_all(dst, *saved_active);
-    }
-    if (!Get_Hdr()) {
-        // Flush the final frame.
-        assembleFrame(backward_reference_frame, pf_backward, dst);
-        return;
-    }
-    Decode_Picture(dst);
-    if (Fault_Flag == OUT_OF_BITS) {
-        assembleFrame(backward_reference_frame, pf_backward, dst);
-        return;
-    }
-    if (picture_structure != FRAME_PICTURE) {
-        Get_Hdr();
-        Decode_Picture(dst);
-    }
-    if (HaveRFFs && count == 1) {
-        copy_all(dst, *saved_active);
-    }
-    for (uint32_t i = 0; i < count; ++i) {
+        Second_Field = 0;
+        if (HaveRFFs == true && count == 0) {
+            copy_all(dst, *saved_active);
+        }
         if (!Get_Hdr()) {
             // Flush the final frame.
             assembleFrame(backward_reference_frame, pf_backward, dst);
@@ -818,31 +750,47 @@ try {
             Get_Hdr();
             Decode_Picture(dst);
         }
-        if ((HaveRFFs == true) && (count > 1) && (i == count - 2)) {
+        if (HaveRFFs && count == 1) {
             copy_all(dst, *saved_active);
         }
-    }
-
-    if (HaveRFFs) {
-        // Save for transition to non-random mode.
-        copy_all(dst, *saved_store);
-
-        // Pull down a field if needed.
-        if (FrameList[frame].top > FrameList[frame].bottom) {
-            copy_bottom(*saved_active, dst);
-        } else if (FrameList[frame].top < FrameList[frame].bottom) {
-            copy_top(*saved_active, dst);
+        for (uint32_t i = 0; i < count; ++i) {
+            if (!Get_Hdr()) {
+                // Flush the final frame.
+                assembleFrame(backward_reference_frame, pf_backward, dst);
+                return;
+            }
+            Decode_Picture(dst);
+            if (Fault_Flag == OUT_OF_BITS) {
+                assembleFrame(backward_reference_frame, pf_backward, dst);
+                return;
+            }
+            if (picture_structure != FRAME_PICTURE) {
+                Get_Hdr();
+                Decode_Picture(dst);
+            }
+            if ((HaveRFFs == true) && (count > 1) && (i == count - 2)) {
+                copy_all(dst, *saved_active);
+            }
         }
+
+        if (HaveRFFs) {
+            // Save for transition to non-random mode.
+            copy_all(dst, *saved_store);
+
+            // Pull down a field if needed.
+            if (FrameList[frame].top > FrameList[frame].bottom) {
+                copy_bottom(*saved_active, dst);
+            }
+            else if (FrameList[frame].top < FrameList[frame].bottom) {
+                copy_top(*saved_active, dst);
+            }
+        }
+        return;
     }
-    return;
-#ifdef _WIN32
-} __except(EXCEPTION_EXECUTE_HANDLER) {
-#else
-} catch (...) {
-    fprintf(stderr, "Exception caught\n");
-#endif
-    return;
-}
+    catch (...) {
+        fprintf(stderr, "Exception caught\n");
+        return;
+    }
 }
 
 

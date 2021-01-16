@@ -1,27 +1,19 @@
 #ifndef MPEG2DECODER_H
 #define MPEG2DECODER_H
 
-
 #include <cstdint>
 #include <cstdio>
 #include <cmath>
 #include <string>
 #include <vector>
-#ifdef _WIN32
-#include <io.h>
-#endif
 #include <fcntl.h>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#include <winreg.h>
-#else
-#include "win_import_min.h"
-#endif
-
 #include "yv12pict.h"
+#ifndef _WIN32
+#include "win_import_min.h"
+#else
+#include <io.h>
+#endif
 
 
 /* code definition */
@@ -334,12 +326,7 @@ class CMPEG2Decoder
     void destroy();
 
 public:
-    CMPEG2Decoder(FILE* file, const char* path, int _idct, int icc, int upconv,
-#ifdef _WIN32
-                  int info, bool showq, bool _i420);
-#else
-                  int info, bool showq, bool _i420, int _cpu_flags);
-#endif
+    CMPEG2Decoder(FILE* file, const char* path, int _idct, int icc, int upconv, int info, bool showq, bool _i420, int _cpu_flags);
     ~CMPEG2Decoder() { destroy(); }
     void Decode(uint32_t frame, YV12PICT& dst);
 
@@ -380,9 +367,7 @@ public:
     int getChromaWidth() { return Chroma_Width; }
     int getLumaWidth() { return Coded_Picture_Width; }
     int getLumaHeight() { return Coded_Picture_Height; }
-#ifndef _WIN32
     int cpu_flags;
-#endif
 };
 
 

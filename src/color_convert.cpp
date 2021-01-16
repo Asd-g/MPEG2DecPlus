@@ -16,10 +16,10 @@ MPEG2Dec's colorspace convertions Copyright (C) Chia-chen Kuo - April 2001
 
 #include <cstring>
 #include <emmintrin.h>
+#include "color_convert.h"
 #ifndef _WIN32
 #include "win_import_min.h"
 #endif
-#include "color_convert.h"
 
 
 #if 0
@@ -296,7 +296,7 @@ void conv444toRGB24(const uint8_t *py, const uint8_t *pu, const uint8_t *pv,
     uint8_t *dst, int src_pitchY, int src_pitchUV, int dst_pitch, int width,
     int height, int matrix, int pc_scale)
 {
-    __int64 RGB_Offset, RGB_Scale, RGB_CBU, RGB_CRV, RGB_CGX;
+    int64_t RGB_Offset, RGB_Scale, RGB_CBU, RGB_CRV, RGB_CGX;
     int dst_modulo = dst_pitch-(3*width);
 
     if (pc_scale)
@@ -543,4 +543,3 @@ void convYUY2to422P(const uint8_t *src, uint8_t *py, uint8_t *pu, uint8_t *pv,
     }
 }
 #endif
-

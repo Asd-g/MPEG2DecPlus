@@ -27,16 +27,12 @@
 #define MPEG2DECPLUS_AVS_API_H
 
 #include <cstdint>
-#include <avisynth.h>
-#ifdef _WIN32
-#include <avs/win.h>
-#else
-#include "win_import_min.h"
-#endif
+
+#include "avisynth.h"
 #include "MPEG2Decoder.h"
 
 
-class MPEG2Source: public IClip {
+class D2VSource: public IClip {
     VideoInfo vi;
     //int _PP_MODE;
     uint8_t *bufY, *bufU, *bufV; // for 4:2:2 input support
@@ -46,11 +42,11 @@ class MPEG2Source: public IClip {
     bool has_at_least_v8;
 
 public:
-  MPEG2Source(const char* d2v, int idct, bool showQ, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env);
-  ~MPEG2Source() {}
+  D2VSource(const char* d2v, int idct, bool showQ, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env);
+  ~D2VSource() {}
   PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
   bool __stdcall GetParity(int n);
-  void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env) {};
+  void __stdcall GetAudio(void* buf, int64_t start, int64_t count, IScriptEnvironment* env) {};
   const VideoInfo& __stdcall GetVideoInfo() { return vi; }
   int __stdcall SetCacheHints(int hints, int) { return hints == CACHE_GET_MTMODE ? MT_SERIALIZED : 0; };
   static AVSValue __cdecl create(AVSValue args, void*, IScriptEnvironment* env);

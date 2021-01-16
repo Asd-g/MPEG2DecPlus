@@ -24,21 +24,11 @@
 #ifndef MPEG2DECPLUS_MISC_H
 #define MPEG2DECPLUS_MISC_H
 
-
-#include <cstdint>
-#include <cstdarg>
-
 void __stdcall
-fast_copy(const uint8_t *src, const int src_stride, uint8_t *dst,
-          const int dst_stride, const int horizontal_size,
-          const int vertical_size) noexcept;
+fast_copy(const uint8_t* src, const int src_stride, uint8_t* dst,
+    const int dst_stride, const int horizontal_size,
+    const int vertical_size) noexcept;
 
 size_t __cdecl dprintf(char* fmt, ...);
-
-bool has_sse2() noexcept;
-
-bool has_sse3() noexcept;
-
-bool has_avx2() noexcept;
 
 #endif

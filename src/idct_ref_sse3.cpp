@@ -8,9 +8,6 @@ OKA Motofumi - August 29, 2016
 
 
 #include <pmmintrin.h>
-#ifndef _WIN32
-#include "win_import_min.h"
-#endif
 #include "idct.h"
 
 /*  Perform IEEE 1180 reference (64-bit floating point, separable 8x1

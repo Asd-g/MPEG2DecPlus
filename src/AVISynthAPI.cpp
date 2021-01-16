@@ -37,6 +37,13 @@
 #include "AVISynthAPI.h"
 #include "color_convert.h"
 #include "misc.h"
+#ifndef _WIN32
+#include <limits.h>
+
+#include "win_import_min.h"
+
+#define _MAX_PATH                    PATH_MAX
+#endif
 
 #define VERSION "D2VSource 1.2.0"
 
@@ -170,19 +177,19 @@ static void show_info(int n, CMPEG2Decoder& d, PVideoFrame& frame,
 }
 
 
-MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
+D2VSource::D2VSource(const char* d2v, int idct, bool showQ,
     int _info, int _upConv, bool _i420, int iCC,
     IScriptEnvironment* env) :
     bufY(nullptr), bufU(nullptr), bufV(nullptr), decoder(nullptr)
 {
     if (iCC != -1 && iCC != 0 && iCC != 1)
-        env->ThrowError("MPEG2Source: iCC must be set to -1, 0, or 1!");
+        env->ThrowError("D2VSource: iCC must be set to -1, 0, or 1!");
 
     if (_upConv != 0 && _upConv != 1 && _upConv != 2)
-        env->ThrowError("MPEG2Source: upConv must be set to 0, 1, or 2!");
+        env->ThrowError("D2VSource: upConv must be set to 0, 1, or 2!");
 
     if (idct > 7)
-        env->ThrowError("MPEG2Source: iDCT invalid (1:MMX,2:SSEMMX,3:SSE2,4:FPU,5:REF,6:Skal's,7:Simple)");
+        env->ThrowError("D2VSource: iDCT invalid (1:MMX,2:SSEMMX,3:SSE2,4:FPU,5:REF,6:Skal's,7:Simple)");
 
     FILE* f;
 #ifdef _WIN32
@@ -191,18 +198,14 @@ MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
     f = fopen(d2v, "r");
 #endif
     if (f == nullptr)
-        env->ThrowError("MPEG2Source: unable to load D2V file \"%s\" ", d2v);
+        env->ThrowError("D2VSource: unable to load D2V file \"%s\" ", d2v);
 
     try {
-#ifdef _WIN32
-        decoder = new CMPEG2Decoder(f, d2v, idct, iCC, _upConv, _info, showQ, _i420);
-#else
         decoder = new CMPEG2Decoder(f, d2v, idct, iCC, _upConv, _info, showQ, _i420, env->GetCPUFlags());
-#endif
     }
     catch (std::runtime_error& e) {
         if (f) fclose(f);
-        env->ThrowError("MPEG2Source: %s", e.what());
+        env->ThrowError("D2VSource: %s", e.what());
     }
 
     env->AtExit([](void* p, IScriptEnvironment*) { delete reinterpret_cast<CMPEG2Decoder*>(p); p = nullptr; }, decoder);
@@ -231,7 +234,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
         size_t uvsize = ((static_cast<int64_t>(d.getChromaWidth()) + 15) & ~15) * (static_cast<int64_t>(vi.height) + 1);
         void* ptr = _aligned_malloc(ysize + 2 * uvsize, 32);
         if (!ptr) {
-            env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
+            env->ThrowError("D2VSource:  malloc failure (bufY, bufU, bufV)!");
         }
         env->AtExit(free_buf, ptr);
         bufY = reinterpret_cast<uint8_t*>(ptr);
@@ -281,13 +284,13 @@ MPEG2Source::MPEG2Source(const char* d2v, int idct, bool showQ,
 }
 
 
-bool __stdcall MPEG2Source::GetParity(int)
+bool __stdcall D2VSource::GetParity(int)
 {
     return decoder->Field_Order == 1;
 }
 
 
-PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
+PVideoFrame __stdcall D2VSource::GetFrame(int n, IScriptEnvironment* env)
 {
     auto& d = *decoder;
     PVideoFrame frame = env->NewVideoFrame(vi, 32);
@@ -411,7 +414,7 @@ static void set_user_default(FILE* def, char* d2v, int& idct, bool& showq,
 }
 
 
-AVSValue __cdecl MPEG2Source::create(AVSValue args, void*, IScriptEnvironment* env)
+AVSValue __cdecl D2VSource::create(AVSValue args, void*, IScriptEnvironment* env)
 {
     char d2v[512];
     int idct = -1;
@@ -437,7 +440,7 @@ AVSValue __cdecl MPEG2Source::create(AVSValue args, void*, IScriptEnvironment* e
     // check for uninitialised strings
     if (strlen(d2v) >= _MAX_PATH) d2v[0] = 0;
 
-    MPEG2Source *dec = new MPEG2Source( args[0].AsString(d2v),
+    D2VSource *dec = new D2VSource( args[0].AsString(d2v),
                                         args[1].AsInt(idct),
                                         args[2].AsBool(showQ),
                                         args[3].AsInt(info),
@@ -492,7 +495,7 @@ AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors)
         "[i420]b"
         "[iCC]b";
 
-    env->AddFunction("D2VSource", msargs, MPEG2Source::create, nullptr);
+    env->AddFunction("D2VSource", msargs, D2VSource::create, nullptr);
 
     return VERSION;
 }
