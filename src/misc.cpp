@@ -42,7 +42,7 @@ size_t __cdecl dprintf(char* fmt, ...)
     va_start(argp, fmt);
     vsprintf_s(printString, 1024, fmt, argp);
     va_end(argp);
-    fprintf(stderr, printString);
+    fprintf(stderr, "%s", printString);
     return strlen(printString);
 }
 

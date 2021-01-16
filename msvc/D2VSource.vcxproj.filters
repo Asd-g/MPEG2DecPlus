@@ -86,6 +86,9 @@
     <ClInclude Include="..\src\AVISynthAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\win_import_min.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\d2vsource.rc">

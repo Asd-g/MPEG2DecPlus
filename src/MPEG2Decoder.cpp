@@ -74,8 +74,8 @@ CMPEG2Decoder::CMPEG2Decoder(FILE* d2vf, const char* path, int _idct, int icc, i
     showQ(showq),
     upConv(upconv),
     i420(_i420),
-    cpu_flags(_cpu_flags),
-    info(_info)
+    info(_info),
+    cpu_flags(_cpu_flags)
 {
     memset(intra_quantizer_matrix, 0, sizeof(intra_quantizer_matrix));
     memset(non_intra_quantizer_matrix, 0, sizeof(non_intra_quantizer_matrix));
@@ -225,7 +225,7 @@ void CMPEG2Decoder::create_file_lists(FILE* d2vf, const char* path, char* buf)
 #endif
             validate(in == -1, "Could not open one of the input files.");
             Infile.emplace_back(in);
-            Infilename.emplace_back(temp);
+            Infilename.emplace_back(d2v_stem);
         } else {
 #ifdef _WIN32
             int in;
