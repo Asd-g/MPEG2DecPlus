@@ -135,7 +135,11 @@ static void show_info(int n, CMPEG2Decoder& d, PVideoFrame& frame,
             d.getLumaWidth(), d.getLumaHeight(),
             d.Aspect_Ratio,
             rgop.progressive ? "True" : "False",
+#ifdef _WIN32
             gop, rgop.number, rgop.position,
+#else
+            gop, rgop.number, static_cast<int>(rgop.position),
+#endif
             rgop.closed ? "True" : "False",
             n,
             fn.top, fn.bottom,

@@ -228,8 +228,8 @@ class CMPEG2Decoder
     int Fault_Flag;
     int File_Flag;
     int FO_Flag;
-    void(__fastcall *idctFunction)(int16_t* block);
-    void(__fastcall *prefetchTables)();
+    void(*idctFunction)(int16_t* block);
+    void(*prefetchTables)();
     int SystemStream_Flag;    // 0 = none, 1=program, 2=Transport 3=PVA
 
     int TransportPacketSize;

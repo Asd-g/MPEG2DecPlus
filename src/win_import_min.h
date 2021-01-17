@@ -2,8 +2,6 @@
 #ifndef WIN_IMPORT_MIN_H
 #define WIN_IMPORT_MIN_H
 
-#define __fastcall                   __attribute__((fastcall))
-
 /* support from recent _mingw.h */
 
 #ifdef __cplusplus

@@ -163,7 +163,7 @@ static inline void double_to_dst_sse2(const double* srcp, int16_t* dst) noexcept
 }
 
 
-void __fastcall idct_ref_sse3(int16_t* block) noexcept
+void idct_ref_sse3(int16_t* block)
 {
     alignas(64) double blockf[64];
     alignas(64) double tmp[64];
@@ -182,7 +182,7 @@ void __fastcall idct_ref_sse3(int16_t* block) noexcept
 }
 
 
-void __fastcall prefetch_ref() noexcept
+void prefetch_ref()
 {
     _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t +  0), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(ref_dct_matrix_t +  8), _MM_HINT_NTA);

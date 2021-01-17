@@ -103,7 +103,7 @@ static inline void float_to_dst_llm(const float* srcp, int16_t* dstp) noexcept
 }
 
 
-void __fastcall idct_llm_float_sse2(int16_t* block) noexcept
+void idct_llm_float_sse2(int16_t* block)
 {
     alignas(64) float blockf[64];
     alignas(64) float tmp[64];
@@ -120,7 +120,7 @@ void __fastcall idct_llm_float_sse2(int16_t* block) noexcept
 }
 
 
-void __fastcall prefetch_llm_float_sse2() noexcept
+void prefetch_llm_float_sse2()
 {
     _mm_prefetch(reinterpret_cast<const char*>(llm_coefs), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(llm_coefs + 16), _MM_HINT_NTA);

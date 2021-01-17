@@ -119,7 +119,7 @@ float_to_dst_avx2(const __m256& s0, const __m256& s1, int16_t* dst) noexcept
 }
 
 
-void __fastcall idct_llm_float_avx2(int16_t* block) noexcept
+void idct_llm_float_avx2(int16_t* block)
 {
     __m256 s0 = load_and_convert_to_float_x8_avx2(block);
     __m256 s1 = load_and_convert_to_float_x8_avx2(block + 8);
@@ -145,7 +145,7 @@ void __fastcall idct_llm_float_avx2(int16_t* block) noexcept
 }
 
 
-void __fastcall prefetch_llm_float_avx2() noexcept
+void prefetch_llm_float_avx2()
 {
     _mm_prefetch(reinterpret_cast<const char*>(llm_coefs), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(llm_coefs + 16), _MM_HINT_NTA);

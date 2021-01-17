@@ -55,3 +55,28 @@ This is a project (previously named as MPEG2DecPlus) to modify DGDecode.dll for 
 ## Exported variables:
 
 FFSAR_NUM, FFSAR_DEN, FFSAR.
+
+# Building
+
+## Windows
+
+Use solution files.
+
+## Linux
+
+### Requirements
+
+- Git
+- C++17 compiler
+- CMake >= 3.8
+
+```
+git clone https://github.com/Asd-g/MPEG2DecPlus && \
+cd MPEG2DecPlus && \
+mkdir build && \
+cd build && \
+
+cmake ..
+make -j$(nproc)
+sudo make install
+```

@@ -88,35 +88,35 @@ These examples contain code fragments for first stage iDCT 8x8
 #endif
 
 
-alignas(64) static const int16_t table04[] = {
+alignas(64) static constexpr int16_t table04[] = {
     16384, 21407,  16384,   8867,  16384,  -8867, 16384, -21407, // w0, w1, w4, w5, w8, w9,w12,w13
     16384,  8867, -16384, -21407, -16384,  21407, 16384,  -8867, // w2, w3, w6, w7,w10,w11,w14,w15
     22725, 19266,  19266,  -4520,  12873, -22725,  4520, -12873, //w16,w17,w20,w21,w24,w25,w28,w29
     12873,  4520, -22725, -12873,   4520,  19266, 19266, -22725, //w18,w19,w22,w23,w26,w27,w30,w31
 };
 
-alignas(64) static const int16_t table17[] = {
+alignas(64) static constexpr int16_t table17[] = {
     22725, 29692,  22725,  12299,  22725, -12299, 22725, -29692, // w0, w1, w4, w5, w8, w9,w12,w13
     22725, 12299, -22725, -29692, -22725,  29692, 22725, -12299, // w2, w3, w6, w7,w10,w11,w14,w15
     31521, 26722,  26722,  -6270,  17855, -31521,  6270, -17855, //w16,w17,w20,w21,w24,w25,w28,w29
     17855,  6270, -31521, -17855,   6270,  26722, 26722, -31521, //w18,w19,w22,w23,w26,w27,w30,w31
 };
 
-alignas(64) static const int16_t table26[] = {
+alignas(64) static constexpr int16_t table26[] = {
     21407, 27969,  21407,  11585,  21407, -11585, 21407, -27969, // w0, w1, w4, w5, w8, w9,w12,w13
     21407, 11585, -21407, -27969, -21407,  27969, 21407, -11585, // w2, w3, w6, w7,w10,w11,w14,w15
     29692, 25172,  25172,  -5906,  16819, -29692,  5906, -16819, //w16,w17,w20,w21,w24,w25,w28,w29
     16819,  5906, -29692, -16819,   5906,  25172, 25172, -29692, //w18,w19,w22,w23,w26,w27,w30,w31
 };
 
-alignas(64) static const int16_t table35[] = {
+alignas(64) static constexpr int16_t table35[] = {
     19266, 25172,  19266,  10426,  19266, -10426, 19266, -25172, // w0, w1, w4, w5, w8, w9,w12,w13
     19266, 10426, -19266, -25172, -19266,  25172, 19266, -10426, // w2, w3, w6, w7,w10,w11,w14,w15
     26722, 22654,  22654,  -5315,  15137, -26722,  5315, -15137, //w16,w17,w20,w21,w24,w25,w28,w29
     15137,  5315, -26722, -15137,   5315,  22654, 22654, -26722, //w18,w19,w22,w23,w26,w27,w30,w31
 };
 
-alignas(64) static const int32_t rounders[8][4] = {
+alignas(64) static constexpr int32_t rounders[8][4] = {
     { 65536, 65536, 65536, 65536 },
     { 3597, 3597, 3597, 3597 },
     { 2260, 2260, 2260, 2260 },
@@ -127,7 +127,7 @@ alignas(64) static const int32_t rounders[8][4] = {
     { 512, 512, 512, 512 },
 };
 
-alignas(64) static const int16_t tg[4][8] = {
+alignas(64) static constexpr int16_t tg[4][8] = {
     { 13036, 13036, 13036, 13036, 13036, 13036, 13036, 13036 },
     { 27146,  27146,  27146,  27146,  27146,  27146,  27146,  27146},
     {-21746, -21746, -21746, -21746, -21746, -21746, -21746, -21746},
@@ -248,7 +248,7 @@ idct_colx8_sse2(int16_t* block) noexcept
 }
 
 
-void __fastcall idct_ap922_sse2(int16_t* block) noexcept
+void idct_ap922_sse2(int16_t* block)
 {
     idct_row_sse2(block +  0, table04, rounders[0]);
     idct_row_sse2(block +  8, table17, rounders[1]);
@@ -263,7 +263,7 @@ void __fastcall idct_ap922_sse2(int16_t* block) noexcept
 }
 
 
-void __fastcall prefetch_ap922() noexcept
+void prefetch_ap922()
 {
     _mm_prefetch(reinterpret_cast<const char*>(table04), _MM_HINT_NTA);
     _mm_prefetch(reinterpret_cast<const char*>(table17), _MM_HINT_NTA);

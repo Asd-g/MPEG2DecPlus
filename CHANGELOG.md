@@ -1,3 +1,6 @@
+##### 1.2.1:
+    Added support for path with forward slash (Windows).
+
 ##### 1.2.0:
     Added variables (ffms2 like) - FFSAR_NUM, FFSAR_DEN, FFSAR.
 
