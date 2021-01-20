@@ -1,3 +1,6 @@
+##### 1.2.2:
+    Fixed values of frame properties _Quants* when info=0.
+
 ##### 1.2.1:
     Added support for path with forward slash (Windows).
 
