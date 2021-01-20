@@ -358,6 +358,7 @@ public:
     // info option stuff
     int info;
     int minquant, maxquant, avgquant;
+    bool has_prop = false;
 
     // Luminance Code
     int lumGamma;

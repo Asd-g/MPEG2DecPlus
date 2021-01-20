@@ -168,10 +168,10 @@ void CMPEG2Decoder::assembleFrame(uint8_t* src[], int pf, YV12PICT& dst)
         }
     }
 
-    if (info == 1 || info == 2 || showQ) {
+    if (has_prop || info == 1 || info == 2 || showQ) {
         // Re-order quant data for display order.
         const int* qp = (picture_coding_type == B_TYPE) ? auxQP : backwardQP;
-        if (info == 1 || info == 2) {
+        if (has_prop || info == 1 || info == 2) {
             set_qparams(qp, static_cast<int64_t>(mb_width) * mb_height, minquant, maxquant, avgquant);
         }
         if (showQ) {

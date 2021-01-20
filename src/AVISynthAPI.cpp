@@ -45,7 +45,7 @@
 #define _MAX_PATH                    PATH_MAX
 #endif
 
-#define VERSION "D2VSource 1.2.0"
+#define VERSION "D2VSource 1.2.2"
 
 bool PutHintingData(uint8_t *video, uint32_t hint)
 {
@@ -365,6 +365,7 @@ PVideoFrame __stdcall D2VSource::GetFrame(int n, IScriptEnvironment* env)
         /* Matrix */
         env->propSetInt(props, "_Matrix", rgop.matrix, 0);
         /* Quants */
+        d.has_prop = true;
         env->propSetInt(props, "_QuantsAverage", d.avgquant, 0);
         env->propSetInt(props, "_QuantsMin", d.minquant, 0);
         env->propSetInt(props, "_QuantsMax", d.maxquant, 0);

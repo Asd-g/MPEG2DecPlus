@@ -43,7 +43,7 @@ file(GLOB_RECURSE SRCS_AVX2 "src/*_avx2.cpp")
 set_source_files_properties(${SRCS_AVX2} PROPERTIES COMPILE_FLAGS " -mavx2 -mfma ")
 
 add_library("${LibName}" SHARED ${SOURCES})
-set_target_properties("${LibName}" PROPERTIES OUTPUT_NAME "${LibName}-${ver}")
+set_target_properties("${LibName}" PROPERTIES OUTPUT_NAME "${LibName}.${ver}")
 
 include(GNUInstallDirs)
 
