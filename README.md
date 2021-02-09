@@ -68,7 +68,7 @@ Use solution files.
 
 - Git
 - C++17 compiler
-- CMake >= 3.8
+- CMake >= 3.16
 
 ```
 git clone https://github.com/Asd-g/MPEG2DecPlus && \
