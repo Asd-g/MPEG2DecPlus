@@ -1,13 +1,8 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.16)
 
-set(ProjectName "D2VSource")
-
-project(${ProjectName} LANGUAGES CXX)
-
-string(TOLOWER "${ProjectName}" LibName)
+project(libd2vsource LANGUAGES CXX)
 
 find_package (Git)
-
 if (GIT_FOUND)
     execute_process (COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0
         OUTPUT_VARIABLE ver
@@ -17,37 +12,47 @@ else ()
     message (STATUS "GIT not found")
 endif ()
 
-find_path(AVS_FOUND avisynth.h HINTS /usr/include /usr/local/include PATH_SUFFIXES avisynth)
-if (NOT AVS_FOUND)
-    message(FATAL_ERROR "AviSynth+ not found.")
-else()
-    message(STATUS "AviSynth+ : ${AVS_FOUND}")
+add_library(d2vsource SHARED
+    src/AVISynthAPI.cpp
+    src/color_convert.cpp
+    src/getbit.cpp
+    src/gethdr.cpp
+    src/getpic.cpp
+    src/global.cpp
+    src/idct_ap922_sse2.cpp
+    src/idct_llm_float_avx2.cpp
+    src/idct_llm_float_sse2.cpp
+    src/idct_ref_sse3.cpp
+    src/mc.cpp
+    src/misc.cpp
+    src/MPEG2Decoder.cpp
+    src/store.cpp
+    src/yv12pict.cpp
+)
+
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fPIC -std=c++17 -I${AVS_FOUND} ")
+message(STATUS "Build type - ${CMAKE_BUILD_TYPE}")
 
-# include_directories("include/")
+set_source_files_properties(src/idct_ap922_sse2.cpp PROPERTIES COMPILE_OPTIONS "-mfpmath=sse;-msse2")
+set_source_files_properties(src/idct_llm_float_sse2.cpp PROPERTIES COMPILE_OPTIONS "-mfpmath=sse;-msse2")
+set_source_files_properties(src/idct_ref_sse3.cpp PROPERTIES COMPILE_OPTIONS "-mssse3")
+set_source_files_properties(src/idct_llm_float_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
 
-file(GLOB SOURCES "src/*.cpp")
+target_include_directories(d2vsource PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    /usr/local/include/avisynth
+)
 
-# special SSE2 option for source files with *_sse2.cpp pattern
-file(GLOB_RECURSE SRCS_SSE2 "src/*_sse2.cpp")
-set_source_files_properties(${SRCS_SSE2} PROPERTIES COMPILE_FLAGS " -msse2 ")
+set_target_properties(d2vsource PROPERTIES OUTPUT_NAME "d2vsource.${ver}")
 
-# special SSSE3 option for source files with *_sse3.cpp pattern
-file(GLOB_RECURSE SRCS_SSSE3 "src/*_sse3.cpp")
-set_source_files_properties(${SRCS_SSSE3} PROPERTIES COMPILE_FLAGS " -msse3 ")
-
-# special AVX2 option for source files with *_avx2.cpp pattern
-file(GLOB_RECURSE SRCS_AVX2 "src/*_avx2.cpp")
-set_source_files_properties(${SRCS_AVX2} PROPERTIES COMPILE_FLAGS " -mavx2 -mfma ")
-
-add_library("${LibName}" SHARED ${SOURCES})
-set_target_properties("${LibName}" PROPERTIES OUTPUT_NAME "${LibName}.${ver}")
+target_compile_features(d2vsource PRIVATE cxx_std_17)
 
 include(GNUInstallDirs)
 
-INSTALL(TARGETS ${LibName}
+INSTALL(TARGETS d2vsource
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/avisynth")
         
 # uninstall target
