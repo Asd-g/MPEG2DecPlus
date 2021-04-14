@@ -33,6 +33,7 @@
 #include <stdexcept>
 #include <malloc.h>
 #include <sstream>
+#include <valarray>
 
 #include "AVISynthAPI.h"
 #include "color_convert.h"
@@ -45,7 +46,7 @@
 #define _MAX_PATH                    PATH_MAX
 #endif
 
-#define VERSION "D2VSource 1.2.2"
+#define VERSION "D2VSource 1.2.3"
 
 bool PutHintingData(uint8_t *video, uint32_t hint)
 {
@@ -266,25 +267,41 @@ D2VSource::D2VSource(const char* d2v, int idct, bool showQ,
     try { env->CheckVersion(8); }
     catch (const AvisynthError&) { has_at_least_v8 = false; }
 
-    std::string ar = d.Aspect_Ratio;
-    std::vector<int> sar;
-    sar.reserve(2);
-    std::stringstream str(ar);
+    std::vector<int> ar;
+    ar.reserve(2);
+    std::stringstream str(d.Aspect_Ratio);
     int n;
     char ch;
     while (str >> n)
     {
         if (str >> ch)
-            sar.push_back(n);
+            ar.push_back(n);
         else
-            sar.push_back(n);
+            ar.push_back(n);
     }
-    int num = sar[0];
-    int den = sar[1];
-    env->SetVar(env->Sprintf("%s", "FFSAR_NUM"), num);
-    env->SetVar(env->Sprintf("%s", "FFSAR_DEN"), den);
-    if (num > 0 && den > 0)
-        env->SetVar(env->Sprintf("%s", "FFSAR"), num / static_cast<double>(den));
+
+    const double sar = ar[0] / static_cast<double>(ar[1]) / (static_cast<double>(vi.width) / vi.height);
+    double decimal_part = sar - static_cast<int>(sar);
+
+    std::valarray<double> vec_1{ double(static_cast<int>(sar)), 1 }, vec_2{ 1,0 }, temporary;
+
+    while (decimal_part > 0.005)
+    {
+        const double new_number = 1 / decimal_part;
+        const double whole_part = static_cast<int>(new_number);
+
+        temporary = vec_1;
+        vec_1 = whole_part * vec_1 + vec_2;
+        vec_2 = temporary;
+
+        decimal_part = new_number - whole_part;
+    }
+
+    env->SetVar(env->Sprintf("%s", "FFSAR_NUM"), static_cast<int>(vec_1[0]));
+    env->SetVar(env->Sprintf("%s", "FFSAR_DEN"), static_cast<int>(vec_1[1]));
+
+    if (vec_1[0] > 0 && vec_1[1] > 0)
+        env->SetVar(env->Sprintf("%s", "FFSAR"), sar);
 }
 
 

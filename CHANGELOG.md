@@ -1,3 +1,6 @@
+##### 1.2.3:
+    Fixed FFSAR_NUM, FFSAR_DEN, FFSAR.
+
 ##### 1.2.2:
     Fixed values of frame properties _Quants* when info=0.
 
